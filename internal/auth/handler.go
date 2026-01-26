@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"kursach_backend/internal/auth/dto"
 )
 
 type Handler struct {
@@ -18,11 +20,7 @@ func NewHandler(service Service) *Handler {
 // @Summary Регистрация пользователя
 // @Tags Auth
 func (h *Handler) Register(c *gin.Context) {
-	var input struct {
-		Email    string `json:"email" binding:"required,email"`
-		Password string `json:"password" binding:"required,min=8"`
-		Name     string `json:"name" binding:"required"`
-	}
+	var input dto.RegisterRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -35,9 +33,9 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"accessToken":  tokens.AccessToken,
-		"refreshToken": tokens.RefreshToken,
+	c.JSON(http.StatusCreated, dto.TokenResponse{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
 	})
 }
 
@@ -45,10 +43,7 @@ func (h *Handler) Register(c *gin.Context) {
 // @Summary Вход пользователя
 // @Tags Auth
 func (h *Handler) Login(c *gin.Context) {
-	var input struct {
-		Email    string `json:"email" binding:"required,email"`
-		Password string `json:"password" binding:"required,min=8"`
-	}
+	var input dto.LoginRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -61,9 +56,9 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"accessToken":  tokens.AccessToken,
-		"refreshToken": tokens.RefreshToken,
+	c.JSON(http.StatusOK, dto.TokenResponse{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
 	})
 }
 
@@ -77,8 +72,13 @@ func (h *Handler) Me(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"id": userID,
+	role, _ := c.Get("role")
+
+	c.JSON(http.StatusOK, dto.UserResponse{
+		ID:   userID.(int),
+		Role: role.(string),
+		// Email will be added later when we fetch full user from DB if needed
+		// For now we fulfill the struct requirements with available context data
 	})
 }
 
