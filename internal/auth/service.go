@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"fmt"
 	"kursach_backend/internal/domain"
 	"time"
 
@@ -49,7 +48,7 @@ func (s *service) Register(email, password, name string) (Tokens, error) {
 		return Tokens{}, err
 	}
 
-	return s.generateTokens(fmt.Sprintf("%d", user.ID), user.Role)
+	return s.generateTokens(user.ID, user.Role)
 }
 
 func (s *service) Login(email, password string) (Tokens, error) {
@@ -62,10 +61,10 @@ func (s *service) Login(email, password string) (Tokens, error) {
 		return Tokens{}, err
 	}
 
-	return s.generateTokens(fmt.Sprintf("%d", user.ID), user.Role)
+	return s.generateTokens(user.ID, user.Role)
 }
 
-func (s *service) generateTokens(userID, role string) (Tokens, error) {
+func (s *service) generateTokens(userID int, role string) (Tokens, error) {
 	accessToken, err := s.tokenManager.NewAccessToken(userID, role, s.accessTTL)
 	if err != nil {
 		return Tokens{}, err

@@ -67,11 +67,30 @@ func (h *Handler) Login(c *gin.Context) {
 	})
 }
 
+// Me godoc
+// @Summary Получение текущего пользователя
+// @Tags Auth
+func (h *Handler) Me(c *gin.Context) {
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id": userID,
+	})
+}
+
 // InitRoutes регистрирует пути
-func (h *Handler) InitRoutes(api *gin.RouterGroup) {
+func (h *Handler) InitRoutes(api *gin.RouterGroup, middleware gin.HandlerFunc) {
 	authGroup := api.Group("/auth")
 	{
 		authGroup.POST("/register", h.Register)
 		authGroup.POST("/login", h.Login)
+
+		protected := authGroup.Group("/", middleware)
+
+		protected.GET("/me", h.Me)
 	}
 }

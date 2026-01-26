@@ -18,9 +18,9 @@ func NewTokenManager(signingKey string) (*TokenManager, error) {
 	return &TokenManager{signingKey: []byte(signingKey)}, nil
 }
 
-func (m *TokenManager) NewAccessToken(userID, role string, ttl time.Duration) (string, error) {
+func (m *TokenManager) NewAccessToken(userID int, role string, ttl time.Duration) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub":  userID,
+		"sub":  userID, // Storing as int in claims (JSON number)
 		"role": role,
 		"exp":  time.Now().Add(ttl).Unix(),
 	})
@@ -28,7 +28,7 @@ func (m *TokenManager) NewAccessToken(userID, role string, ttl time.Duration) (s
 	return token.SignedString(m.signingKey)
 }
 
-func (m *TokenManager) NewRefreshToken(userID string, ttl time.Duration) (string, error) {
+func (m *TokenManager) NewRefreshToken(userID int, ttl time.Duration) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": userID,
 		"exp": time.Now().Add(ttl).Unix(),

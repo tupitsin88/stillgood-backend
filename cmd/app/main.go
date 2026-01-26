@@ -1,42 +1,60 @@
 package main
 
 import (
+	"log"
 	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 
 	"kursach_backend/internal/auth"
 	"kursach_backend/internal/domain"
+	"kursach_backend/internal/pkg/middleware"
+	"kursach_backend/pkg/postgres"
 )
 
 func main() {
-	dsn := "host=localhost user=postgres password=password dbname=foodsharing_db port=5433 sslmode=disable"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		panic("failed to connect database")
+	// 1. Config
+	dsn := os.Getenv("DB_DSN")
+	if dsn == "" {
+		dsn = "host=localhost user=postgres password=password dbname=foodsharing_db port=5433 sslmode=disable"
 	}
 
-	db.AutoMigrate(&domain.User{})
-
-	authRepo := auth.NewRepository(db)
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		jwtSecret = "supersecretkey"
 	}
-	tokenManager, err := auth.NewTokenManager(jwtSecret)
+
+	// 2. Database
+	db, err := postgres.NewDB(dsn)
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to connect database: %v", err)
 	}
 
+	// Migrations
+	if err := db.AutoMigrate(&domain.User{}); err != nil {
+		log.Fatalf("failed to migrate database: %v", err)
+	}
+
+	// 3. Dependencies
+	tokenManager, err := auth.NewTokenManager(jwtSecret)
+	if err != nil {
+		log.Fatalf("failed to init token manager: %v", err)
+	}
+
+	authRepo := auth.NewRepository(db)
 	authService := auth.NewService(authRepo, tokenManager, 30*time.Minute, 14*24*time.Hour)
 	authHandler := auth.NewHandler(authService)
+
+	// 4. Router & Middleware
 	router := gin.Default()
 	api := router.Group("/api/v1")
 
-	authHandler.InitRoutes(api)
+	// Pass middleware to InitRoutes for protected endpoints
+	authHandler.InitRoutes(api, middleware.AuthMiddleware(jwtSecret))
 
-	router.Run(":8080")
+	// 5. Run
+	if err := router.Run(":8080"); err != nil {
+		log.Fatalf("failed to run server: %v", err)
+	}
 }
