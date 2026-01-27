@@ -3,7 +3,6 @@ package middleware
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -52,28 +51,17 @@ func AuthMiddleware(signingKey string) gin.HandlerFunc {
 				return
 			}
 
-			// Handle sub as string or float64 (JWT numbers are floats)
-			var userID int
-			switch v := sub.(type) {
-			case string:
-				id, err := strconv.Atoi(v)
-				if err != nil {
-					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token invalid: sub is not a valid int"})
-					return
-				}
-				userID = id
-			case float64:
-				userID = int(v)
-			default:
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token invalid: invalid sub type"})
+			// Handle sub as string (UUID)
+			userID, ok := sub.(string)
+			if !ok {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token invalid: sub is not a valid string"})
 				return
 			}
 
 			// Extract Role
 			role, ok := claims["role"].(string)
 			if !ok {
-				// Role might be optional depending on logic, but requested to extract.
-				// If not present, maybe default or error? Assuming error for now or empty.
+				// Role might be optional
 			}
 
 			c.Set("userId", userID)

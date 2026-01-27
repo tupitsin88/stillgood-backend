@@ -6,7 +6,7 @@ type TokenResponse struct {
 }
 
 type UserResponse struct {
-	ID    int    `json:"id"`
+	ID    string `json:"id"`
 	Email string `json:"email"`
 	Role  string `json:"role"`
 }

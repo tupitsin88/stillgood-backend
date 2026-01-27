@@ -7,6 +7,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
+	// _ "kursach_backend/docs" // Setup swagger docs
+
 	"kursach_backend/internal/auth"
 	"kursach_backend/internal/domain"
 	"kursach_backend/internal/pkg/middleware"
@@ -52,6 +57,12 @@ func main() {
 
 	// Pass middleware to InitRoutes for protected endpoints
 	authHandler.InitRoutes(api, middleware.AuthMiddleware(jwtSecret))
+
+	// Serve openapi.yaml
+	router.StaticFile("/openapi.yaml", "./openapi.yaml")
+
+	// Swagger UI
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, ginSwagger.URL("/openapi.yaml")))
 
 	// 5. Run
 	if err := router.Run(":8080"); err != nil {

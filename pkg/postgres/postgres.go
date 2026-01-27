@@ -17,8 +17,6 @@ func NewDB(dsn string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// Connection Pool Settings
 	sqlDB.SetMaxOpenConns(25)
 	sqlDB.SetMaxIdleConns(25)
 	sqlDB.SetConnMaxLifetime(5 * time.Minute)

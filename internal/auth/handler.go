@@ -73,12 +73,11 @@ func (h *Handler) Me(c *gin.Context) {
 	}
 
 	role, _ := c.Get("role")
-
 	c.JSON(http.StatusOK, dto.UserResponse{
-		ID:   userID.(int),
+		ID:   userID.(string),
 		Role: role.(string),
-		// Email will be added later when we fetch full user from DB if needed
-		// For now we fulfill the struct requirements with available context data
+		// дальше email будет добавлен, когда мы получим полного пользователя из БД
+		// Сейчас мы заполняем структуру требованиями с помощью доступных данных контекста
 	})
 }
 
