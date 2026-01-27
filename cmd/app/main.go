@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"kursach_backend/internal/domain"
+	"kursach_backend/internal/offers"
 	"kursach_backend/internal/orders"
 )
 
@@ -25,7 +26,7 @@ func main() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// 2. Авто-миграции (создадут таблицы по структурам)
+	// 2. Авто-миграции
 	log.Println("Running migrations...")
 	err = db.AutoMigrate(
 		&domain.User{},
@@ -39,42 +40,32 @@ func main() {
 	}
 	log.Println("Migrations completed successfully")
 
-	// 3. Инициализация слоев (Orders)
+	// 3. Инициализация слоев
+	// --- Orders ---
 	orderRepo := orders.NewOrderRepository(db)
 	orderService := orders.NewOrderService(orderRepo)
 	orderHandler := orders.NewOrderHandler(orderService)
 
+	// --- Offers ---
+	offerRepo := offers.NewOfferRepository(db)
+	offerService := offers.NewOfferService(offerRepo)
+	offerHandler := offers.NewOfferHandler(offerService)
 	// 4. Роутер
 	r := gin.Default()
 
-	// Простейший middleware для user_id (заглушка для теста)
-	// В реальности тут будет JWT middleware
-	r.Use(func(c *gin.Context) {
-		// ID юзера = 1 для тестов
-		c.Set("user_id", 1)
+	// Mock Middleware (ВРЕМЕННАЯ ЗАГЛУШКА)
+	// В реальном Auth сервисе тут будет валидация JWT
+	mockAuthMiddleware := func(c *gin.Context) {
+		// Хардкодим ID юзера = 1 для тестов
+		c.Set("user_id", "00000000-0000-0000-0000-000000000001")
 		c.Next()
-	})
-
-	v1 := r.Group("/api/v1")
-	{
-		ordersGroup := v1.Group("/orders")
-		{
-			ordersGroup.POST("", orderHandler.CreateOrder)
-			ordersGroup.POST("/:id/pay", orderHandler.PayOrder)
-			ordersGroup.POST("/:id/cancel", orderHandler.CancelOrder)
-			ordersGroup.GET("", orderHandler.GetUserOrders)
-		}
-
-		partnerGroup := v1.Group("/partner/orders")
-		{
-			partnerGroup.GET("", orderHandler.GetPartnerOrders)
-			partnerGroup.POST("/:id/complete", func(c *gin.Context) {
-				orderHandler.CompleteOrder(c)
-			})
-		}
 	}
 
-	// 5. Запуск
+	orders.RegisterRoutes(r, orderHandler, mockAuthMiddleware)
+	offers.RegisterRoutes(r, offerHandler, mockAuthMiddleware)
+
 	log.Println("Server starting on :8080")
-	r.Run(":8080")
+	if err := r.Run(":8080"); err != nil {
+		log.Fatal("Server start failed:", err)
+	}
 }

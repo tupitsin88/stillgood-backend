@@ -2,6 +2,8 @@ package domain
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type OrderStatus string
@@ -14,9 +16,9 @@ const (
 )
 
 type Order struct {
-	ID                 int         `gorm:"primaryKey" json:"id"`
-	UserID             int         `gorm:"index" json:"user_id"`
-	OfferID            int         `gorm:"index" json:"offer_id"`
+	ID                 uuid.UUID   `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	UserID             uuid.UUID   `gorm:"type:uuid;index" json:"user_id"`
+	OfferID            uuid.UUID   `gorm:"type:uuid;index" json:"offer_id"`
 	User               User        `gorm:"foreignKey:UserID" json:"-"`
 	Offer              Offer       `gorm:"foreignKey:OfferID" json:"-"`
 	OrderNumber        *string     `gorm:"type:varchar(20)" json:"order_number"`
@@ -31,8 +33,8 @@ type Order struct {
 }
 
 type OrderStatusHistory struct {
-	ID        int         `gorm:"primaryKey" json:"id"`
-	OrderID   int         `gorm:"index" json:"order_id"`
+	ID        uuid.UUID   `gorm:"primaryKey" json:"id"`
+	OrderID   uuid.UUID   `gorm:"index" json:"order_id"`
 	Status    OrderStatus `json:"status"`
 	ChangedAt time.Time   `json:"changed_at"`
 }

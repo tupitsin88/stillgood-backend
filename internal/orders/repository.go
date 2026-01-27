@@ -4,6 +4,7 @@ import (
 	"context"
 	"kursach_backend/internal/domain"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -19,7 +20,7 @@ func (r *OrderRepository) CreateOrder(ctx context.Context, order *domain.Order) 
 	return r.db.WithContext(ctx).Create(order).Error
 }
 
-func (r *OrderRepository) GetByIDWithDetails(ctx context.Context, id int) (*domain.Order, error) {
+func (r *OrderRepository) GetByIDWithDetails(ctx context.Context, id uuid.UUID) (*domain.Order, error) {
 	var order domain.Order
 	err := r.db.WithContext(ctx).
 		Preload("Offer").
@@ -31,7 +32,7 @@ func (r *OrderRepository) GetByIDWithDetails(ctx context.Context, id int) (*doma
 	return &order, nil
 }
 
-func (r *OrderRepository) GetUserOrders(ctx context.Context, userID, limit, offset int, statusFilter []string) ([]domain.Order, int64, error) {
+func (r *OrderRepository) GetUserOrders(ctx context.Context, userID uuid.UUID, limit, offset int, statusFilter []string) ([]domain.Order, int64, error) {
 	var orders []domain.Order
 	var total int64
 
@@ -81,10 +82,17 @@ func (r *OrderRepository) Update(ctx context.Context, order *domain.Order) error
 	return r.db.WithContext(ctx).Save(order).Error
 }
 
-func (r *OrderRepository) GetOfferByID(ctx context.Context, offerID int) (*domain.Offer, error) {
+func (r *OrderRepository) GetOfferByID(ctx context.Context, offerID uuid.UUID) (*domain.Offer, error) {
 	var offer domain.Offer
 	err := r.db.WithContext(ctx).
 		Preload("Restaurant").
 		First(&offer, "id = ?", offerID).Error
 	return &offer, err
+}
+
+func (r *OrderRepository) UpdateOfferQuantity(ctx context.Context, offerID uuid.UUID, delta int) error {
+	return r.db.WithContext(ctx).
+		Model(&domain.Offer{}).
+		Where("id = ?", offerID).
+		Update("quantity_available", gorm.Expr("quantity_available + ?", delta)).Error
 }

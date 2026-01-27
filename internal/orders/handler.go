@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -28,12 +30,17 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		errorResponse(c, 400, "INVALID_REQUEST", err.Error())
 		return
 	}
-	userID := c.GetInt("user_id")
+	uidStr := c.GetString("user_id")
+	userID, err := uuid.Parse(uidStr)
+	if err != nil {
+		errorResponse(c, 401, "UNAUTHORIZED", "Invalid User ID")
+		return
+	}
 
 	order, err := h.service.CreateOrder(c.Request.Context(), userID, req)
 	if err != nil {
 		if err.Error() == "Offer not found" {
-			errorResponse(c, 404, "OFFERNOTFOUND", "The requested offer does not exist")
+			errorResponse(c, 404, "OFFER_NOT_FOUND", "The requested offer does not exist")
 		} else {
 			errorResponse(c, 400, "CREATION_FAILED", err.Error())
 		}
@@ -41,12 +48,12 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	}
 
 	resp := CreateOrderResponse{
-		ID:        order.ID,
+		ID:        order.ID.String(),
 		Status:    string(order.Status),
 		Amount:    order.Amount,
 		ExpiresAt: order.ExpiresAt,
 		Offer: OfferShortDTO{
-			ID:          order.Offer.ID,
+			ID:          order.Offer.ID.String(),
 			Title:       order.Offer.Title,
 			PickupStart: order.Offer.PickupStart,
 			PickupEnd:   order.Offer.PickupEnd,
@@ -60,20 +67,28 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 }
 
 func (h *OrderHandler) PayOrder(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
-	userID := c.GetInt("user_id")
-
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		errorResponse(c, 400, "INVALID_ID", "Invalid ID format")
+		return
+	}
+	uidStr := c.GetString("user_id")
+	userID, err := uuid.Parse(uidStr)
+	if err != nil {
+		errorResponse(c, 401, "UNAUTHORIZED", "Invalid or missing User ID")
+		return
+	}
 	order, err := h.service.PayOrder(c.Request.Context(), id, userID)
 	if err != nil {
 		switch err.Error() {
 		case "ORDER_EXPIRED":
-			errorResponse(c, 422, "ORDEREXPIRED", "Order payment time has expired")
+			errorResponse(c, 422, "ORDER_EXPIRED", "Order payment time has expired")
 		case "INVALID_ORDER_STATUS":
-			errorResponse(c, 400, "INVALIDORDERSTATUS", "Order is not in CREATED status")
+			errorResponse(c, 400, "INVALID_ORDER_STATUS", "Order is not in CREATED status")
 		case "unauthorized":
 			errorResponse(c, 403, "FORBIDDEN", "You do not own this order")
 		case "not found":
-			errorResponse(c, 404, "ORDERNOTFOUND", "Order not found")
+			errorResponse(c, 404, "ORDER_NOT_FOUND", "Order not found")
 		default:
 			errorResponse(c, 400, "PAYMENT_FAILED", err.Error())
 		}
@@ -81,7 +96,7 @@ func (h *OrderHandler) PayOrder(c *gin.Context) {
 	}
 
 	resp := PayOrderResponse{
-		ID:          order.ID,
+		ID:          order.ID.String(),
 		Status:      string(order.Status),
 		OrderNumber: *order.OrderNumber,
 		PaidAt:      order.PaidAt,
@@ -90,8 +105,17 @@ func (h *OrderHandler) PayOrder(c *gin.Context) {
 }
 
 func (h *OrderHandler) CancelOrder(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
-	userID := c.GetInt("user_id")
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		errorResponse(c, 400, "INVALID_ID", "Invalid ID format")
+		return
+	}
+	uidStr := c.GetString("user_id")
+	userID, err := uuid.Parse(uidStr)
+	if err != nil {
+		errorResponse(c, 401, "UNAUTHORIZED", "Invalid or missing User ID")
+		return
+	}
 	var req CancelOrderRequest
 	c.ShouldBindJSON(&req)
 
@@ -99,9 +123,9 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	if err != nil {
 		switch err.Error() {
 		case "CANNOT_CANCEL":
-			errorResponse(c, 400, "CANNOTCANCEL", "Order status does not allow cancellation")
+			errorResponse(c, 400, "CANNOT_CANCEL", "Order status does not allow cancellation")
 		case "CANCELLATION_WINDOW_CLOSED":
-			errorResponse(c, 400, "CANCELLATIONWINDOWCLOSED", "Cancellation period has passed")
+			errorResponse(c, 400, "CANCELLATION_WINDOW_CLOSED", "Cancellation period has passed")
 		case "unauthorized":
 			errorResponse(c, 403, "FORBIDDEN", "You do not own this order")
 		default:
@@ -111,7 +135,7 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	}
 
 	resp := CancelOrderResponse{
-		ID:          order.ID,
+		ID:          order.ID.String(),
 		Status:      string(order.Status),
 		CancelledAt: order.CancelledAt,
 	}
@@ -122,14 +146,18 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 }
 
 func (h *OrderHandler) CompleteOrder(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		errorResponse(c, 400, "INVALID_ID", "Invalid ID format")
+		return
+	}
 	order, err := h.service.CompleteOrder(c.Request.Context(), id)
 	if err != nil {
 		switch err.Error() {
 		case "INVALID_ORDER_STATUS":
-			errorResponse(c, 400, "INVALIDORDERSTATUS", "Can only complete PAID orders")
+			errorResponse(c, 400, "INVALID_ORDER_STATUS", "Can only complete PAID orders")
 		case "not found":
-			errorResponse(c, 404, "ORDERNOTFOUND", "Order not found")
+			errorResponse(c, 404, "ORDER_NOT_FOUND", "Order not found")
 		default:
 			errorResponse(c, 400, "COMPLETION_FAILED", err.Error())
 		}
@@ -144,7 +172,12 @@ func (h *OrderHandler) CompleteOrder(c *gin.Context) {
 }
 
 func (h *OrderHandler) GetUserOrders(c *gin.Context) {
-	userID := c.GetInt("user_id")
+	uidStr := c.GetString("user_id")
+	userID, err := uuid.Parse(uidStr)
+	if err != nil {
+		errorResponse(c, 401, "UNAUTHORIZED", "Invalid or missing User ID")
+		return
+	}
 	limit := 20
 	offset := 0
 	if l := c.Query("limit"); l != "" {
@@ -165,7 +198,7 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 	data := make([]OrderPreviewDTO, len(orders))
 	for i, o := range orders {
 		data[i] = OrderPreviewDTO{
-			ID:          o.ID,
+			ID:          o.ID.String(),
 			Status:      string(o.Status),
 			Amount:      o.Amount,
 			OrderNumber: o.OrderNumber,
@@ -204,7 +237,7 @@ func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 			num = *o.OrderNumber
 		}
 		data[i] = PartnerOrderDTO{
-			ID:           o.ID,
+			ID:           o.ID.String(),
 			OrderNumber:  num,
 			Status:       string(o.Status),
 			Amount:       o.Amount,
@@ -217,4 +250,64 @@ func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"data": data})
+}
+
+func (h *OrderHandler) GetOrderById(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		errorResponse(c, 400, "INVALID_ID", "Invalid ID format")
+		return
+	}
+	uidStr := c.GetString("user_id")
+	userID, _ := uuid.Parse(uidStr)
+
+	order, err := h.service.GetOrderById(c.Request.Context(), id, userID)
+	if err != nil {
+		switch err.Error() {
+		case "unauthorized":
+			errorResponse(c, 403, "FORBIDDEN", "You do not own this order")
+		case "not found":
+			errorResponse(c, 404, "ORDER_NOT_FOUND", "Order not found")
+		default:
+			errorResponse(c, 500, "INTERNAL_ERROR", err.Error())
+		}
+		return
+	}
+
+	resp := OrderDetailDTO{
+		ID:                 order.ID.String(),
+		Status:             string(order.Status),
+		Amount:             order.Amount,
+		OrderNumber:        order.OrderNumber,
+		CreatedAt:          order.CreatedAt,
+		PaidAt:             order.PaidAt,
+		CompletedAt:        order.CompletedAt,
+		CancelledAt:        order.CancelledAt,
+		ExpiresAt:          order.ExpiresAt,
+		CancellationReason: order.CancellationReason,
+		Offer: OfferDetailInternalDTO{
+			ID:                order.Offer.ID.String(),
+			Title:             order.Offer.Title,
+			Price:             order.Offer.Price,
+			OriginalPrice:     order.Offer.OriginalPrice,
+			Discount:          0,
+			Description:       order.Offer.Description,
+			ImageURL:          order.Offer.ImageURL,
+			RestaurantID:      order.Offer.RestaurantID.String(),
+			RestaurantName:    order.Offer.Restaurant.Name,
+			PickupStart:       order.Offer.PickupStart,
+			PickupEnd:         order.Offer.PickupEnd,
+			QuantityAvailable: order.Offer.QuantityAvailable,
+		},
+		Restaurant: RestaurantShortDTO{
+			ID:        order.Offer.Restaurant.ID.String(),
+			Name:      order.Offer.Restaurant.Name,
+			Address:   order.Offer.Restaurant.Address,
+			Latitude:  order.Offer.Restaurant.Latitude,
+			Longitude: order.Offer.Restaurant.Longitude,
+			Phone:     order.Offer.Restaurant.Phone,
+		},
+	}
+
+	c.JSON(200, resp)
 }

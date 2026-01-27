@@ -1,10 +1,14 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Restaurant struct {
-	ID           int       `gorm:"primaryKey" json:"id"`
-	PartnerID    int       `json:"partner_id"`
+	ID           uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	PartnerID    uuid.UUID `gorm:"type:uuid" json:"partner_id"`
 	Name         string    `json:"name"`
 	CompanyName  string    `json:"company_name"`
 	Inn          string    `json:"inn"`

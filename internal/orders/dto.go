@@ -5,7 +5,7 @@ import (
 )
 
 type CreateOrderRequest struct {
-	OfferID int `json:"offerId" binding:"required"`
+	OfferID string `json:"offerId" binding:"required"`
 }
 
 type PayOrderRequest struct {
@@ -17,7 +17,7 @@ type CancelOrderRequest struct {
 }
 
 type CreateOrderResponse struct {
-	ID         int                 `json:"id"`
+	ID         string              `json:"id"`
 	Status     string              `json:"status"`
 	Amount     float64             `json:"amount"`
 	ExpiresAt  *time.Time          `json:"expiresAt"`
@@ -26,21 +26,21 @@ type CreateOrderResponse struct {
 }
 
 type PayOrderResponse struct {
-	ID          int        `json:"id"`
+	ID          string     `json:"id"`
 	Status      string     `json:"status"`
 	OrderNumber string     `json:"orderNumber"`
 	PaidAt      *time.Time `json:"paidAt"`
 }
 
 type CancelOrderResponse struct {
-	ID           int        `json:"id"`
+	ID           string     `json:"id"`
 	Status       string     `json:"status"`
 	CancelledAt  *time.Time `json:"cancelledAt"`
 	RefundAmount *float64   `json:"refundAmount,omitempty"`
 }
 
 type OrderPreviewDTO struct {
-	ID          int                     `json:"id"`
+	ID          string                  `json:"id"`
 	Status      string                  `json:"status"`
 	Amount      float64                 `json:"amount"`
 	OrderNumber *string                 `json:"orderNumber,omitempty"`
@@ -53,7 +53,7 @@ type OrderPreviewDTO struct {
 }
 
 type OrderDetailDTO struct {
-	ID                 int                    `json:"id"`
+	ID                 string                 `json:"id"`
 	Status             string                 `json:"status"`
 	Amount             float64                `json:"amount"`
 	OrderNumber        *string                `json:"orderNumber,omitempty"`
@@ -68,7 +68,7 @@ type OrderDetailDTO struct {
 }
 
 type PartnerOrderDTO struct {
-	ID           int       `json:"id"`
+	ID           string    `json:"id"`
 	OrderNumber  string    `json:"orderNumber"`
 	Status       string    `json:"status"`
 	Amount       float64   `json:"amount"`
@@ -80,7 +80,7 @@ type PartnerOrderDTO struct {
 }
 
 type OfferShortDTO struct {
-	ID          int       `json:"id"`
+	ID          string    `json:"id"`
 	Title       string    `json:"title"`
 	PickupStart time.Time `json:"pickupStart"`
 	PickupEnd   time.Time `json:"pickupEnd"`
@@ -92,14 +92,14 @@ type OfferPreviewInternalDTO struct {
 }
 
 type OfferDetailInternalDTO struct {
-	ID                int       `json:"id"`
+	ID                string    `json:"id"`
 	Title             string    `json:"title"`
 	Price             float64   `json:"price"`
 	OriginalPrice     float64   `json:"originalPrice"`
 	Discount          int       `json:"discount"`
 	Description       string    `json:"description"`
 	ImageURL          *string   `json:"imageUrl"`
-	RestaurantID      int       `json:"restaurantId"`
+	RestaurantID      string    `json:"restaurantId"`
 	RestaurantName    string    `json:"restaurantName"`
 	Distance          int       `json:"distance"`
 	PickupStart       time.Time `json:"pickupStart"`
@@ -113,7 +113,7 @@ type RestaurantSimpleDTO struct {
 }
 
 type RestaurantShortDTO struct {
-	ID        int     `json:"id"`
+	ID        string  `json:"id"`
 	Name      string  `json:"name"`
 	Address   string  `json:"address"`
 	Latitude  float64 `json:"latitude"`
