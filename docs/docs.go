@@ -269,6 +269,9 @@ const docTemplate = `{
                 "password"
             ],
             "properties": {
+                "device_token": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
@@ -297,6 +300,9 @@ const docTemplate = `{
                 "password"
             ],
             "properties": {
+                "device_token": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
@@ -362,6 +368,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 },
                 "role": {

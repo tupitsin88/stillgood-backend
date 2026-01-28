@@ -263,6 +263,9 @@
                 "password"
             ],
             "properties": {
+                "device_token": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
@@ -291,6 +294,9 @@
                 "password"
             ],
             "properties": {
+                "device_token": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
@@ -356,6 +362,9 @@
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 },
                 "role": {

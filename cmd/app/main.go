@@ -11,6 +11,7 @@ import (
 	"kursach_backend/internal/auth"
 	"kursach_backend/internal/categories"
 	"kursach_backend/internal/domain"
+	"kursach_backend/internal/pkg/filestorage"
 	"kursach_backend/internal/restaurants"
 	"kursach_backend/pkg/postgres"
 )
@@ -55,6 +56,20 @@ func main() {
 	authRepo := auth.NewRepository(db)
 	authService := auth.NewService(authRepo, tokenManager, 30*time.Minute, 14*24*time.Hour)
 	authHandler := auth.NewHandler(authService)
+
+	// File Storage
+	minioEndpoint := "localhost:9000"
+	minioAccessKey := "minioadmin"
+	minioSecretKey := "minioadmin"
+	minioBucket := "food-images"
+	minioUseSSL := false
+
+	fileStorage, err := filestorage.NewFileStorage(minioEndpoint, minioAccessKey, minioSecretKey, minioBucket, minioUseSSL)
+	if err != nil {
+		log.Fatalf("failed to init file storage: %v", err)
+	}
+	log.Printf("File storage initialized for endpoint: %s", minioEndpoint)
+	_ = fileStorage // Will be used in future handlers
 
 	restaurantsRepo := restaurants.NewRepository(db)
 	restaurantsService := restaurants.NewService(restaurantsRepo)
