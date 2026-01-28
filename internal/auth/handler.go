@@ -19,6 +19,11 @@ func NewHandler(service Service) *Handler {
 // Register godoc
 // @Summary Регистрация пользователя
 // @Tags Auth
+// @Accept json
+// @Produce json
+// @Param input body dto.RegisterRequest true "Данные для регистрации"
+// @Success 201 {object} dto.TokenResponse
+// @Router /auth/register [post]
 func (h *Handler) Register(c *gin.Context) {
 	var input dto.RegisterRequest
 
@@ -42,6 +47,11 @@ func (h *Handler) Register(c *gin.Context) {
 // Login godoc
 // @Summary Вход пользователя
 // @Tags Auth
+// @Accept json
+// @Produce json
+// @Param input body dto.LoginRequest true "Данные для входа"
+// @Success 200 {object} dto.TokenResponse
+// @Router /auth/login [post]
 func (h *Handler) Login(c *gin.Context) {
 	var input dto.LoginRequest
 
@@ -65,6 +75,10 @@ func (h *Handler) Login(c *gin.Context) {
 // Me godoc
 // @Summary Получение текущего пользователя
 // @Tags Auth
+// @Security ApiKeyAuth
+// @Produce json
+// @Success 200 {object} dto.UserResponse
+// @Router /auth/me [get]
 func (h *Handler) Me(c *gin.Context) {
 	userID, exists := c.Get("userId")
 	if !exists {
@@ -84,6 +98,11 @@ func (h *Handler) Me(c *gin.Context) {
 // Refresh godoc
 // @Summary Обновление токенов
 // @Tags Auth
+// @Accept json
+// @Produce json
+// @Param input body dto.RefreshRequest true "Refresh token"
+// @Success 200 {object} dto.TokenResponse
+// @Router /auth/refresh [post]
 func (h *Handler) Refresh(c *gin.Context) {
 	var input dto.RefreshRequest
 
@@ -109,6 +128,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 // @Security ApiKeyAuth
 // @Tags Auth
 // @Success 200 {object} map[string]string
+// @Router /auth/logout [post]
 func (h *Handler) Logout(c *gin.Context) {
 	if err := h.service.Logout(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to logout"})

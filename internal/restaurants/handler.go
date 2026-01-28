@@ -29,7 +29,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 // @Tags restaurants
 // @Produce json
 // @Success 200 {array} dto.RestaurantResponse
-// @Router /api/v1/restaurants [get]
+// @Router /restaurants [get]
 func (h *Handler) GetList(c *gin.Context) {
 	restaurants, err := h.service.GetAll()
 	if err != nil {
@@ -63,7 +63,7 @@ func (h *Handler) GetList(c *gin.Context) {
 // @Param id path string true "Restaurant ID"
 // @Success 200 {object} dto.RestaurantResponse
 // @Failure 404 {object} map[string]string
-// @Router /api/v1/restaurants/{id} [get]
+// @Router /restaurants/{id} [get]
 func (h *Handler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 

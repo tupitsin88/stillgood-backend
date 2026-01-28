@@ -14,6 +14,14 @@ import (
 	"kursach_backend/pkg/postgres"
 )
 
+// @title FoodSharing App API
+// @version 1.0
+// @description API сервер для курсовой работы FoodSharing.
+// @host localhost:8080
+// @BasePath /api/v1
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 func main() {
 	// 1. Config
 	dsn := os.Getenv("DB_DSN")
