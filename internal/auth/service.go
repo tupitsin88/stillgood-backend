@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"kursach_backend/internal/domain"
 	"time"
 
@@ -15,6 +16,8 @@ type Tokens struct {
 type Service interface {
 	Register(email, password, name string) (Tokens, error)
 	Login(email, password string) (Tokens, error)
+	RefreshTokens(refreshToken string) (Tokens, error)
+	Logout() error
 }
 
 type service struct {
@@ -62,6 +65,32 @@ func (s *service) Login(email, password string) (Tokens, error) {
 	}
 
 	return s.generateTokens(user.ID.String(), user.Role)
+}
+
+func (s *service) RefreshTokens(refreshToken string) (Tokens, error) {
+	claims, err := s.tokenManager.Parse(refreshToken)
+	if err != nil {
+		return Tokens{}, err
+	}
+
+	sub, ok := claims["sub"].(string)
+	if !ok {
+		return Tokens{}, errors.New("invalid sub claim")
+	}
+
+	// Security check: Verify user exists and is active in DB
+	user, err := s.repo.GetUserByID(sub)
+	if err != nil {
+		return Tokens{}, err // User probably deleted or ID changed
+	}
+
+	return s.generateTokens(user.ID.String(), user.Role)
+}
+
+func (s *service) Logout() error {
+	// Stateless JWTs don't support true server-side logout without a blacklist/redis.
+	// We just return nil as requested.
+	return nil
 }
 
 func (s *service) generateTokens(userID, role string) (Tokens, error) {

@@ -81,15 +81,55 @@ func (h *Handler) Me(c *gin.Context) {
 	})
 }
 
-// InitRoutes регистрирует пути
-func (h *Handler) InitRoutes(api *gin.RouterGroup, middleware gin.HandlerFunc) {
-	authGroup := api.Group("/auth")
+// Refresh godoc
+// @Summary Обновление токенов
+// @Tags Auth
+func (h *Handler) Refresh(c *gin.Context) {
+	var input dto.RefreshRequest
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	tokens, err := h.service.RefreshTokens(input.RefreshToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.TokenResponse{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+	})
+}
+
+// Logout godoc
+// @Summary Выход из системы
+// @Security ApiKeyAuth
+// @Tags Auth
+// @Success 200 {object} map[string]string
+func (h *Handler) Logout(c *gin.Context) {
+	if err := h.service.Logout(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to logout"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
+}
+
+// RegisterRoutes реализует маршрутизацию модуля Auth
+func (h *Handler) RegisterRoutes(r *gin.Engine, middleware gin.HandlerFunc) {
+	auth := r.Group("/api/v1/auth")
 	{
-		authGroup.POST("/register", h.Register)
-		authGroup.POST("/login", h.Login)
+		auth.POST("/register", h.Register)
+		auth.POST("/login", h.Login)
+		auth.POST("/refresh", h.Refresh)
+	}
 
-		protected := authGroup.Group("/", middleware)
-
+	protected := r.Group("/api/v1/auth", middleware)
+	{
 		protected.GET("/me", h.Me)
+		protected.POST("/logout", h.Logout)
 	}
 }
