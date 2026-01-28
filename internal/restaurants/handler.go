@@ -22,7 +22,31 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	{
 		router.GET("", h.GetList)
 		router.GET("/:id", h.GetByID)
+		router.POST("/upload", h.UploadImage)
 	}
+}
+
+// @Summary Upload image
+// @Tags restaurants
+// @Accept multipart/form-data
+// @Produce json
+// @Param image formData file true "Image file"
+// @Success 200 {object} map[string]string
+// @Router /restaurants/upload [post]
+func (h *Handler) UploadImage(c *gin.Context) {
+	file, err := c.FormFile("image")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
+		return
+	}
+
+	url, err := h.service.UploadImage(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"url": url})
 }
 
 // @Summary Get list of restaurants

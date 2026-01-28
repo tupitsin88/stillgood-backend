@@ -72,7 +72,7 @@ func main() {
 	_ = fileStorage // Will be used in future handlers
 
 	restaurantsRepo := restaurants.NewRepository(db)
-	restaurantsService := restaurants.NewService(restaurantsRepo)
+	restaurantsService := restaurants.NewService(restaurantsRepo, fileStorage)
 	restaurantsHandler := restaurants.NewHandler(restaurantsService)
 
 	categoriesRepo := categories.NewRepository(db)
