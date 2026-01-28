@@ -18,10 +18,10 @@ func NewHandler(service Service) *Handler {
 
 func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	// Публичные маршруты
-	routes := r.Group("/api/v1/restaurants")
+	router := r.Group("/api/v1/restaurants")
 	{
-		routes.GET("", h.GetList)
-		routes.GET("/:id", h.GetByID)
+		router.GET("", h.GetList)
+		router.GET("/:id", h.GetByID)
 	}
 }
 

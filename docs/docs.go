@@ -162,6 +162,31 @@ const docTemplate = `{
                 }
             }
         },
+        "/categories": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Categories"
+                ],
+                "summary": "Get all categories",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/categories.CategoryResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/restaurants": {
             "get": {
                 "produces": [
@@ -223,6 +248,20 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "categories.CategoryResponse": {
+            "type": "object",
+            "properties": {
+                "icon_url": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.LoginRequest": {
             "type": "object",
             "required": [

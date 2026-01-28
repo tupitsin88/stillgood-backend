@@ -140,11 +140,11 @@ func (h *Handler) Logout(c *gin.Context) {
 
 // RegisterRoutes реализует маршрутизацию модуля Auth
 func (h *Handler) RegisterRoutes(r *gin.Engine, middleware gin.HandlerFunc) {
-	auth := r.Group("/api/v1/auth")
+	router := r.Group("/api/v1/auth")
 	{
-		auth.POST("/register", h.Register)
-		auth.POST("/login", h.Login)
-		auth.POST("/refresh", h.Refresh)
+		router.POST("/register", h.Register)
+		router.POST("/login", h.Login)
+		router.POST("/refresh", h.Refresh)
 	}
 
 	protected := r.Group("/api/v1/auth", middleware)

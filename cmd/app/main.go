@@ -9,6 +9,7 @@ import (
 
 	"kursach_backend/internal/app"
 	"kursach_backend/internal/auth"
+	"kursach_backend/internal/categories"
 	"kursach_backend/internal/domain"
 	"kursach_backend/internal/restaurants"
 	"kursach_backend/pkg/postgres"
@@ -41,7 +42,7 @@ func main() {
 	}
 
 	// Migrations
-	if err := db.AutoMigrate(&domain.User{}, &domain.Restaurant{}); err != nil {
+	if err := db.AutoMigrate(&domain.User{}, &domain.Restaurant{}, &domain.Category{}); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 
@@ -59,9 +60,13 @@ func main() {
 	restaurantsService := restaurants.NewService(restaurantsRepo)
 	restaurantsHandler := restaurants.NewHandler(restaurantsService)
 
+	categoriesRepo := categories.NewRepository(db)
+	categoriesService := categories.NewService(categoriesRepo)
+	categoriesHandler := categories.NewHandler(categoriesService)
+
 	// 4. Router
 	router := gin.Default()
-	app.NewRouter(router, authHandler, restaurantsHandler, jwtSecret)
+	app.NewRouter(router, authHandler, restaurantsHandler, categoriesHandler, jwtSecret)
 
 	// 5. Run
 	if err := router.Run(":8080"); err != nil {

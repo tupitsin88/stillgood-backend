@@ -1,5 +1,14 @@
 basePath: /api/v1
 definitions:
+  categories.CategoryResponse:
+    properties:
+      icon_url:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+    type: object
   dto.LoginRequest:
     properties:
       email:
@@ -169,6 +178,22 @@ paths:
       summary: Регистрация пользователя
       tags:
       - Auth
+  /categories:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/categories.CategoryResponse'
+              type: array
+            type: object
+      summary: Get all categories
+      tags:
+      - Categories
   /restaurants:
     get:
       produces:
