@@ -32,7 +32,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.service.Register(input.Email, input.Password, input.Name)
+	tokens, err := h.service.Register(input.Email, input.Password, input.Name, input.DeviceToken)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register"})
 		return
@@ -60,7 +60,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.service.Login(input.Email, input.Password)
+	tokens, err := h.service.Login(input.Email, input.Password, input.DeviceToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
@@ -86,12 +86,23 @@ func (h *Handler) Me(c *gin.Context) {
 		return
 	}
 
-	role, _ := c.Get("role")
+	idStr, ok := userID.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	user, err := h.service.GetUserByID(idStr)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
 	c.JSON(http.StatusOK, dto.UserResponse{
-		ID:   userID.(string),
-		Role: role.(string),
-		// дальше email будет добавлен, когда мы получим полного пользователя из БД
-		// Сейчас мы заполняем структуру требованиями с помощью доступных данных контекста
+		ID:    user.ID.String(),
+		Email: user.Email,
+		Name:  user.Name,
+		Role:  user.Role,
 	})
 }
 
