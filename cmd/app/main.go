@@ -3,7 +3,15 @@ package main
 import (
 	"log"
 	"os"
-	"time"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+
+	"kursach_backend/internal/domain"
+	"kursach_backend/internal/offers"
+	"kursach_backend/internal/orders"
+)
 
 	"github.com/gin-gonic/gin"
 
@@ -25,34 +33,56 @@ import (
 // @in header
 // @name Authorization
 func main() {
-	// 1. Config
-	dsn := os.Getenv("DB_DSN")
-	if dsn == "" {
-		dsn = "host=localhost user=postgres password=password dbname=foodsharing_db port=5433 sslmode=disable"
+	// 1. Подключение к БД
+	dsn := "host=" + os.Getenv("DB_HOST") +
+		" user=" + os.Getenv("DB_USER") +
+		" password=" + os.Getenv("DB_PASSWORD") +
+		" dbname=" + os.Getenv("DB_NAME") +
+		" port=" + os.Getenv("DB_PORT") +
+		" sslmode=disable"
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatal("Failed to connect to database:", err)
 	}
-
-	jwtSecret := os.Getenv("JWT_SECRET")
+  
+  jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		jwtSecret = "supersecretkey"
 	}
 
-	// 2. Database
-	db, err := postgres.NewDB(dsn)
+	// 2. Авто-миграции
+	log.Println("Running migrations...")
+	err = db.AutoMigrate(
+		&domain.User{},
+		&domain.Restaurant{},
+		&domain.Offer{},
+		&domain.Order{},
+		&domain.OrderStatusHistory{},
+    &domain.Category{},
+	)
 	if err != nil {
-		log.Fatalf("failed to connect database: %v", err)
+		log.Fatal("Migration failed:", err)
 	}
+	log.Println("Migrations completed successfully")
+  
+  
 
-	// Migrations
-	if err := db.AutoMigrate(&domain.User{}, &domain.Restaurant{}, &domain.Category{}); err != nil {
-		log.Fatalf("failed to migrate database: %v", err)
-	}
-
-	// 3. Dependencies
+	// 3. Инициализация слоев
 	tokenManager, err := auth.NewTokenManager(jwtSecret)
 	if err != nil {
 		log.Fatalf("failed to init token manager: %v", err)
 	}
+	// --- Orders ---
+	orderRepo := orders.NewOrderRepository(db)
+	orderService := orders.NewOrderService(orderRepo)
+	orderHandler := orders.NewOrderHandler(orderService)
 
+	// --- Offers ---
+	offerRepo := offers.NewOfferRepository(db)
+	offerService := offers.NewOfferService(offerRepo)
+	offerHandler := offers.NewOfferHandler(offerService)
+
+  	// --- Auth ---
 	authRepo := auth.NewRepository(db)
 	authService := auth.NewService(authRepo, tokenManager, 30*time.Minute, 14*24*time.Hour)
 	authHandler := auth.NewHandler(authService)
@@ -71,20 +101,31 @@ func main() {
 	log.Printf("File storage initialized for endpoint: %s", minioEndpoint)
 	_ = fileStorage // Will be used in future handlers
 
+  // --- Restaurants ---
 	restaurantsRepo := restaurants.NewRepository(db)
 	restaurantsService := restaurants.NewService(restaurantsRepo, fileStorage)
 	restaurantsHandler := restaurants.NewHandler(restaurantsService)
 
+  // --- Categories ---
 	categoriesRepo := categories.NewRepository(db)
 	categoriesService := categories.NewService(categoriesRepo)
 	categoriesHandler := categories.NewHandler(categoriesService)
-
-	// 4. Router
+	// 4. Роутер
 	router := gin.Default()
-	app.NewRouter(router, authHandler, restaurantsHandler, categoriesHandler, jwtSecret)
 
-	// 5. Run
-	if err := router.Run(":8080"); err != nil {
-		log.Fatalf("failed to run server: %v", err)
+	// Mock Middleware (ВРЕМЕННАЯ ЗАГЛУШКА)
+	// В реальном Auth сервисе тут будет валидация JWT
+	mockAuthMiddleware := func(c *gin.Context) {
+		// Хардкодим ID юзера = 1 для тестов
+		c.Set("user_id", "00000000-0000-0000-0000-000000000001")
+		c.Next()
+	}
+  app.NewRouter(router, authHandler, restaurantsHandler, categoriesHandler, jwtSecret)
+	orders.RegisterRoutes(r, orderHandler, mockAuthMiddleware)
+	offers.RegisterRoutes(r, offerHandler, mockAuthMiddleware)
+
+	log.Println("Server starting on :8080")
+	if err := r.Run(":8080"); err != nil {
+		log.Fatal("Server start failed:", err)
 	}
 }
