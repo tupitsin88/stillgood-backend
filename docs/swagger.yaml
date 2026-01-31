@@ -49,13 +49,7 @@ definitions:
     properties:
       address:
         type: string
-      city:
-        type: string
-      description:
-        type: string
       id:
-        type: string
-      image_url:
         type: string
       latitude:
         type: number
@@ -65,8 +59,6 @@ definitions:
         type: string
       phone:
         type: string
-      rating:
-        type: number
     type: object
   dto.TokenResponse:
     properties:
@@ -86,6 +78,381 @@ definitions:
       role:
         type: string
     type: object
+  offers.CategoryDTO:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  offers.CreateOfferRequest:
+    properties:
+      categoryId:
+        type: string
+      description:
+        type: string
+      imageUrl:
+        type: string
+      originalPrice:
+        type: number
+      pickupEnd:
+        type: string
+      pickupStart:
+        type: string
+      price:
+        type: number
+      quantity:
+        minimum: 1
+        type: integer
+      title:
+        type: string
+    required:
+    - categoryId
+    - originalPrice
+    - pickupEnd
+    - pickupStart
+    - price
+    - quantity
+    - title
+    type: object
+  offers.GetOffersResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/offers.OfferPreviewDTO'
+        type: array
+      pagination:
+        $ref: '#/definitions/offers.Pagination'
+    type: object
+  offers.GetPartnerOffersResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/offers.OfferDetailDTO'
+        type: array
+      pagination:
+        $ref: '#/definitions/offers.Pagination'
+    type: object
+  offers.OfferDetailDTO:
+    properties:
+      category:
+        $ref: '#/definitions/offers.CategoryDTO'
+      description:
+        type: string
+      discount:
+        type: integer
+      id:
+        type: string
+      imageUrl:
+        type: string
+      isActive:
+        type: boolean
+      originalPrice:
+        type: number
+      pickupEnd:
+        type: string
+      pickupStart:
+        type: string
+      price:
+        type: number
+      quantityAvailable:
+        type: integer
+      quantityTotal:
+        type: integer
+      restaurant:
+        $ref: '#/definitions/offers.RestaurantShortDTO'
+      title:
+        type: string
+    type: object
+  offers.OfferPreviewDTO:
+    properties:
+      category:
+        $ref: '#/definitions/offers.CategoryDTO'
+      discount:
+        type: integer
+      distance:
+        type: integer
+      id:
+        type: string
+      imageUrl:
+        type: string
+      originalPrice:
+        type: number
+      pickupEnd:
+        type: string
+      pickupStart:
+        type: string
+      price:
+        type: number
+      quantityAvailable:
+        type: integer
+      restaurantId:
+        type: string
+      restaurantName:
+        type: string
+      title:
+        type: string
+    type: object
+  offers.Pagination:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
+  offers.RestaurantShortDTO:
+    properties:
+      address:
+        type: string
+      id:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        type: string
+      phone:
+        type: string
+    type: object
+  offers.UpdateOfferRequest:
+    properties:
+      description:
+        type: string
+      isActive:
+        type: boolean
+      price:
+        type: number
+      quantity:
+        type: integer
+      title:
+        type: string
+    type: object
+  orders.CancelOrderRequest:
+    properties:
+      reason:
+        type: string
+    type: object
+  orders.CancelOrderResponse:
+    properties:
+      cancelledAt:
+        type: string
+      id:
+        type: string
+      refundAmount:
+        type: number
+      status:
+        type: string
+    type: object
+  orders.CompleteOrderResponse:
+    properties:
+      completedAt:
+        type: string
+      id:
+        type: string
+      status:
+        type: string
+    type: object
+  orders.CreateOrderRequest:
+    properties:
+      offerId:
+        type: string
+    required:
+    - offerId
+    type: object
+  orders.CreateOrderResponse:
+    properties:
+      amount:
+        type: number
+      expiresAt:
+        type: string
+      id:
+        type: string
+      offer:
+        $ref: '#/definitions/orders.OfferShortDTO'
+      restaurant:
+        $ref: '#/definitions/orders.RestaurantSimpleDTO'
+      status:
+        type: string
+    type: object
+  orders.GetPartnerOrdersResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/orders.PartnerOrderDTO'
+        type: array
+    type: object
+  orders.GetUserOrdersResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/orders.OrderPreviewDTO'
+        type: array
+      pagination:
+        $ref: '#/definitions/orders.Pagination'
+    type: object
+  orders.OfferDetailInternalDTO:
+    properties:
+      description:
+        type: string
+      discount:
+        type: integer
+      distance:
+        type: integer
+      id:
+        type: string
+      imageUrl:
+        type: string
+      originalPrice:
+        type: number
+      pickupEnd:
+        type: string
+      pickupStart:
+        type: string
+      price:
+        type: number
+      quantityAvailable:
+        type: integer
+      restaurantId:
+        type: string
+      restaurantName:
+        type: string
+      title:
+        type: string
+    type: object
+  orders.OfferPreviewInternalDTO:
+    properties:
+      imageUrl:
+        type: string
+      title:
+        type: string
+    type: object
+  orders.OfferShortDTO:
+    properties:
+      id:
+        type: string
+      pickupEnd:
+        type: string
+      pickupStart:
+        type: string
+      title:
+        type: string
+    type: object
+  orders.OrderDetailDTO:
+    properties:
+      amount:
+        type: number
+      cancellationReason:
+        type: string
+      cancelledAt:
+        type: string
+      completedAt:
+        type: string
+      createdAt:
+        type: string
+      expiresAt:
+        type: string
+      id:
+        type: string
+      offer:
+        $ref: '#/definitions/orders.OfferDetailInternalDTO'
+      orderNumber:
+        type: string
+      paidAt:
+        type: string
+      restaurant:
+        $ref: '#/definitions/orders.RestaurantShortDTO'
+      status:
+        type: string
+    type: object
+  orders.OrderPreviewDTO:
+    properties:
+      amount:
+        type: number
+      createdAt:
+        type: string
+      expiresAt:
+        type: string
+      id:
+        type: string
+      offer:
+        $ref: '#/definitions/orders.OfferPreviewInternalDTO'
+      orderNumber:
+        type: string
+      pickupEnd:
+        type: string
+      pickupStart:
+        type: string
+      restaurant:
+        $ref: '#/definitions/orders.RestaurantSimpleDTO'
+      status:
+        type: string
+    type: object
+  orders.Pagination:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
+  orders.PartnerOrderDTO:
+    properties:
+      amount:
+        type: number
+      createdAt:
+        type: string
+      customerName:
+        type: string
+      id:
+        type: string
+      offerTitle:
+        type: string
+      orderNumber:
+        type: string
+      pickupEnd:
+        type: string
+      pickupStart:
+        type: string
+      status:
+        type: string
+    type: object
+  orders.PayOrderResponse:
+    properties:
+      id:
+        type: string
+      orderNumber:
+        type: string
+      paidAt:
+        type: string
+      status:
+        type: string
+    type: object
+  orders.RestaurantShortDTO:
+    properties:
+      address:
+        type: string
+      id:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        type: string
+      phone:
+        type: string
+    type: object
+  orders.RestaurantSimpleDTO:
+    properties:
+      address:
+        type: string
+      name:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -93,6 +460,564 @@ info:
   title: FoodSharing App API
   version: "1.0"
 paths:
+  /api/v1/offers:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Latitude
+        in: query
+        name: lat
+        type: number
+      - description: Longitude
+        in: query
+        name: lng
+        type: number
+      - description: Radius (meters)
+        in: query
+        name: radius
+        type: integer
+      - description: Min Price
+        in: query
+        name: price_min
+        type: number
+      - description: Max Price
+        in: query
+        name: price_max
+        type: number
+      - description: Category ID
+        in: query
+        name: category_id
+        type: string
+      - description: Sort By
+        in: query
+        name: sortBy
+        type: string
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/offers.GetOffersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get public offers list
+      tags:
+      - offers
+  /api/v1/offers/{id}:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Offer ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/offers.OfferDetailDTO'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get offer details by ID
+      tags:
+      - offers
+  /api/v1/orders:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Comma-separated statuses
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orders.GetUserOrdersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get user orders
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Order Creation Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/orders.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/orders.CreateOrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new order
+      tags:
+      - orders
+  /api/v1/orders/{id}:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orders.OrderDetailDTO'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get order details
+      tags:
+      - orders
+  /api/v1/orders/{id}/cancel:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Cancellation Reason
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/orders.CancelOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orders.CancelOrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Cancel an order
+      tags:
+      - orders
+  /api/v1/orders/{id}/pay:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orders.PayOrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Pay for an order
+      tags:
+      - orders
+  /api/v1/partner/offers:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/offers.GetPartnerOffersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get partner's offers
+      tags:
+      - offers
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Create Offer Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/offers.CreateOfferRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/offers.OfferDetailDTO'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new offer
+      tags:
+      - offers
+  /api/v1/partner/offers/{id}:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Offer ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update Offer Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/offers.UpdateOfferRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/offers.OfferDetailDTO'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Update an existing offer
+      tags:
+      - offers
+  /api/v1/partner/orders:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orders.GetPartnerOrdersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get partner orders
+      tags:
+      - partner-orders
+  /api/v1/partner/orders/{id}/complete:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orders.CompleteOrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Complete an order
+      tags:
+      - partner-orders
   /auth/login:
     post:
       consumes:

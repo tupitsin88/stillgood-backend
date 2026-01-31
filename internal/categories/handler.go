@@ -37,10 +37,3 @@ func (h *Handler) GetList(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"data": response})
 }
-
-func (h *Handler) RegisterRoutes(r *gin.Engine) {
-	router := r.Group("/api/v1/categories")
-	{
-		router.GET("", h.GetList)
-	}
-}

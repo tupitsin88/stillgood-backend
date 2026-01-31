@@ -85,3 +85,19 @@ type FilterParams struct {
 	Limit        int
 	Offset       int
 }
+
+type Pagination struct {
+	Total  int64 `json:"total"`
+	Limit  int   `json:"limit"`
+	Offset int   `json:"offset"`
+}
+
+type GetPartnerOffersResponse struct {
+	Data       []OfferDetailDTO `json:"data"`
+	Pagination Pagination       `json:"pagination"`
+}
+
+type GetOffersResponse struct {
+	Data       []OfferPreviewDTO `json:"data"`
+	Pagination Pagination        `json:"pagination"`
+}
