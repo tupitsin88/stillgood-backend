@@ -56,7 +56,9 @@ func main() {
 	authRepo := auth.NewRepository(db)
 	authService := auth.NewService(authRepo, tokenManager, 30*time.Minute, 14*24*time.Hour)
 	authHandler := auth.NewHandler(authService)
-
+  
+	restaurantsRepo := restaurants.NewRepository(db)
+	restaurantsService := restaurants.NewService(restaurantsRepo)
 	// File Storage
 	minioEndpoint := "localhost:9000"
 	minioAccessKey := "minioadmin"
