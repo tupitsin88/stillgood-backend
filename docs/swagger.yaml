@@ -11,6 +11,8 @@ definitions:
     type: object
   dto.LoginRequest:
     properties:
+      device_token:
+        type: string
       email:
         type: string
       password:
@@ -29,6 +31,8 @@ definitions:
     type: object
   dto.RegisterRequest:
     properties:
+      device_token:
+        type: string
       email:
         type: string
       name:
@@ -76,6 +80,8 @@ definitions:
       email:
         type: string
       id:
+        type: string
+      name:
         type: string
       role:
         type: string
@@ -230,6 +236,28 @@ paths:
               type: string
             type: object
       summary: Get restaurant by ID
+      tags:
+      - restaurants
+  /restaurants/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Image file
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Upload image
       tags:
       - restaurants
 securityDefinitions:
