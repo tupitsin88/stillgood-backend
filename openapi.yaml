@@ -1,0 +1,1486 @@
+openapi: 3.0.3
+info:
+  title: Food-Sharing App API
+  description: |
+    API для приложения Food-Sharing.
+    
+    ## Роли
+    - **USER** — поиск, бронирование, заказы
+    - **PARTNER** — управление боксами, аналитика
+    - **ADMIN** — веб-панель модерации
+    
+    ## Аутентификация
+    - Access Token: 30 минут
+    - Refresh Token: 14 дней
+    - JWT Bearer token в заголовке Authorization
+  version: 1.0.0
+  contact:
+    name: Tech Lead
+    email: dmitry@feedex.ru
+
+servers:
+  - url: https://api.feedex.ru/api/v1
+    description: Production
+  - url: http://localhost:8080/api/v1
+    description: Development
+
+tags:
+  - name: Auth
+    description: Регистрация, авторизация, токены
+  - name: Users
+    description: Управление пользователями
+  - name: Partner
+    description: Функционал партнёра
+  - name: Restaurants
+    description: Заведения
+  - name: Offers
+    description: Предложения (сюрприз-боксы)
+  - name: Orders
+    description: Заказы
+  - name: Analytics
+    description: Аналитика для партнёра
+  - name: Categories
+    description: Категории предложений
+
+paths:
+  # ==================== AUTH ====================
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Регистрация USER
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Успешная регистрация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '409':
+          description: Email уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/register/partner:
+    post:
+      tags: [Auth]
+      summary: Регистрация PARTNER (заявка)
+      operationId: registerPartner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerRegisterRequest'
+      responses:
+        '201':
+          description: Заявка подана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '409':
+          description: Email уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Вход (USER/PARTNER)
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Неверные учётные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/oauth:
+    post:
+      tags: [Auth]
+      summary: OAuth вход (Google/Apple) — только USER
+      operationId: oauthLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthRequest'
+      responses:
+        '200':
+          description: Существующий пользователь
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/AuthResponse'
+                  - type: object
+                    properties:
+                      isNewUser:
+                        type: boolean
+                        example: false
+        '201':
+          description: Новый пользователь
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/AuthResponse'
+                  - type: object
+                    properties:
+                      isNewUser:
+                        type: boolean
+                        example: true
+        '409':
+          description: Email занят другим провайдером
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Обновление токенов
+      operationId: refreshTokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Новые токены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Невалидный refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Выход (инвалидация refresh token)
+      operationId: logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '204':
+          description: Успешный выход
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Текущий пользователь
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Данные пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Смена пароля (авторизован)
+      operationId: changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword:
+                  type: string
+                newPassword:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: Пароль изменён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Неверный текущий пароль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Запрос OTP для сброса пароля
+      operationId: forgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: OTP отправлен (если email существует)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  expiresIn:
+                    type: integer
+                    description: Секунды до истечения кода
+                    example: 600
+
+  /auth/verify-reset-code:
+    post:
+      tags: [Auth]
+      summary: Проверка OTP-кода
+      operationId: verifyResetCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+                  minLength: 6
+                  maxLength: 6
+      responses:
+        '200':
+          description: Код верный
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resetToken:
+                    type: string
+        '400':
+          description: Неверный код
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Установка нового пароля
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resetToken, newPassword]
+              properties:
+                resetToken:
+                  type: string
+                newPassword:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: Пароль обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Невалидный токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== USERS ====================
+  /users/me:
+    delete:
+      tags: [Users]
+      summary: Удаление аккаунта (GDPR)
+      operationId: deleteAccount
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  description: Только для email-регистрации
+      responses:
+        '204':
+          description: Аккаунт удалён
+        '400':
+          description: Есть активные заказы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== PARTNER ====================
+  /partner/restaurant:
+    get:
+      tags: [Partner]
+      summary: Профиль заведения партнёра
+      operationId: getPartnerRestaurant
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Данные заведения
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestaurantDetailDto'
+    patch:
+      tags: [Partner]
+      summary: Обновление профиля заведения
+      operationId: updatePartnerRestaurant
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                workingHours:
+                  type: string
+                imageUrl:
+                  type: string
+      responses:
+        '200':
+          description: Обновлённые данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestaurantDetailDto'
+
+  /partner/orders:
+    get:
+      tags: [Partner]
+      summary: Заказы партнёра
+      operationId: getPartnerOrders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [CREATED, PAID, COMPLETED, CANCELLED]
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Список заказов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PartnerOrderDto'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /partner/orders/{id}/complete:
+    post:
+      tags: [Partner]
+      summary: Подтверждение выдачи
+      operationId: completeOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Заказ завершён
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    example: COMPLETED
+                  completedAt:
+                    type: string
+                    format: date-time
+        '400':
+          description: Неверный статус заказа
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /partner/offers:
+    get:
+      tags: [Partner]
+      summary: Предложения партнёра
+      operationId: getPartnerOffers
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Список предложений
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OfferDetailDto'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+    post:
+      tags: [Partner]
+      summary: Создание предложения
+      operationId: createOffer
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOfferRequest'
+      responses:
+        '201':
+          description: Предложение создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferDetailDto'
+
+  /partner/offers/{id}:
+    patch:
+      tags: [Partner]
+      summary: Обновление предложения
+      operationId: updateOffer
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOfferRequest'
+      responses:
+        '200':
+          description: Обновлённые данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferDetailDto'
+        '403':
+          description: Не ваше предложение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /partner/analytics:
+    get:
+      tags: [Analytics]
+      summary: Аналитика партнёра
+      operationId: getPartnerAnalytics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: groupBy
+          in: query
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: day
+      responses:
+        '200':
+          description: Статистика
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsResponse'
+
+  # ==================== RESTAURANTS ====================
+  /restaurants:
+    get:
+      tags: [Restaurants]
+      summary: Список ресторанов
+      operationId: getRestaurants
+      parameters:
+        - name: lat
+          in: query
+          schema:
+            type: number
+            format: double
+        - name: lng
+          in: query
+          schema:
+            type: number
+            format: double
+        - name: radius
+          in: query
+          schema:
+            type: integer
+            description: Радиус в метрах
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Список ресторанов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RestaurantDto'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /restaurants/{id}:
+    get:
+      tags: [Restaurants]
+      summary: Детали ресторана
+      operationId: getRestaurantById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Данные ресторана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestaurantDetailDto'
+        '404':
+          description: Не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== OFFERS ====================
+  /offers:
+    get:
+      tags: [Offers]
+      summary: Список предложений
+      operationId: getOffers
+      parameters:
+        - name: lat
+          in: query
+          schema:
+            type: number
+            format: double
+        - name: lng
+          in: query
+          schema:
+            type: number
+            format: double
+        - name: radius
+          in: query
+          schema:
+            type: integer
+        - name: restaurantId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: minPrice
+          in: query
+          schema:
+            type: number
+        - name: maxPrice
+          in: query
+          schema:
+            type: number
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [distance, price, pickupTime]
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Список предложений
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OfferPreviewDto'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /offers/{id}:
+    get:
+      tags: [Offers]
+      summary: Детали предложения
+      operationId: getOfferById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Данные предложения
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferDetailDto'
+        '404':
+          description: Не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== CATEGORIES ====================
+  /categories:
+    get:
+      tags: [Categories]
+      summary: Список категорий
+      operationId: getCategories
+      responses:
+        '200':
+          description: Категории
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CategoryDto'
+
+  # ==================== ORDERS ====================
+  /orders:
+    get:
+      tags: [Orders]
+      summary: Заказы пользователя
+      operationId: getUserOrders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Список заказов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrderPreviewDto'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+    post:
+      tags: [Orders]
+      summary: Создание заказа (бронирование)
+      operationId: createOrder
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [offerId]
+              properties:
+                offerId:
+                  type: string
+                  format: uuid
+                quantity:
+                  type: integer
+                  default: 1
+      responses:
+        '201':
+          description: Заказ создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateOrderResponse'
+        '422':
+          description: Предложение недоступно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Детали заказа
+      operationId: getOrderById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Данные заказа
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetailDto'
+
+  /orders/{id}/pay:
+    post:
+      tags: [Orders]
+      summary: Оплата (Mock)
+      operationId: payOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Оплачено
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    example: PAID
+                  orderNumber:
+                    type: string
+                    description: 6-значный номер заказа
+                    example: "482951"
+                  paidAt:
+                    type: string
+                    format: date-time
+        '422':
+          description: Время на оплату истекло
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/{id}/cancel:
+    post:
+      tags: [Orders]
+      summary: Отмена заказа
+      operationId: cancelOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Отменён
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    example: CANCELLED
+                  cancelledAt:
+                    type: string
+                    format: date-time
+                  refundAmount:
+                    type: number
+        '400':
+          description: Нельзя отменить
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 20
+        maximum: 100
+    offset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        default: 0
+
+  schemas:
+    # ==================== AUTH ====================
+    RegisterRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+        deviceToken:
+          type: string
+          description: FCM/APNS token
+
+    PartnerRegisterRequest:
+      type: object
+      required: [email, password, name, phone, companyName, inn, establishmentName, establishmentAddress]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+          description: ФИО контактного лица
+        phone:
+          type: string
+        companyName:
+          type: string
+          description: Название юр. лица
+        inn:
+          type: string
+        establishmentName:
+          type: string
+          description: Публичное название заведения
+        establishmentAddress:
+          type: string
+        description:
+          type: string
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        deviceToken:
+          type: string
+
+    OAuthRequest:
+      type: object
+      required: [provider, idToken]
+      properties:
+        provider:
+          type: string
+          enum: [google, apple]
+        idToken:
+          type: string
+        deviceToken:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          description: Секунды
+          example: 1800
+        user:
+          $ref: '#/components/schemas/UserDto'
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+
+    UserDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [USER, PARTNER, ADMIN]
+        authProvider:
+          type: string
+          enum: [email, google, apple]
+        partnerStatus:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+        createdAt:
+          type: string
+          format: date-time
+
+    # ==================== RESTAURANTS ====================
+    RestaurantDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        address:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        imageUrl:
+          type: string
+        rating:
+          type: number
+          format: float
+        reviewCount:
+          type: integer
+        categories:
+          type: array
+          items:
+            type: string
+        distance:
+          type: integer
+          description: Метры
+        hasActiveOffers:
+          type: boolean
+
+    RestaurantDetailDto:
+      allOf:
+        - $ref: '#/components/schemas/RestaurantDto'
+        - type: object
+          properties:
+            description:
+              type: string
+            workingHours:
+              type: string
+            phone:
+              type: string
+
+    RestaurantShortDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        address:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        phone:
+          type: string
+
+    # ==================== OFFERS ====================
+    CategoryDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        iconUrl:
+          type: string
+
+    OfferPreviewDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        price:
+          type: number
+        originalPrice:
+          type: number
+        discount:
+          type: integer
+          description: Процент скидки
+        imageUrl:
+          type: string
+        restaurantId:
+          type: string
+          format: uuid
+        restaurantName:
+          type: string
+        distance:
+          type: integer
+        pickupStart:
+          type: string
+          format: date-time
+        pickupEnd:
+          type: string
+          format: date-time
+        quantityAvailable:
+          type: integer
+        category:
+          $ref: '#/components/schemas/CategoryDto'
+
+    OfferDetailDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        originalPrice:
+          type: number
+        imageUrl:
+          type: string
+        quantityAvailable:
+          type: integer
+        quantityTotal:
+          type: integer
+        pickupStart:
+          type: string
+          format: date-time
+        pickupEnd:
+          type: string
+          format: date-time
+        isActive:
+          type: boolean
+        category:
+          $ref: '#/components/schemas/CategoryDto'
+        restaurant:
+          $ref: '#/components/schemas/RestaurantShortDto'
+
+    CreateOfferRequest:
+      type: object
+      required: [title, price, originalPrice, quantity, pickupStart, pickupEnd, categoryId]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        originalPrice:
+          type: number
+        quantity:
+          type: integer
+        pickupStart:
+          type: string
+          format: date-time
+        pickupEnd:
+          type: string
+          format: date-time
+        categoryId:
+          type: string
+          format: uuid
+        imageUrl:
+          type: string
+
+    UpdateOfferRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        quantity:
+          type: integer
+        isActive:
+          type: boolean
+
+    # ==================== ORDERS ====================
+    OrderStatus:
+      type: string
+      enum: [CREATED, PAID, COMPLETED, CANCELLED]
+
+    OrderPreviewDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        amount:
+          type: number
+        orderNumber:
+          type: string
+        offer:
+          type: object
+          properties:
+            title:
+              type: string
+            imageUrl:
+              type: string
+        restaurant:
+          type: object
+          properties:
+            name:
+              type: string
+            address:
+              type: string
+        pickupStart:
+          type: string
+          format: date-time
+        pickupEnd:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+
+    OrderDetailDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        amount:
+          type: number
+        orderNumber:
+          type: string
+        offer:
+          $ref: '#/components/schemas/OfferPreviewDto'
+        restaurant:
+          $ref: '#/components/schemas/RestaurantShortDto'
+        createdAt:
+          type: string
+          format: date-time
+        paidAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        cancelledAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        cancellationReason:
+          type: string
+
+    CreateOrderResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: CREATED
+        amount:
+          type: number
+        expiresAt:
+          type: string
+          format: date-time
+        offer:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            title:
+              type: string
+            pickupStart:
+              type: string
+              format: date-time
+            pickupEnd:
+              type: string
+              format: date-time
+        restaurant:
+          type: object
+          properties:
+            name:
+              type: string
+            address:
+              type: string
+
+    PartnerOrderDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderNumber:
+          type: string
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        amount:
+          type: number
+        offerTitle:
+          type: string
+        customerName:
+          type: string
+        pickupStart:
+          type: string
+          format: date-time
+        pickupEnd:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    # ==================== ANALYTICS ====================
+    AnalyticsResponse:
+      type: object
+      properties:
+        summary:
+          type: object
+          properties:
+            totalBookings:
+              type: integer
+            completedOrders:
+              type: integer
+            cancelledOrders:
+              type: integer
+            expiredOrders:
+              type: integer
+            conversionRate:
+              type: number
+            grossRevenue:
+              type: number
+            serviceFee:
+              type: number
+            netPayout:
+              type: number
+        periods:
+          type: array
+          items:
+            type: object
+            properties:
+              period:
+                type: string
+              completedOrders:
+                type: integer
+              grossRevenue:
+                type: number
+              netPayout:
+                type: number
+
+    # ==================== COMMON ====================
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Код ошибки
+        message:
+          type: string
+          description: Человекочитаемое описание
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
