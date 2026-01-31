@@ -2,6 +2,8 @@ package orders
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type CreateOrderRequest struct {
@@ -119,4 +121,25 @@ type RestaurantShortDTO struct {
 	Latitude  float64 `json:"latitude"`
 	Longitude float64 `json:"longitude"`
 	Phone     *string `json:"phone,omitempty"`
+}
+
+type GetUserOrdersResponse struct {
+	Data       []OrderPreviewDTO `json:"data"`
+	Pagination Pagination        `json:"pagination"`
+}
+
+type Pagination struct {
+	Total  int64 `json:"total"`
+	Limit  int   `json:"limit"`
+	Offset int   `json:"offset"`
+}
+
+type GetPartnerOrdersResponse struct {
+	Data []PartnerOrderDTO `json:"data"`
+}
+
+type CompleteOrderResponse struct {
+	ID          uuid.UUID  `json:"id"`
+	Status      string     `json:"status"`
+	CompletedAt *time.Time `json:"completedAt"`
 }

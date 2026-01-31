@@ -9,7 +9,6 @@ func RegisterRoutes(r *gin.Engine, h *OfferHandler, authMiddleware gin.HandlerFu
 	{
 		public.GET("/offers", h.GetPublicOffers)
 		public.GET("/offers/:id", h.GetOfferByID)
-		public.GET("/categories", h.GetCategories)
 	}
 
 	partner := r.Group("/api/v1/partner")

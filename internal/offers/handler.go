@@ -15,6 +15,19 @@ func NewOfferHandler(service *OfferService) *OfferHandler {
 	return &OfferHandler{service: service}
 }
 
+// CreateOffer godoc
+// @Tags offers
+// @Security ApiKeyAuth
+// @Summary Create a new offer
+// @Accept json
+// @Produce json
+// @Param request body CreateOfferRequest true "Create Offer Request"
+// @Success 201 {object} offers.OfferDetailDTO
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/partner/offers [post]
 func (h *OfferHandler) CreateOffer(c *gin.Context) {
 	var req CreateOfferRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -39,6 +52,21 @@ func (h *OfferHandler) CreateOffer(c *gin.Context) {
 	c.JSON(201, dto)
 }
 
+// UpdateOffer godoc
+// @Tags offers
+// @Security ApiKeyAuth
+// @Summary Update an existing offer
+// @Accept json
+// @Produce json
+// @Param id path string true "Offer ID"
+// @Param request body UpdateOfferRequest true "Update Offer Request"
+// @Success 200 {object} offers.OfferDetailDTO
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/partner/offers/{id} [patch]
 func (h *OfferHandler) UpdateOffer(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	uidStr := c.GetString("user_id")
@@ -67,6 +95,17 @@ func (h *OfferHandler) UpdateOffer(c *gin.Context) {
 	c.JSON(200, dto)
 }
 
+// GetPartnerOffers godoc
+// @Tags offers
+// @Security ApiKeyAuth
+// @Summary Get partner's offers
+// @Accept json
+// @Produce json
+// @Success 200 {object} offers.GetPartnerOffersResponse
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/partner/offers [get]
 func (h *OfferHandler) GetPartnerOffers(c *gin.Context) {
 	uidStr := c.GetString("user_id")
 	partnerID, _ := uuid.Parse(uidStr)
@@ -85,6 +124,24 @@ func (h *OfferHandler) GetPartnerOffers(c *gin.Context) {
 	})
 }
 
+// GetPublicOffers godoc
+// @Tags offers
+// @Summary Get public offers list
+// @Accept json
+// @Produce json
+// @Param lat query number false "Latitude"
+// @Param lng query number false "Longitude"
+// @Param radius query int false "Radius (meters)"
+// @Param price_min query number false "Min Price"
+// @Param price_max query number false "Max Price"
+// @Param category_id query string false "Category ID"
+// @Param sortBy query string false "Sort By"
+// @Param limit query int false "Limit"
+// @Param offset query int false "Offset"
+// @Success 200 {object} offers.GetOffersResponse
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/offers [get]
 func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -146,6 +203,16 @@ func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 	})
 }
 
+// GetOfferByID godoc
+// @Tags offers
+// @Summary Get offer details by ID
+// @Accept json
+// @Produce json
+// @Param id path string true "Offer ID"
+// @Success 200 {object} offers.OfferDetailDTO
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/offers/{id} [get]
 func (h *OfferHandler) GetOfferByID(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 
@@ -156,16 +223,4 @@ func (h *OfferHandler) GetOfferByID(c *gin.Context) {
 	}
 
 	c.JSON(200, dto)
-}
-
-func (h *OfferHandler) GetCategories(c *gin.Context) {
-	// Пока возвращаем хардкод, чтобы не создавать таблицу categories
-	// Если таблица categories есть в БД, нужно делать через service.GetCategories()
-	categories := []CategoryDTO{
-		{ID: "1", Name: "Выпечка"},
-		{ID: "2", Name: "Супы"},
-		{ID: "3", Name: "Основное"},
-		{ID: "4", Name: "Десерты"},
-	}
-	c.JSON(200, gin.H{"data": categories})
 }

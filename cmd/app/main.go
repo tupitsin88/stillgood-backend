@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"kursach_backend/internal/domain"
+	"kursach_backend/internal/offers"
+
 	// "kursach_backend/internal/offers"
 	"kursach_backend/internal/orders"
 
@@ -28,7 +30,6 @@ import (
 // @in header
 // @name Authorization
 func main() {
-	// 1. Подключение к БД
 	dsn := "host=" + os.Getenv("DB_HOST") +
 		" user=" + os.Getenv("DB_USER") +
 		" password=" + os.Getenv("DB_PASSWORD") +
@@ -71,9 +72,9 @@ func main() {
 	orderHandler := orders.NewOrderHandler(orderService)
 
 	// --- Offers ---
-	// offerRepo := offers.NewOfferRepository(db)
-	// offerService := offers.NewOfferService(offerRepo)
-	// offerHandler := offers.NewOfferHandler(offerService)
+	offerRepo := offers.NewOfferRepository(db)
+	offerService := offers.NewOfferService(offerRepo)
+	offerHandler := offers.NewOfferHandler(offerService)
 
 	// --- Auth ---
 	authRepo := auth.NewRepository(db)
@@ -82,8 +83,8 @@ func main() {
 
 	// File Storage
 	minioEndpoint := "localhost:9000"
-	minioAccessKey := "minioadmin"
-	minioSecretKey := "minioadmin"
+	minioAccessKey := os.Getenv("MINIO_ROOT_USER")
+	minioSecretKey := os.Getenv("MINIO_ROOT_PASSWORD")
 	minioBucket := "food-images"
 	minioUseSSL := false
 
@@ -103,16 +104,10 @@ func main() {
 	categoriesRepo := categories.NewRepository(db)
 	categoriesService := categories.NewService(categoriesRepo)
 	categoriesHandler := categories.NewHandler(categoriesService)
+
 	// 4. Роутер
 	router := gin.Default()
-
-	// Mock Middleware (ВРЕМЕННАЯ ЗАГЛУШКА)
-	// В реальном Auth сервисе тут будет валидация JWT
-	// mockAuthMiddleware := func(c *gin.Context) {
-	// 	c.Set("user_id", "00000000-0000-0000-0000-000000000001")
-	// 	c.Next()
-	// }
-	app.NewRouter(router, authHandler, restaurantsHandler, categoriesHandler, orderHandler, jwtSecret)
+	app.NewRouter(router, authHandler, restaurantsHandler, categoriesHandler, orderHandler, offerHandler, jwtSecret)
 
 	log.Println("Server starting on :8080")
 	if err := router.Run(":8080"); err != nil {

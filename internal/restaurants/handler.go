@@ -3,8 +3,6 @@ package restaurants
 import (
 	"net/http"
 
-	"kursach_backend/internal/restaurants/dto"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -14,16 +12,6 @@ type Handler struct {
 
 func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
-}
-
-func (h *Handler) RegisterRoutes(r *gin.Engine) {
-	// Публичные маршруты
-	router := r.Group("/api/v1/restaurants")
-	{
-		router.GET("", h.GetList)
-		router.GET("/:id", h.GetByID)
-		router.POST("/upload", h.UploadImage)
-	}
 }
 
 // @Summary Upload image
@@ -62,9 +50,9 @@ func (h *Handler) GetList(c *gin.Context) {
 	}
 
 	// Mapping to DTO
-	var response []dto.RestaurantResponse
+	var response []RestaurantResponse
 	for _, r := range restaurants {
-		response = append(response, dto.RestaurantResponse{
+		response = append(response, RestaurantResponse{
 			ID:        r.ID.String(),
 			Name:      r.Name,
 			Address:   r.Address,
@@ -81,7 +69,7 @@ func (h *Handler) GetList(c *gin.Context) {
 // @Tags restaurants
 // @Produce json
 // @Param id path string true "Restaurant ID"
-// @Success 200 {object} dto.RestaurantResponse
+// @Success 200 {object} RestaurantResponse
 // @Failure 404 {object} map[string]string
 // @Router /restaurants/{id} [get]
 func (h *Handler) GetByID(c *gin.Context) {
@@ -93,7 +81,7 @@ func (h *Handler) GetByID(c *gin.Context) {
 		return
 	}
 
-	response := dto.RestaurantResponse{
+	response := RestaurantResponse{
 		ID:        restaurant.ID.String(),
 		Name:      restaurant.Name,
 		Address:   restaurant.Address,

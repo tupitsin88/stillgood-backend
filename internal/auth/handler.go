@@ -4,8 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
-	"kursach_backend/internal/auth/dto"
 )
 
 type Handler struct {
@@ -25,7 +23,7 @@ func NewHandler(service Service) *Handler {
 // @Success 201 {object} dto.TokenResponse
 // @Router /auth/register [post]
 func (h *Handler) Register(c *gin.Context) {
-	var input dto.RegisterRequest
+	var input RegisterRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -38,7 +36,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, dto.TokenResponse{
+	c.JSON(http.StatusCreated, TokenResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
 	})
@@ -53,7 +51,7 @@ func (h *Handler) Register(c *gin.Context) {
 // @Success 200 {object} dto.TokenResponse
 // @Router /auth/login [post]
 func (h *Handler) Login(c *gin.Context) {
-	var input dto.LoginRequest
+	var input LoginRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -66,7 +64,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.TokenResponse{
+	c.JSON(http.StatusOK, TokenResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
 	})
@@ -77,7 +75,7 @@ func (h *Handler) Login(c *gin.Context) {
 // @Tags Auth
 // @Security ApiKeyAuth
 // @Produce json
-// @Success 200 {object} dto.UserResponse
+// @Success 200 {object} UserResponse
 // @Router /auth/me [get]
 func (h *Handler) Me(c *gin.Context) {
 	userID, exists := c.Get("userId")
@@ -98,7 +96,7 @@ func (h *Handler) Me(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.UserResponse{
+	c.JSON(http.StatusOK, UserResponse{
 		ID:    user.ID.String(),
 		Email: user.Email,
 		Name:  user.Name,
@@ -111,11 +109,11 @@ func (h *Handler) Me(c *gin.Context) {
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param input body dto.RefreshRequest true "Refresh token"
-// @Success 200 {object} dto.TokenResponse
+// @Param input body RefreshRequest true "Refresh token"
+// @Success 200 {object} TokenResponse
 // @Router /auth/refresh [post]
 func (h *Handler) Refresh(c *gin.Context) {
-	var input dto.RefreshRequest
+	var input RefreshRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -128,7 +126,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.TokenResponse{
+	c.JSON(http.StatusOK, TokenResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
 	})
@@ -147,20 +145,4 @@ func (h *Handler) Logout(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
-}
-
-// RegisterRoutes реализует маршрутизацию модуля Auth
-func (h *Handler) RegisterRoutes(r *gin.Engine, middleware gin.HandlerFunc) {
-	router := r.Group("/api/v1/auth")
-	{
-		router.POST("/register", h.Register)
-		router.POST("/login", h.Login)
-		router.POST("/refresh", h.Refresh)
-	}
-
-	protected := r.Group("/api/v1/auth", middleware)
-	{
-		protected.GET("/me", h.Me)
-		protected.POST("/logout", h.Logout)
-	}
 }
