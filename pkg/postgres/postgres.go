@@ -20,6 +20,5 @@ func NewDB(dsn string) (*gorm.DB, error) {
 	sqlDB.SetMaxOpenConns(25)
 	sqlDB.SetMaxIdleConns(25)
 	sqlDB.SetConnMaxLifetime(5 * time.Minute)
-
 	return db, nil
 }

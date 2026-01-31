@@ -65,16 +65,12 @@ func (h *Handler) GetList(c *gin.Context) {
 	var response []dto.RestaurantResponse
 	for _, r := range restaurants {
 		response = append(response, dto.RestaurantResponse{
-			ID:          r.ID,
-			Name:        r.Name,
-			Description: r.Description,
-			Address:     r.Address,
-			City:        r.City,
-			Phone:       r.Phone,
-			Latitude:    r.Latitude,
-			Longitude:   r.Longitude,
-			ImageURL:    r.ImageURL,
-			Rating:      r.Rating,
+			ID:        r.ID.String(),
+			Name:      r.Name,
+			Address:   r.Address,
+			Phone:     r.Phone,
+			Latitude:  r.Latitude,
+			Longitude: r.Longitude,
 		})
 	}
 
@@ -98,16 +94,12 @@ func (h *Handler) GetByID(c *gin.Context) {
 	}
 
 	response := dto.RestaurantResponse{
-		ID:          restaurant.ID,
-		Name:        restaurant.Name,
-		Description: restaurant.Description,
-		Address:     restaurant.Address,
-		City:        restaurant.City,
-		Phone:       restaurant.Phone,
-		Latitude:    restaurant.Latitude,
-		Longitude:   restaurant.Longitude,
-		ImageURL:    restaurant.ImageURL,
-		Rating:      restaurant.Rating,
+		ID:        restaurant.ID.String(),
+		Name:      restaurant.Name,
+		Address:   restaurant.Address,
+		Phone:     restaurant.Phone,
+		Latitude:  restaurant.Latitude,
+		Longitude: restaurant.Longitude,
 	}
 
 	c.JSON(http.StatusOK, response)
