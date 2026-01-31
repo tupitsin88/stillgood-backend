@@ -13,6 +13,25 @@ import (
 	"kursach_backend/internal/orders"
 )
 
+	"github.com/gin-gonic/gin"
+
+	"kursach_backend/internal/app"
+	"kursach_backend/internal/auth"
+	"kursach_backend/internal/categories"
+	"kursach_backend/internal/domain"
+	"kursach_backend/internal/pkg/filestorage"
+	"kursach_backend/internal/restaurants"
+	"kursach_backend/pkg/postgres"
+)
+
+// @title FoodSharing App API
+// @version 1.0
+// @description API сервер для курсовой работы FoodSharing.
+// @host localhost:8080
+// @BasePath /api/v1
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 func main() {
 	// 1. Подключение к БД
 	dsn := "host=" + os.Getenv("DB_HOST") +
@@ -25,6 +44,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
+  
+  jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "supersecretkey"
+	}
 
 	// 2. Авто-миграции
 	log.Println("Running migrations...")
@@ -34,13 +58,20 @@ func main() {
 		&domain.Offer{},
 		&domain.Order{},
 		&domain.OrderStatusHistory{},
+    &domain.Category{},
 	)
 	if err != nil {
 		log.Fatal("Migration failed:", err)
 	}
 	log.Println("Migrations completed successfully")
+  
+  
 
 	// 3. Инициализация слоев
+	tokenManager, err := auth.NewTokenManager(jwtSecret)
+	if err != nil {
+		log.Fatalf("failed to init token manager: %v", err)
+	}
 	// --- Orders ---
 	orderRepo := orders.NewOrderRepository(db)
 	orderService := orders.NewOrderService(orderRepo)
@@ -50,8 +81,37 @@ func main() {
 	offerRepo := offers.NewOfferRepository(db)
 	offerService := offers.NewOfferService(offerRepo)
 	offerHandler := offers.NewOfferHandler(offerService)
+
+  	// --- Auth ---
+	authRepo := auth.NewRepository(db)
+	authService := auth.NewService(authRepo, tokenManager, 30*time.Minute, 14*24*time.Hour)
+	authHandler := auth.NewHandler(authService)
+
+	// File Storage
+	minioEndpoint := "localhost:9000"
+	minioAccessKey := "minioadmin"
+	minioSecretKey := "minioadmin"
+	minioBucket := "food-images"
+	minioUseSSL := false
+
+	fileStorage, err := filestorage.NewFileStorage(minioEndpoint, minioAccessKey, minioSecretKey, minioBucket, minioUseSSL)
+	if err != nil {
+		log.Fatalf("failed to init file storage: %v", err)
+	}
+	log.Printf("File storage initialized for endpoint: %s", minioEndpoint)
+	_ = fileStorage // Will be used in future handlers
+
+  // --- Restaurants ---
+	restaurantsRepo := restaurants.NewRepository(db)
+	restaurantsService := restaurants.NewService(restaurantsRepo, fileStorage)
+	restaurantsHandler := restaurants.NewHandler(restaurantsService)
+
+  // --- Categories ---
+	categoriesRepo := categories.NewRepository(db)
+	categoriesService := categories.NewService(categoriesRepo)
+	categoriesHandler := categories.NewHandler(categoriesService)
 	// 4. Роутер
-	r := gin.Default()
+	router := gin.Default()
 
 	// Mock Middleware (ВРЕМЕННАЯ ЗАГЛУШКА)
 	// В реальном Auth сервисе тут будет валидация JWT
@@ -60,7 +120,7 @@ func main() {
 		c.Set("user_id", "00000000-0000-0000-0000-000000000001")
 		c.Next()
 	}
-
+  app.NewRouter(router, authHandler, restaurantsHandler, categoriesHandler, jwtSecret)
 	orders.RegisterRoutes(r, orderHandler, mockAuthMiddleware)
 	offers.RegisterRoutes(r, offerHandler, mockAuthMiddleware)
 
