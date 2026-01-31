@@ -9,11 +9,21 @@ import (
 
 	"kursach_backend/internal/app"
 	"kursach_backend/internal/auth"
+	"kursach_backend/internal/categories"
 	"kursach_backend/internal/domain"
+	"kursach_backend/internal/pkg/filestorage"
 	"kursach_backend/internal/restaurants"
 	"kursach_backend/pkg/postgres"
 )
 
+// @title FoodSharing App API
+// @version 1.0
+// @description API сервер для курсовой работы FoodSharing.
+// @host localhost:8080
+// @BasePath /api/v1
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 func main() {
 	// 1. Config
 	dsn := os.Getenv("DB_DSN")
@@ -33,7 +43,7 @@ func main() {
 	}
 
 	// Migrations
-	if err := db.AutoMigrate(&domain.User{}, &domain.Restaurant{}); err != nil {
+	if err := db.AutoMigrate(&domain.User{}, &domain.Restaurant{}, &domain.Category{}); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 
@@ -47,13 +57,31 @@ func main() {
 	authService := auth.NewService(authRepo, tokenManager, 30*time.Minute, 14*24*time.Hour)
 	authHandler := auth.NewHandler(authService)
 
+	// File Storage
+	minioEndpoint := "localhost:9000"
+	minioAccessKey := "minioadmin"
+	minioSecretKey := "minioadmin"
+	minioBucket := "food-images"
+	minioUseSSL := false
+
+	fileStorage, err := filestorage.NewFileStorage(minioEndpoint, minioAccessKey, minioSecretKey, minioBucket, minioUseSSL)
+	if err != nil {
+		log.Fatalf("failed to init file storage: %v", err)
+	}
+	log.Printf("File storage initialized for endpoint: %s", minioEndpoint)
+	_ = fileStorage // Will be used in future handlers
+
 	restaurantsRepo := restaurants.NewRepository(db)
-	restaurantsService := restaurants.NewService(restaurantsRepo)
+	restaurantsService := restaurants.NewService(restaurantsRepo, fileStorage)
 	restaurantsHandler := restaurants.NewHandler(restaurantsService)
+
+	categoriesRepo := categories.NewRepository(db)
+	categoriesService := categories.NewService(categoriesRepo)
+	categoriesHandler := categories.NewHandler(categoriesService)
 
 	// 4. Router
 	router := gin.Default()
-	app.NewRouter(router, authHandler, restaurantsHandler, jwtSecret)
+	app.NewRouter(router, authHandler, restaurantsHandler, categoriesHandler, jwtSecret)
 
 	// 5. Run
 	if err := router.Run(":8080"); err != nil {
