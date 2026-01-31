@@ -8,11 +8,12 @@ import (
 	_ "kursach_backend/docs"
 	"kursach_backend/internal/auth"
 	"kursach_backend/internal/categories"
+	"kursach_backend/internal/orders"
 	"kursach_backend/internal/pkg/middleware"
 	"kursach_backend/internal/restaurants"
 )
 
-func NewRouter(handler *gin.Engine, authHandler *auth.Handler, restaurantsHandler *restaurants.Handler, categoriesHandler *categories.Handler, jwtSecret string) {
+func NewRouter(handler *gin.Engine, authHandler *auth.Handler, restaurantsHandler *restaurants.Handler, categoriesHandler *categories.Handler, orderHandler *orders.OrderHandler, jwtSecret string) {
 	// Options
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
@@ -24,4 +25,6 @@ func NewRouter(handler *gin.Engine, authHandler *auth.Handler, restaurantsHandle
 	authHandler.RegisterRoutes(handler, middleware.AuthMiddleware(jwtSecret))
 	restaurantsHandler.RegisterRoutes(handler)
 	categoriesHandler.RegisterRoutes(handler)
+	orders.RegisterRoutes(handler, orderHandler, middleware.AuthMiddleware(jwtSecret))
+	// offers.RegisterRoutes(handler, offerHandler, middleware.AuthMiddleware(jwtSecret))
 }
