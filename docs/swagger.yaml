@@ -1,15 +1,6 @@
 basePath: /api/v1
 definitions:
-  categories.CategoryResponse:
-    properties:
-      icon_url:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-    type: object
-  dto.LoginRequest:
+  auth.LoginRequest:
     properties:
       device_token:
         type: string
@@ -22,14 +13,14 @@ definitions:
     - email
     - password
     type: object
-  dto.RefreshRequest:
+  auth.RefreshRequest:
     properties:
       refreshToken:
         type: string
     required:
     - refreshToken
     type: object
-  dto.RegisterRequest:
+  auth.RegisterRequest:
     properties:
       device_token:
         type: string
@@ -45,29 +36,14 @@ definitions:
     - name
     - password
     type: object
-  dto.RestaurantResponse:
-    properties:
-      address:
-        type: string
-      id:
-        type: string
-      latitude:
-        type: number
-      longitude:
-        type: number
-      name:
-        type: string
-      phone:
-        type: string
-    type: object
-  dto.TokenResponse:
+  auth.TokenResponse:
     properties:
       accessToken:
         type: string
       refreshToken:
         type: string
     type: object
-  dto.UserResponse:
+  auth.UserResponse:
     properties:
       email:
         type: string
@@ -115,24 +91,6 @@ definitions:
     - quantity
     - title
     type: object
-  offers.GetOffersResponse:
-    properties:
-      data:
-        items:
-          $ref: '#/definitions/offers.OfferPreviewDTO'
-        type: array
-      pagination:
-        $ref: '#/definitions/offers.Pagination'
-    type: object
-  offers.GetPartnerOffersResponse:
-    properties:
-      data:
-        items:
-          $ref: '#/definitions/offers.OfferDetailDTO'
-        type: array
-      pagination:
-        $ref: '#/definitions/offers.Pagination'
-    type: object
   offers.OfferDetailDTO:
     properties:
       category:
@@ -163,44 +121,6 @@ definitions:
         $ref: '#/definitions/offers.RestaurantShortDTO'
       title:
         type: string
-    type: object
-  offers.OfferPreviewDTO:
-    properties:
-      category:
-        $ref: '#/definitions/offers.CategoryDTO'
-      discount:
-        type: integer
-      distance:
-        type: integer
-      id:
-        type: string
-      imageUrl:
-        type: string
-      originalPrice:
-        type: number
-      pickupEnd:
-        type: string
-      pickupStart:
-        type: string
-      price:
-        type: number
-      quantityAvailable:
-        type: integer
-      restaurantId:
-        type: string
-      restaurantName:
-        type: string
-      title:
-        type: string
-    type: object
-  offers.Pagination:
-    properties:
-      limit:
-        type: integer
-      offset:
-        type: integer
-      total:
-        type: integer
     type: object
   offers.RestaurantShortDTO:
     properties:
@@ -246,15 +166,6 @@ definitions:
       status:
         type: string
     type: object
-  orders.CompleteOrderResponse:
-    properties:
-      completedAt:
-        type: string
-      id:
-        type: string
-      status:
-        type: string
-    type: object
   orders.CreateOrderRequest:
     properties:
       offerId:
@@ -276,22 +187,6 @@ definitions:
         $ref: '#/definitions/orders.RestaurantSimpleDTO'
       status:
         type: string
-    type: object
-  orders.GetPartnerOrdersResponse:
-    properties:
-      data:
-        items:
-          $ref: '#/definitions/orders.PartnerOrderDTO'
-        type: array
-    type: object
-  orders.GetUserOrdersResponse:
-    properties:
-      data:
-        items:
-          $ref: '#/definitions/orders.OrderPreviewDTO'
-        type: array
-      pagination:
-        $ref: '#/definitions/orders.Pagination'
     type: object
   orders.OfferDetailInternalDTO:
     properties:
@@ -318,13 +213,6 @@ definitions:
       restaurantId:
         type: string
       restaurantName:
-        type: string
-      title:
-        type: string
-    type: object
-  orders.OfferPreviewInternalDTO:
-    properties:
-      imageUrl:
         type: string
       title:
         type: string
@@ -367,59 +255,6 @@ definitions:
       status:
         type: string
     type: object
-  orders.OrderPreviewDTO:
-    properties:
-      amount:
-        type: number
-      createdAt:
-        type: string
-      expiresAt:
-        type: string
-      id:
-        type: string
-      offer:
-        $ref: '#/definitions/orders.OfferPreviewInternalDTO'
-      orderNumber:
-        type: string
-      pickupEnd:
-        type: string
-      pickupStart:
-        type: string
-      restaurant:
-        $ref: '#/definitions/orders.RestaurantSimpleDTO'
-      status:
-        type: string
-    type: object
-  orders.Pagination:
-    properties:
-      limit:
-        type: integer
-      offset:
-        type: integer
-      total:
-        type: integer
-    type: object
-  orders.PartnerOrderDTO:
-    properties:
-      amount:
-        type: number
-      createdAt:
-        type: string
-      customerName:
-        type: string
-      id:
-        type: string
-      offerTitle:
-        type: string
-      orderNumber:
-        type: string
-      pickupEnd:
-        type: string
-      pickupStart:
-        type: string
-      status:
-        type: string
-    type: object
   orders.PayOrderResponse:
     properties:
       id:
@@ -453,6 +288,21 @@ definitions:
       name:
         type: string
     type: object
+  restaurants.RestaurantResponse:
+    properties:
+      address:
+        type: string
+      id:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        type: string
+      phone:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -460,10 +310,130 @@ info:
   title: FoodSharing App API
   version: "1.0"
 paths:
-  /api/v1/offers:
-    get:
+  /auth/login:
+    post:
       consumes:
       - application/json
+      parameters:
+      - description: Данные для входа
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.TokenResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Вход (USER/PARTNER)
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Выход (инвалидация refresh token)
+      tags:
+      - Auth
+  /auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.UserResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Текущий пользователь
+      tags:
+      - Auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Refresh token
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.TokenResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Обновление токенов
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для регистрации
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/auth.TokenResponse'
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Регистрация USER
+      tags:
+      - Auth
+  /categories:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Список категорий
+      tags:
+      - Categories
+  /offers:
+    get:
       parameters:
       - description: Latitude
         in: query
@@ -473,23 +443,31 @@ paths:
         in: query
         name: lng
         type: number
-      - description: Radius (meters)
+      - description: Radius
         in: query
         name: radius
         type: integer
+      - description: Restaurant ID
+        in: query
+        name: restaurantId
+        type: string
+      - description: Category ID
+        in: query
+        name: categoryId
+        type: string
       - description: Min Price
         in: query
-        name: price_min
+        name: minPrice
         type: number
       - description: Max Price
         in: query
-        name: price_max
+        name: maxPrice
         type: number
-      - description: Category ID
-        in: query
-        name: category_id
-        type: string
       - description: Sort By
+        enum:
+        - distance
+        - price
+        - pickupTime
         in: query
         name: sortBy
         type: string
@@ -507,26 +485,13 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/offers.GetOffersResponse'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Get public offers list
+      summary: Список предложений
       tags:
-      - offers
-  /api/v1/offers/{id}:
+      - Offers
+  /offers/{id}:
     get:
-      consumes:
-      - application/json
       parameters:
       - description: Offer ID
         in: path
@@ -546,71 +511,44 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Get offer details by ID
+      summary: Детали предложения
       tags:
-      - offers
-  /api/v1/orders:
+      - Offers
+  /orders:
     get:
-      consumes:
-      - application/json
       parameters:
+      - description: Status
+        in: query
+        name: status
+        type: string
       - description: Limit
         in: query
         name: limit
         type: integer
-      - description: Comma-separated statuses
+      - description: Offset
         in: query
-        name: status
-        type: string
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/orders.GetUserOrdersResponse'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Get user orders
+      summary: Заказы пользователя
       tags:
-      - orders
+      - Orders
     post:
       consumes:
       - application/json
       parameters:
-      - description: Order Creation Request
+      - description: Данные заказа
         in: body
-        name: request
+        name: input
         required: true
         schema:
           $ref: '#/definitions/orders.CreateOrderRequest'
@@ -627,33 +565,13 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
       security:
       - ApiKeyAuth: []
-      summary: Create a new order
+      summary: Создание заказа
       tags:
-      - orders
-  /api/v1/orders/{id}:
+      - Orders
+  /orders/{id}:
     get:
-      consumes:
-      - application/json
       parameters:
       - description: Order ID
         in: path
@@ -667,36 +585,18 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/orders.OrderDetailDTO'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
         "404":
           description: Not Found
           schema:
             additionalProperties:
               type: string
             type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
       security:
       - ApiKeyAuth: []
-      summary: Get order details
+      summary: Детали заказа
       tags:
-      - orders
-  /api/v1/orders/{id}/cancel:
+      - Orders
+  /orders/{id}/cancel:
     post:
       consumes:
       - application/json
@@ -706,9 +606,9 @@ paths:
         name: id
         required: true
         type: string
-      - description: Cancellation Reason
+      - description: Причина отмены
         in: body
-        name: request
+        name: input
         required: true
         schema:
           $ref: '#/definitions/orders.CancelOrderRequest'
@@ -719,39 +619,13 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/orders.CancelOrderResponse'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
       security:
       - ApiKeyAuth: []
-      summary: Cancel an order
+      summary: Отмена заказа
       tags:
-      - orders
-  /api/v1/orders/{id}/pay:
+      - Orders
+  /orders/{id}/pay:
     post:
-      consumes:
-      - application/json
       parameters:
       - description: Order ID
         in: path
@@ -765,76 +639,48 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/orders.PayOrderResponse'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
         "401":
           description: Unauthorized
           schema:
             additionalProperties:
               type: string
             type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
       security:
       - ApiKeyAuth: []
-      summary: Pay for an order
+      summary: Оплата заказа
       tags:
-      - orders
-  /api/v1/partner/offers:
+      - Orders
+  /partner/offers:
     get:
-      consumes:
-      - application/json
+      parameters:
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/offers.GetPartnerOffersResponse'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Get partner's offers
+      summary: Предложения партнёра
       tags:
-      - offers
+      - Partner
     post:
       consumes:
       - application/json
       parameters:
-      - description: Create Offer Request
+      - description: Данные предложения
         in: body
-        name: request
+        name: input
         required: true
         schema:
           $ref: '#/definitions/offers.CreateOfferRequest'
@@ -845,36 +691,12 @@ paths:
           description: Created
           schema:
             $ref: '#/definitions/offers.OfferDetailDTO'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
       security:
       - ApiKeyAuth: []
-      summary: Create a new offer
+      summary: Создание предложения
       tags:
-      - offers
-  /api/v1/partner/offers/{id}:
+      - Partner
+  /partner/offers/{id}:
     patch:
       consumes:
       - application/json
@@ -884,9 +706,9 @@ paths:
         name: id
         required: true
         type: string
-      - description: Update Offer Request
+      - description: Данные для обновления
         in: body
-        name: request
+        name: input
         required: true
         schema:
           $ref: '#/definitions/offers.UpdateOfferRequest'
@@ -897,85 +719,52 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/offers.OfferDetailDTO'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
         "403":
           description: Forbidden
           schema:
             additionalProperties:
               type: string
             type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
       security:
       - ApiKeyAuth: []
-      summary: Update an existing offer
+      summary: Обновление предложения
       tags:
-      - offers
-  /api/v1/partner/orders:
+      - Partner
+  /partner/orders:
     get:
-      consumes:
-      - application/json
+      parameters:
+      - description: Status
+        enum:
+        - CREATED
+        - PAID
+        - COMPLETED
+        - CANCELLED
+        in: query
+        name: status
+        type: string
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/orders.GetPartnerOrdersResponse'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Get partner orders
+      summary: Заказы партнёра
       tags:
-      - partner-orders
-  /api/v1/partner/orders/{id}/complete:
+      - Partner
+  /partner/orders/{id}/complete:
     post:
-      consumes:
-      - application/json
       parameters:
       - description: Order ID
         in: path
@@ -988,145 +777,40 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/orders.CompleteOrderResponse'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Complete an order
+      summary: Подтверждение выдачи
       tags:
-      - partner-orders
-  /auth/login:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Данные для входа
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/dto.LoginRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dto.TokenResponse'
-      summary: Вход пользователя
-      tags:
-      - Auth
-  /auth/logout:
-    post:
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Выход из системы
-      tags:
-      - Auth
-  /auth/me:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dto.UserResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Получение текущего пользователя
-      tags:
-      - Auth
-  /auth/refresh:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Refresh token
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/dto.RefreshRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dto.TokenResponse'
-      summary: Обновление токенов
-      tags:
-      - Auth
-  /auth/register:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Данные для регистрации
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/dto.RegisterRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/dto.TokenResponse'
-      summary: Регистрация пользователя
-      tags:
-      - Auth
-  /categories:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              items:
-                $ref: '#/definitions/categories.CategoryResponse'
-              type: array
-            type: object
-      summary: Get all categories
-      tags:
-      - Categories
+      - Partner
   /restaurants:
     get:
+      parameters:
+      - description: Latitude
+        in: query
+        name: lat
+        type: number
+      - description: Longitude
+        in: query
+        name: lng
+        type: number
+      - description: Радиус в метрах
+        in: query
+        name: radius
+        type: integer
+      - description: Category ID
+        in: query
+        name: categoryId
+        type: string
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
@@ -1134,11 +818,11 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/dto.RestaurantResponse'
+              $ref: '#/definitions/restaurants.RestaurantResponse'
             type: array
-      summary: Get list of restaurants
+      summary: Список ресторанов
       tags:
-      - restaurants
+      - Restaurants
   /restaurants/{id}:
     get:
       parameters:
@@ -1153,16 +837,16 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.RestaurantResponse'
+            $ref: '#/definitions/restaurants.RestaurantResponse'
         "404":
           description: Not Found
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Get restaurant by ID
+      summary: Детали ресторана
       tags:
-      - restaurants
+      - Restaurants
   /restaurants/upload:
     post:
       consumes:
@@ -1182,9 +866,9 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Upload image
+      summary: Загрузка изображения
       tags:
-      - restaurants
+      - Restaurants
 securityDefinitions:
   ApiKeyAuth:
     in: header

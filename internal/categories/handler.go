@@ -14,10 +14,10 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
-// @Summary Get all categories
+// @Summary Список категорий
 // @Tags Categories
 // @Produce json
-// @Success 200 {object} map[string][]CategoryResponse
+// @Success 200 {object} map[string]interface{}
 // @Router /categories [get]
 func (h *Handler) GetList(c *gin.Context) {
 	categories, err := h.service.GetAll()

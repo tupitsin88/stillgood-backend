@@ -15,12 +15,13 @@ func NewHandler(service Service) *Handler {
 }
 
 // Register godoc
-// @Summary Регистрация пользователя
+// @Summary Регистрация USER
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param input body dto.RegisterRequest true "Данные для регистрации"
-// @Success 201 {object} dto.TokenResponse
+// @Param input body RegisterRequest true "Данные для регистрации"
+// @Success 201 {object} TokenResponse
+// @Failure 409 {object} map[string]string
 // @Router /auth/register [post]
 func (h *Handler) Register(c *gin.Context) {
 	var input RegisterRequest
@@ -43,12 +44,13 @@ func (h *Handler) Register(c *gin.Context) {
 }
 
 // Login godoc
-// @Summary Вход пользователя
+// @Summary Вход (USER/PARTNER)
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param input body dto.LoginRequest true "Данные для входа"
-// @Success 200 {object} dto.TokenResponse
+// @Param input body LoginRequest true "Данные для входа"
+// @Success 200 {object} TokenResponse
+// @Failure 401 {object} map[string]string
 // @Router /auth/login [post]
 func (h *Handler) Login(c *gin.Context) {
 	var input LoginRequest
@@ -71,7 +73,7 @@ func (h *Handler) Login(c *gin.Context) {
 }
 
 // Me godoc
-// @Summary Получение текущего пользователя
+// @Summary Текущий пользователь
 // @Tags Auth
 // @Security ApiKeyAuth
 // @Produce json
@@ -111,6 +113,7 @@ func (h *Handler) Me(c *gin.Context) {
 // @Produce json
 // @Param input body RefreshRequest true "Refresh token"
 // @Success 200 {object} TokenResponse
+// @Failure 401 {object} map[string]string
 // @Router /auth/refresh [post]
 func (h *Handler) Refresh(c *gin.Context) {
 	var input RefreshRequest
@@ -133,7 +136,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 }
 
 // Logout godoc
-// @Summary Выход из системы
+// @Summary Выход (инвалидация refresh token)
 // @Security ApiKeyAuth
 // @Tags Auth
 // @Success 200 {object} map[string]string
