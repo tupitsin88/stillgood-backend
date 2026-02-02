@@ -15,19 +15,14 @@ func NewOfferHandler(service *OfferService) *OfferHandler {
 	return &OfferHandler{service: service}
 }
 
-// CreateOffer godoc
-// @Tags offers
+// @Summary Создание предложения
+// @Tags Partner
 // @Security ApiKeyAuth
-// @Summary Create a new offer
 // @Accept json
 // @Produce json
-// @Param request body CreateOfferRequest true "Create Offer Request"
-// @Success 201 {object} offers.OfferDetailDTO
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/v1/partner/offers [post]
+// @Param input body CreateOfferRequest true "Данные предложения"
+// @Success 201 {object} OfferDetailDTO
+// @Router /partner/offers [post]
 func (h *OfferHandler) CreateOffer(c *gin.Context) {
 	var req CreateOfferRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -52,21 +47,16 @@ func (h *OfferHandler) CreateOffer(c *gin.Context) {
 	c.JSON(201, dto)
 }
 
-// UpdateOffer godoc
-// @Tags offers
+// @Summary Обновление предложения
+// @Tags Partner
 // @Security ApiKeyAuth
-// @Summary Update an existing offer
 // @Accept json
 // @Produce json
 // @Param id path string true "Offer ID"
-// @Param request body UpdateOfferRequest true "Update Offer Request"
-// @Success 200 {object} offers.OfferDetailDTO
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
+// @Param input body UpdateOfferRequest true "Данные для обновления"
+// @Success 200 {object} OfferDetailDTO
 // @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/v1/partner/offers/{id} [patch]
+// @Router /partner/offers/{id} [patch]
 func (h *OfferHandler) UpdateOffer(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	uidStr := c.GetString("user_id")
@@ -95,17 +85,14 @@ func (h *OfferHandler) UpdateOffer(c *gin.Context) {
 	c.JSON(200, dto)
 }
 
-// GetPartnerOffers godoc
-// @Tags offers
+// @Summary Предложения партнёра
+// @Tags Partner
 // @Security ApiKeyAuth
-// @Summary Get partner's offers
-// @Accept json
 // @Produce json
-// @Success 200 {object} offers.GetPartnerOffersResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/v1/partner/offers [get]
+// @Param limit query integer false "Limit"
+// @Param offset query integer false "Offset"
+// @Success 200 {object} map[string]interface{}
+// @Router /partner/offers [get]
 func (h *OfferHandler) GetPartnerOffers(c *gin.Context) {
 	uidStr := c.GetString("user_id")
 	partnerID, _ := uuid.Parse(uidStr)
@@ -124,24 +111,21 @@ func (h *OfferHandler) GetPartnerOffers(c *gin.Context) {
 	})
 }
 
-// GetPublicOffers godoc
-// @Tags offers
-// @Summary Get public offers list
-// @Accept json
+// @Summary Список предложений
+// @Tags Offers
 // @Produce json
 // @Param lat query number false "Latitude"
 // @Param lng query number false "Longitude"
-// @Param radius query int false "Radius (meters)"
-// @Param price_min query number false "Min Price"
-// @Param price_max query number false "Max Price"
-// @Param category_id query string false "Category ID"
-// @Param sortBy query string false "Sort By"
-// @Param limit query int false "Limit"
-// @Param offset query int false "Offset"
-// @Success 200 {object} offers.GetOffersResponse
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/v1/offers [get]
+// @Param radius query integer false "Radius"
+// @Param restaurantId query string false "Restaurant ID"
+// @Param categoryId query string false "Category ID"
+// @Param minPrice query number false "Min Price"
+// @Param maxPrice query number false "Max Price"
+// @Param sortBy query string false "Sort By" Enums(distance, price, pickupTime)
+// @Param limit query integer false "Limit"
+// @Param offset query integer false "Offset"
+// @Success 200 {object} map[string]interface{}
+// @Router /offers [get]
 func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -203,16 +187,13 @@ func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 	})
 }
 
-// GetOfferByID godoc
-// @Tags offers
-// @Summary Get offer details by ID
-// @Accept json
+// @Summary Детали предложения
+// @Tags Offers
 // @Produce json
 // @Param id path string true "Offer ID"
-// @Success 200 {object} offers.OfferDetailDTO
+// @Success 200 {object} OfferDetailDTO
 // @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/v1/offers/{id} [get]
+// @Router /offers/{id} [get]
 func (h *OfferHandler) GetOfferByID(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 

@@ -14,8 +14,8 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
-// @Summary Upload image
-// @Tags restaurants
+// @Summary Загрузка изображения
+// @Tags Restaurants
 // @Accept multipart/form-data
 // @Produce json
 // @Param image formData file true "Image file"
@@ -37,10 +37,16 @@ func (h *Handler) UploadImage(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"url": url})
 }
 
-// @Summary Get list of restaurants
-// @Tags restaurants
+// @Summary Список ресторанов
+// @Tags Restaurants
 // @Produce json
-// @Success 200 {array} dto.RestaurantResponse
+// @Param lat query number false "Latitude"
+// @Param lng query number false "Longitude"
+// @Param radius query integer false "Радиус в метрах"
+// @Param categoryId query string false "Category ID"
+// @Param limit query integer false "Limit"
+// @Param offset query integer false "Offset"
+// @Success 200 {array} RestaurantResponse
 // @Router /restaurants [get]
 func (h *Handler) GetList(c *gin.Context) {
 	restaurants, err := h.service.GetAll()
@@ -65,8 +71,8 @@ func (h *Handler) GetList(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// @Summary Get restaurant by ID
-// @Tags restaurants
+// @Summary Детали ресторана
+// @Tags Restaurants
 // @Produce json
 // @Param id path string true "Restaurant ID"
 // @Success 200 {object} RestaurantResponse

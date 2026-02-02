@@ -24,19 +24,15 @@ func errorResponse(c *gin.Context, code int, errorCode string, message string) {
 	})
 }
 
-// CreateOrder godoc
-// @Tags orders
+// @Summary Создание заказа
+// @Tags Orders
 // @Security ApiKeyAuth
-// @Summary Create a new order
 // @Accept json
 // @Produce json
-// @Param request body CreateOrderRequest true "Order Creation Request"
-// @Success 201 {object} orders.CreateOrderResponse
+// @Param input body CreateOrderRequest true "Данные заказа"
+// @Success 201 {object} CreateOrderResponse
 // @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/v1/orders [post]
+// @Router /orders [post]
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	var req CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -79,19 +75,14 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	c.JSON(201, resp)
 }
 
-// PayOrder godoc
-// @Tags orders
+// @Summary Оплата заказа
+// @Tags Orders
 // @Security ApiKeyAuth
-// @Summary Pay for an order
-// @Accept json
 // @Produce json
 // @Param id path string true "Order ID"
-// @Success 200 {object} orders.PayOrderResponse
-// @Failure 400 {object} map[string]string
+// @Success 200 {object} PayOrderResponse
 // @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/v1/orders/{id}/pay [post]
+// @Router /orders/{id}/pay [post]
 func (h *OrderHandler) PayOrder(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -130,20 +121,15 @@ func (h *OrderHandler) PayOrder(c *gin.Context) {
 	c.JSON(200, resp)
 }
 
-// CancelOrder godoc
-// @Tags orders
+// @Summary Отмена заказа
+// @Tags Orders
 // @Security ApiKeyAuth
-// @Summary Cancel an order
 // @Accept json
 // @Produce json
 // @Param id path string true "Order ID"
-// @Param request body CancelOrderRequest true "Cancellation Reason"
-// @Success 200 {object} orders.CancelOrderResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/v1/orders/{id}/cancel [post]
+// @Param input body CancelOrderRequest true "Причина отмены"
+// @Success 200 {object} CancelOrderResponse
+// @Router /orders/{id}/cancel [post]
 func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -185,19 +171,13 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	c.JSON(200, resp)
 }
 
-// CompleteOrder godoc
-// @Tags partner-orders
+// @Summary Подтверждение выдачи
+// @Tags Partner
 // @Security ApiKeyAuth
-// @Summary Complete an order
-// @Accept json
 // @Produce json
 // @Param id path string true "Order ID"
-// @Success 200 {object} orders.CompleteOrderResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/v1/partner/orders/{id}/complete [post]
+// @Success 200 {object} map[string]interface{}
+// @Router /partner/orders/{id}/complete [post]
 func (h *OrderHandler) CompleteOrder(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -224,20 +204,15 @@ func (h *OrderHandler) CompleteOrder(c *gin.Context) {
 	})
 }
 
-// GetUserOrders godoc
-// @Tags orders
+// @Summary Заказы пользователя
+// @Tags Orders
 // @Security ApiKeyAuth
-// @Summary Get user orders
-// @Accept json
 // @Produce json
-// @Param limit query int false "Limit"
-// @Param status query string false "Comma-separated statuses"
-// @Success 200 {object} orders.GetUserOrdersResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/v1/orders [get]
+// @Param status query string false "Status"
+// @Param limit query integer false "Limit"
+// @Param offset query integer false "Offset"
+// @Success 200 {object} map[string]interface{}
+// @Router /orders [get]
 func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 	uidStr := c.GetString("user_id")
 	userID, err := uuid.Parse(uidStr)
@@ -290,18 +265,15 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 	})
 }
 
-// GetPartnerOrders godoc
-// @Tags partner-orders
+// @Summary Заказы партнёра
+// @Tags Partner
 // @Security ApiKeyAuth
-// @Summary Get partner orders
-// @Accept json
 // @Produce json
-// @Success 200 {object} orders.GetPartnerOrdersResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/v1/partner/orders [get]
+// @Param status query string false "Status" Enums(CREATED, PAID, COMPLETED, CANCELLED)
+// @Param limit query integer false "Limit"
+// @Param offset query integer false "Offset"
+// @Success 200 {object} map[string]interface{}
+// @Router /partner/orders [get]
 func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 	orders, err := h.service.repo.GetPartnerOrders(c.Request.Context(), 20, 0, []string{"PAID", "CREATED"})
 	if err != nil {
@@ -331,19 +303,14 @@ func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 	c.JSON(200, gin.H{"data": data})
 }
 
-// GetOrderById godoc
-// @Tags orders
+// @Summary Детали заказа
+// @Tags Orders
 // @Security ApiKeyAuth
-// @Summary Get order details
-// @Accept json
 // @Produce json
 // @Param id path string true "Order ID"
-// @Success 200 {object} orders.OrderDetailDTO
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
+// @Success 200 {object} OrderDetailDTO
 // @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/v1/orders/{id} [get]
+// @Router /orders/{id} [get]
 func (h *OrderHandler) GetOrderById(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
