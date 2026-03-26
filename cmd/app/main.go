@@ -1,16 +1,16 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"kursach_backend/internal/domain"
 	"kursach_backend/internal/offers"
-
-	// "kursach_backend/internal/offers"
 	"kursach_backend/internal/orders"
 
 	"kursach_backend/internal/app"
@@ -36,9 +36,20 @@ func main() {
 		" dbname=" + os.Getenv("DB_NAME") +
 		" port=" + os.Getenv("DB_PORT") +
 		" sslmode=disable"
-	db, err := postgres.NewDB(dsn)
+	var db *gorm.DB
+	var err error
+
+	log.Printf("Connecting to database at %s:%s...", os.Getenv("DB_HOST"), os.Getenv("DB_PORT"))
+	for i := 0; i < 5; i++ {
+		db, err = postgres.NewDB(dsn)
+		if err == nil {
+			break
+		}
+		log.Printf("Database not ready, retrying in 2 seconds... (%d/5)", i+1)
+		time.Sleep(2 * time.Second)
+	}
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("Failed to connect to database after retries:", err)
 	}
 
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -71,6 +82,9 @@ func main() {
 	orderService := orders.NewOrderService(orderRepo)
 	orderHandler := orders.NewOrderHandler(orderService)
 
+	// Cron-worker
+	go orderService.StartExpirationWorker(context.Background())
+
 	// --- Offers ---
 	offerRepo := offers.NewOfferRepository(db)
 	offerService := offers.NewOfferService(offerRepo)
@@ -82,17 +96,23 @@ func main() {
 	authHandler := auth.NewHandler(authService)
 
 	// File Storage
-	minioEndpoint := "localhost:9000"
+	minioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	if minioEndpoint == "" {
+		minioEndpoint = "minio:9000"
+	}
 	minioAccessKey := os.Getenv("MINIO_ROOT_USER")
 	minioSecretKey := os.Getenv("MINIO_ROOT_PASSWORD")
-	minioBucket := "food-images"
-	minioUseSSL := false
-
-	fileStorage, err := filestorage.NewFileStorage(minioEndpoint, minioAccessKey, minioSecretKey, minioBucket, minioUseSSL)
-	if err != nil {
-		log.Fatalf("failed to init file storage: %v", err)
+	minioBucket := os.Getenv("MINIO_BUCKET")
+	if minioBucket == "" {
+		minioBucket = "food-images"
 	}
-	log.Printf("File storage initialized for endpoint: %s", minioEndpoint)
+
+	fileStorage, err := filestorage.NewFileStorage(minioEndpoint, minioAccessKey, minioSecretKey, minioBucket, false)
+	if err != nil {
+		log.Fatalf("Warning: failed to init file storage: %v", err)
+	} else {
+		log.Printf("File storage initialized for endpoint: %s", minioEndpoint)
+	}
 	_ = fileStorage // Will be used in future handlers
 
 	// --- Restaurants ---
@@ -109,8 +129,13 @@ func main() {
 	router := gin.Default()
 	app.NewRouter(router, authHandler, restaurantsHandler, categoriesHandler, orderHandler, offerHandler, jwtSecret)
 
-	log.Println("Server starting on :8080")
-	if err := router.Run(":8080"); err != nil {
+	appPort := os.Getenv("APP_PORT")
+	if appPort == "" {
+		appPort = "8080"
+	}
+
+	log.Printf("Server starting on :%s", appPort)
+	if err := router.Run(":" + appPort); err != nil {
 		log.Fatal("Server start failed:", err)
 	}
 }

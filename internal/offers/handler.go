@@ -1,6 +1,8 @@
 package offers
 
 import (
+	"fmt"
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -26,25 +28,34 @@ func NewOfferHandler(service *OfferService) *OfferHandler {
 func (h *OfferHandler) CreateOffer(c *gin.Context) {
 	var req CreateOfferRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
 		return
 	}
-
-	uidStr := c.GetString("user_id")
-	partnerID, _ := uuid.Parse(uidStr)
-
+	uidValue, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UNAUTHORIZED", "message": "User ID not found in context"})
+		return
+	}
+	uidStr := fmt.Sprintf("%v", uidValue)
+	partnerID, err := uuid.Parse(uidStr)
+	if err != nil || partnerID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UNAUTHORIZED", "message": "Invalid User ID format"})
+		return
+	}
 	offer, err := h.service.CreateOffer(c.Request.Context(), partnerID, req)
 	if err != nil {
 		if err.Error() == "RESTAURANT_NOT_FOUND" {
-			c.JSON(403, gin.H{"error": "PARTNER_NOT_APPROVED", "message": "Partner has no active restaurant"})
-			return
+			c.JSON(403, gin.H{
+				"error":   "PARTNER_NOT_APPROVED",
+				"message": "Partner has no active restaurant",
+			})
+		} else {
+			c.JSON(400, gin.H{"error": "CREATION_FAILED", "message": err.Error()})
 		}
-		c.JSON(400, gin.H{"error": "CREATION_FAILED", "message": err.Error()})
 		return
 	}
 
-	dto := h.service.mapToDetailDTO(offer)
-	c.JSON(201, dto)
+	c.JSON(http.StatusCreated, offer)
 }
 
 // @Summary Обновление предложения
