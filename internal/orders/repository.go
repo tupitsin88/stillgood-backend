@@ -3,6 +3,7 @@ package orders
 import (
 	"context"
 	"kursach_backend/internal/domain"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -14,6 +15,17 @@ type OrderRepository struct {
 
 func NewOrderRepository(db *gorm.DB) *OrderRepository {
 	return &OrderRepository{db: db}
+}
+
+func (r *OrderRepository) Transaction(fn func(txRepo *OrderRepository) error) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		txRepo := &OrderRepository{db: tx}
+		return fn(txRepo)
+	})
+}
+
+func (r *OrderRepository) SaveHistory(ctx context.Context, history domain.OrderStatusHistory) error {
+	return r.db.WithContext(ctx).Create(&history).Error
 }
 
 func (r *OrderRepository) CreateOrder(ctx context.Context, order *domain.Order) error {
@@ -30,6 +42,14 @@ func (r *OrderRepository) GetByIDWithDetails(ctx context.Context, id uuid.UUID) 
 		return nil, err
 	}
 	return &order, nil
+}
+
+func (r *OrderRepository) GetExpiredOrders(ctx context.Context) ([]domain.Order, error) {
+	var orders []domain.Order
+	err := r.db.WithContext(ctx).
+		Where("status = ? AND expires_at < ?", domain.OrderCreated, time.Now()).
+		Find(&orders).Error
+	return orders, err
 }
 
 func (r *OrderRepository) GetUserOrders(ctx context.Context, userID uuid.UUID, limit, offset int, statusFilter []string) ([]domain.Order, int64, error) {

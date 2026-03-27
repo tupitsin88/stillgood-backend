@@ -33,8 +33,8 @@ type Order struct {
 }
 
 type OrderStatusHistory struct {
-	ID        uuid.UUID   `gorm:"primaryKey" json:"id"`
-	OrderID   uuid.UUID   `gorm:"index" json:"order_id"`
-	Status    OrderStatus `json:"status"`
+	ID        uuid.UUID   `gorm:"type:uuid;primaryKey" json:"id"`
+	OrderID   uuid.UUID   `gorm:"type:uuid;index" json:"order_id"`
+	Status    OrderStatus `gorm:"type:varchar(20)" json:"status"`
 	ChangedAt time.Time   `json:"changed_at"`
 }

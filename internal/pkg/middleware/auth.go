@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 func AuthMiddleware(signingKey string) gin.HandlerFunc {
@@ -17,20 +18,13 @@ func AuthMiddleware(signingKey string) gin.HandlerFunc {
 			return
 		}
 
-		// Bearer <token>
 		headerParts := strings.Split(authHeader, " ")
 		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid auth header format"})
 			return
 		}
 
-		if len(headerParts[1]) == 0 {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token is empty"})
-			return
-		}
-
 		tokenString := headerParts[1]
-
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -38,38 +32,44 @@ func AuthMiddleware(signingKey string) gin.HandlerFunc {
 			return []byte(signingKey), nil
 		})
 
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		if err != nil || !token.Valid {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token is invalid", "details": err.Error()})
 			return
 		}
 
-		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			// Extract User ID
-			sub, ok := claims["sub"]
-			if !ok {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token invalid: sub claim missing"})
-				return
-			}
-
-			// Handle sub as string (UUID)
-			userID, ok := sub.(string)
-			if !ok {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token invalid: sub is not a valid string"})
-				return
-			}
-
-			// Extract Role
-			role, ok := claims["role"].(string)
-			if !ok {
-				// Role might be optional
-			}
-
-			c.Set("userId", userID)
-			c.Set("role", role)
-			c.Next()
-		} else {
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 			return
 		}
+
+		// Достаем ID из 'sub' (как мы видели в логах)
+		sub, _ := claims["sub"]
+		userIDStr := fmt.Sprintf("%v", sub)
+
+		if userIDStr == "" || userIDStr == "<nil>" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "USER_ID_NOT_FOUND_IN_TOKEN"})
+			return
+		}
+
+		// Пытаемся распарсить в UUID объект
+		userUUID, _ := uuid.Parse(userIDStr)
+
+		// --- СТРЕЛЯЕМ ИЗ ВСЕХ ОРУДИЙ ---
+		// Записываем ID под всеми возможными ключами
+		c.Set("user_id", userIDStr) // Для твоих Orders/Offers
+		c.Set("userId", userIDStr)
+
+		// Записываем и как строку, и как объект UUID (некоторые хендлеры капризные)
+		if userUUID != uuid.Nil {
+			c.Set("user_uuid", userUUID)
+		}
+
+		// Роль тоже кладем как чистую строку
+		if role, ok := claims["role"]; ok {
+			c.Set("role", fmt.Sprintf("%v", role))
+		}
+
+		c.Next()
 	}
 }

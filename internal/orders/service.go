@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"kursach_backend/internal/domain"
+	"log"
 	"math/rand"
 	"time"
 
@@ -18,6 +19,58 @@ func NewOrderService(repo *OrderRepository) *OrderService {
 	return &OrderService{repo: repo}
 }
 
+func (s *OrderService) StartExpirationWorker(ctx context.Context) {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.cancelExpiredOrders(ctx)
+		}
+	}
+}
+
+func (s *OrderService) cancelExpiredOrders(ctx context.Context) {
+	expired, err := s.repo.GetExpiredOrders(ctx)
+	if err != nil {
+		log.Printf("[Cron] Failed to fetch expired orders: %v", err)
+		return
+	}
+
+	for _, order := range expired {
+		log.Printf("[Cron] Expiring order %s...", order.ID)
+
+		reason := "Payment timeout"
+		now := time.Now()
+		order.Status = domain.OrderCancelled
+		order.CancelledAt = &now
+		order.CancellationReason = &reason
+
+		err = s.repo.Transaction(func(txRepo *OrderRepository) error {
+			if err := txRepo.Update(ctx, &order); err != nil {
+				return err
+			}
+			if err := txRepo.UpdateOfferQuantity(ctx, order.OfferID, 1); err != nil {
+				return err
+			}
+			history := domain.OrderStatusHistory{
+				ID:        uuid.New(),
+				OrderID:   order.ID,
+				Status:    domain.OrderCancelled,
+				ChangedAt: now,
+			}
+			return txRepo.SaveHistory(ctx, history)
+		})
+
+		if err != nil {
+			log.Printf("[Cron] Failed to expire order %s: %v", order.ID, err)
+		}
+	}
+}
+
 func (s *OrderService) CreateOrder(ctx context.Context, userID uuid.UUID, req CreateOrderRequest) (*domain.Order, error) {
 	offerUUID, err := uuid.Parse(req.OfferID)
 	if err != nil {
@@ -30,6 +83,9 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID uuid.UUID, req Cr
 	if offer.QuantityAvailable <= 0 {
 		return nil, fmt.Errorf("INSUFFICIENT_QUANTITY")
 	}
+	if time.Now().After(offer.PickupEnd) {
+		return nil, fmt.Errorf("PICKUP_PERIOD_EXPIRED")
+	}
 	amount := offer.Price
 	expiresAt := time.Now().Add(15 * time.Minute)
 
@@ -41,12 +97,23 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID uuid.UUID, req Cr
 		CreatedAt: time.Now(),
 		ExpiresAt: &expiresAt,
 	}
-	// (В идеале это должно быть в транзакции БД, но для MVP сделаем последовательно)
-	if err := s.repo.UpdateOfferQuantity(ctx, offer.ID, -1); err != nil {
-		return nil, err
-	}
-	if err := s.repo.CreateOrder(ctx, order); err != nil {
-		s.repo.UpdateOfferQuantity(ctx, offer.ID, 1)
+	err = s.repo.Transaction(func(txRepo *OrderRepository) error {
+		if err := txRepo.UpdateOfferQuantity(ctx, offer.ID, -1); err != nil {
+			return err
+		}
+		if err := txRepo.CreateOrder(ctx, order); err != nil {
+			return err
+		}
+		history := domain.OrderStatusHistory{
+			ID:        uuid.New(),
+			OrderID:   order.ID,
+			Status:    domain.OrderCreated,
+			ChangedAt: time.Now(),
+		}
+		return txRepo.SaveHistory(ctx, history)
+	})
+
+	if err != nil {
 		return nil, err
 	}
 	order.Offer = *offer
@@ -76,7 +143,20 @@ func (s *OrderService) PayOrder(ctx context.Context, orderID, userID uuid.UUID) 
 	order.PaidAt = &now
 	order.OrderNumber = &num
 
-	if err := s.repo.Update(ctx, order); err != nil {
+	err = s.repo.Transaction(func(txRepo *OrderRepository) error {
+		if err := txRepo.Update(ctx, order); err != nil {
+			return err
+		}
+		history := domain.OrderStatusHistory{
+			ID:        uuid.New(),
+			OrderID:   order.ID,
+			Status:    domain.OrderPaid,
+			ChangedAt: now,
+		}
+		return txRepo.SaveHistory(ctx, history)
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
@@ -95,7 +175,7 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID, userID uuid.UUI
 	refundAmount := 0.0
 
 	if order.Status == domain.OrderPaid {
-		if order.PaidAt != nil && time.Since(*order.PaidAt) > 1*time.Hour {
+		if order.Offer.PickupStart.Sub(time.Now()) < 1*time.Hour {
 			return nil, 0, fmt.Errorf("CANCELLATION_WINDOW_CLOSED")
 		}
 		refundAmount = order.Amount
@@ -108,12 +188,24 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID, userID uuid.UUI
 	order.CancelledAt = &now
 	order.CancellationReason = &reason
 
-	if err := s.repo.Update(ctx, order); err != nil {
-		return nil, 0, err
-	}
+	err = s.repo.Transaction(func(txRepo *OrderRepository) error {
+		if err := txRepo.Update(ctx, order); err != nil {
+			return err
+		}
+		if err := txRepo.UpdateOfferQuantity(ctx, order.OfferID, 1); err != nil {
+			return err
+		}
+		history := domain.OrderStatusHistory{
+			ID:        uuid.New(),
+			OrderID:   order.ID,
+			Status:    domain.OrderCancelled,
+			ChangedAt: now,
+		}
+		return txRepo.SaveHistory(ctx, history)
+	})
 
-	if err := s.repo.UpdateOfferQuantity(ctx, order.OfferID, 1); err != nil {
-		fmt.Printf("Failed to return quantity for order %d: %v\n", order.ID, err)
+	if err != nil {
+		return nil, 0, err
 	}
 	return order, refundAmount, nil
 }
@@ -132,7 +224,25 @@ func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID) (*d
 	order.Status = domain.OrderCompleted
 	order.CompletedAt = &now
 
-	if err := s.repo.Update(ctx, order); err != nil {
+	grossRevenue := order.Amount
+	serviceFee := grossRevenue * 0.15
+	netPayout := grossRevenue - serviceFee
+	fmt.Printf("Order %s completed. Gross: %.2f, Fee: %.2f, Net: %.2f\n", order.ID, grossRevenue, serviceFee, netPayout)
+
+	err = s.repo.Transaction(func(txRepo *OrderRepository) error {
+		if err := txRepo.Update(ctx, order); err != nil {
+			return err
+		}
+		history := domain.OrderStatusHistory{
+			ID:        uuid.New(),
+			OrderID:   order.ID,
+			Status:    domain.OrderCompleted,
+			ChangedAt: now,
+		}
+		return txRepo.SaveHistory(ctx, history)
+	})
+
+	if err != nil {
 		return nil, err
 	}
 	return order, nil
