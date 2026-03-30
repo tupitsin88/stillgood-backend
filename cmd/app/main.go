@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"kursach_backend/internal/analytics"
 	"log"
 	"os"
 	"time"
@@ -66,6 +67,7 @@ func main() {
 		&domain.Order{},
 		&domain.OrderStatusHistory{},
 		&domain.Category{},
+		&domain.DailyAnalytics{},
 	)
 	if err != nil {
 		log.Fatal("Migration failed:", err)
@@ -81,9 +83,6 @@ func main() {
 	orderRepo := orders.NewOrderRepository(db)
 	orderService := orders.NewOrderService(orderRepo)
 	orderHandler := orders.NewOrderHandler(orderService)
-
-	// Cron-worker
-	go orderService.StartExpirationWorker(context.Background())
 
 	// --- Offers ---
 	offerRepo := offers.NewOfferRepository(db)
@@ -125,9 +124,18 @@ func main() {
 	categoriesService := categories.NewService(categoriesRepo)
 	categoriesHandler := categories.NewHandler(categoriesService)
 
+	// --- Analytics ---
+	analyticsRepo := analytics.NewAnalyticsRepository(db)
+	analyticsService := analytics.NewAnalyticsService(analyticsRepo)
+	analyticsHandler := analytics.NewAnalyticsHandler(analyticsService)
+
+	// Cron-worker
+	go analyticsService.StartAnalyticsWorker(context.Background())
+	go orderService.StartExpirationWorker(context.Background())
+
 	// 4. Роутер
 	router := gin.Default()
-	app.NewRouter(router, authHandler, restaurantsHandler, categoriesHandler, orderHandler, offerHandler, jwtSecret)
+	app.NewRouter(router, authHandler, restaurantsHandler, categoriesHandler, orderHandler, offerHandler, analyticsHandler, jwtSecret)
 
 	appPort := os.Getenv("APP_PORT")
 	if appPort == "" {
