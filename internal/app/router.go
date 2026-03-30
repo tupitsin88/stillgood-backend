@@ -1,6 +1,8 @@
 package app
 
 import (
+	"kursach_backend/internal/analytics"
+
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -14,7 +16,7 @@ import (
 	"kursach_backend/internal/restaurants"
 )
 
-func NewRouter(handler *gin.Engine, authHandler *auth.Handler, restaurantsHandler *restaurants.Handler, categoriesHandler *categories.Handler, orderHandler *orders.OrderHandler, offerHandler *offers.OfferHandler, jwtSecret string) {
+func NewRouter(handler *gin.Engine, authHandler *auth.Handler, restaurantsHandler *restaurants.Handler, categoriesHandler *categories.Handler, orderHandler *orders.OrderHandler, offerHandler *offers.OfferHandler, analyticsHandler *analytics.AnalyticsHandler, jwtSecret string) {
 	// Options
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
@@ -28,4 +30,5 @@ func NewRouter(handler *gin.Engine, authHandler *auth.Handler, restaurantsHandle
 	categories.RegisterRoutes(handler, categoriesHandler)
 	orders.RegisterRoutes(handler, orderHandler, middleware.AuthMiddleware(jwtSecret))
 	offers.RegisterRoutes(handler, offerHandler, middleware.AuthMiddleware(jwtSecret))
+	analytics.RegisterRoutes(handler, analyticsHandler, middleware.AuthMiddleware(jwtSecret))
 }
