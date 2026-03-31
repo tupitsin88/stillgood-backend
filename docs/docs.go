@@ -559,11 +559,10 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Получение статистики продаж и выручки за период",
+                "description": "Получение статистики продаж, выручки и процента отмен за период с группировкой",
                 "tags": [
                     "Analytics"
                 ],
-                "summary": "Аналитика партнёра",
                 "parameters": [
                     {
                         "type": "string",
@@ -578,14 +577,25 @@ const docTemplate = `{
                         "name": "endDate",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "enum": [
+                            "day",
+                            "week",
+                            "month"
+                        ],
+                        "type": "string",
+                        "default": "day",
+                        "description": "Группировка данных",
+                        "name": "groupBy",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_analytics.AnalyticsSummary"
                         }
                     }
                 }
@@ -938,6 +948,52 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "internal_analytics.AnalyticsSummary": {
+            "type": "object",
+            "properties": {
+                "cancelRate": {
+                    "type": "number"
+                },
+                "cancelledOrders": {
+                    "type": "integer"
+                },
+                "categoryBreakdown": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_analytics.CategoryStat"
+                    }
+                },
+                "completedOrders": {
+                    "type": "integer"
+                },
+                "conversionRate": {
+                    "type": "number"
+                },
+                "grossRevenue": {
+                    "type": "number"
+                },
+                "netPayout": {
+                    "type": "number"
+                },
+                "serviceFee": {
+                    "type": "number"
+                },
+                "totalBookings": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_analytics.CategoryStat": {
+            "type": "object",
+            "properties": {
+                "grossRevenue": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_auth.LoginRequest": {
             "type": "object",
             "required": [
