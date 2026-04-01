@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -33,6 +35,10 @@ func (h *Handler) Register(c *gin.Context) {
 
 	tokens, err := h.service.Register(input.Email, input.Password, input.Name, input.DeviceToken)
 	if err != nil {
+		if errors.Is(err, ErrEmailAlreadyExists) {
+			c.JSON(http.StatusConflict, gin.H{"error": "Email already exists"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register"})
 		return
 	}
@@ -120,6 +126,10 @@ func (h *Handler) Refresh(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(input.RefreshToken) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "refreshToken is required"})
 		return
 	}
 

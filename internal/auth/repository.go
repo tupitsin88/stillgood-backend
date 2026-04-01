@@ -12,6 +12,7 @@ type Repository interface {
 	GetUserByEmail(email string) (*domain.User, error)
 	GetByID(id uuid.UUID) (*domain.User, error)
 	UpdateDeviceToken(userID uuid.UUID, token string) error
+	ExistsByEmail(email string) (bool, error)
 }
 
 type repository struct {
@@ -28,7 +29,7 @@ func (r *repository) CreateUser(user *domain.User) error {
 
 func (r *repository) GetUserByEmail(email string) (*domain.User, error) {
 	var user domain.User
-	err := r.db.Where("email = ?", email).First(&user).Error
+	err := r.db.Where("LOWER(email) = LOWER(?)", email).First(&user).Error
 	return &user, err
 }
 
@@ -40,4 +41,13 @@ func (r *repository) GetByID(id uuid.UUID) (*domain.User, error) {
 
 func (r *repository) UpdateDeviceToken(userID uuid.UUID, token string) error {
 	return r.db.Model(&domain.User{}).Where("id = ?", userID).Update("device_token", token).Error
+}
+
+func (r *repository) ExistsByEmail(email string) (bool, error) {
+	var count int64
+	err := r.db.Model(&domain.User{}).Where("LOWER(email) = LOWER(?)", email).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

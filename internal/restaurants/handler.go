@@ -1,9 +1,13 @@
 package restaurants
 
 import (
+	"errors"
+	"math"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -30,6 +34,10 @@ func (h *Handler) UploadImage(c *gin.Context) {
 
 	url, err := h.service.UploadImage(file)
 	if err != nil {
+		if errors.Is(err, ErrInvalidImageFormat) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image format"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
 		return
 	}
@@ -49,26 +57,92 @@ func (h *Handler) UploadImage(c *gin.Context) {
 // @Success 200 {array} RestaurantResponse
 // @Router /restaurants [get]
 func (h *Handler) GetList(c *gin.Context) {
-	restaurants, err := h.service.GetAll()
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if err != nil || limit <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit"})
+		return
+	}
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil || offset < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset"})
+		return
+	}
+
+	params := ListParams{
+		Limit:  limit,
+		Offset: offset,
+	}
+
+	if latStr := c.Query("lat"); latStr != "" {
+		lat, parseErr := strconv.ParseFloat(latStr, 64)
+		if parseErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid lat"})
+			return
+		}
+		params.Lat = &lat
+	}
+
+	if lngStr := c.Query("lng"); lngStr != "" {
+		lng, parseErr := strconv.ParseFloat(lngStr, 64)
+		if parseErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid lng"})
+			return
+		}
+		params.Lng = &lng
+	}
+
+	if radiusStr := c.Query("radius"); radiusStr != "" {
+		radius, parseErr := strconv.Atoi(radiusStr)
+		if parseErr != nil || radius <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid radius"})
+			return
+		}
+		params.Radius = &radius
+	}
+
+	if categoryIDStr := c.Query("categoryId"); categoryIDStr != "" {
+		categoryID, parseErr := uuid.Parse(categoryIDStr)
+		if parseErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid categoryId"})
+			return
+		}
+		params.CategoryID = &categoryID
+	}
+
+	restaurants, total, err := h.service.GetList(params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Mapping to DTO
 	var response []RestaurantResponse
 	for _, r := range restaurants {
+		var distance *int
+		if params.Lat != nil && params.Lng != nil {
+			val := int(calculateDistance(*params.Lat, *params.Lng, r.Latitude, r.Longitude))
+			distance = &val
+		}
 		response = append(response, RestaurantResponse{
-			ID:        r.ID.String(),
-			Name:      r.Name,
-			Address:   r.Address,
-			Phone:     r.Phone,
-			Latitude:  r.Latitude,
-			Longitude: r.Longitude,
+			ID:          r.ID.String(),
+			Name:        r.Name,
+			Address:     r.Address,
+			Phone:       r.Phone,
+			Latitude:    r.Latitude,
+			Longitude:   r.Longitude,
+			Rating:      r.Rating,
+			ReviewCount: r.ReviewCount,
+			Distance:    distance,
 		})
 	}
 
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, RestaurantListResponse{
+		Data: response,
+		Pagination: Pagination{
+			Total:  total,
+			Limit:  limit,
+			Offset: offset,
+		},
+	})
 }
 
 // @Summary Детали ресторана
@@ -88,13 +162,28 @@ func (h *Handler) GetByID(c *gin.Context) {
 	}
 
 	response := RestaurantResponse{
-		ID:        restaurant.ID.String(),
-		Name:      restaurant.Name,
-		Address:   restaurant.Address,
-		Phone:     restaurant.Phone,
-		Latitude:  restaurant.Latitude,
-		Longitude: restaurant.Longitude,
+		ID:          restaurant.ID.String(),
+		Name:        restaurant.Name,
+		Address:     restaurant.Address,
+		Phone:       restaurant.Phone,
+		Latitude:    restaurant.Latitude,
+		Longitude:   restaurant.Longitude,
+		Rating:      restaurant.Rating,
+		ReviewCount: restaurant.ReviewCount,
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
+	const R = 6371000
+	phi1 := lat1 * math.Pi / 180
+	phi2 := lat2 * math.Pi / 180
+	deltaPhi := (lat2 - lat1) * math.Pi / 180
+	deltaLambda := (lon2 - lon1) * math.Pi / 180
+	a := math.Sin(deltaPhi/2)*math.Sin(deltaPhi/2) +
+		math.Cos(phi1)*math.Cos(phi2)*
+			math.Sin(deltaLambda/2)*math.Sin(deltaLambda/2)
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+	return R * c
 }
