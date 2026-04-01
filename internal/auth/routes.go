@@ -9,6 +9,7 @@ func RegisterRoutes(r *gin.Engine, h *Handler, middleware gin.HandlerFunc) {
 	router := r.Group("/api/v1/auth")
 	{
 		router.POST("/register", h.Register)
+		router.POST("/register/partner", h.RegisterPartner)
 		router.POST("/login", h.Login)
 		router.POST("/refresh", h.Refresh)
 	}

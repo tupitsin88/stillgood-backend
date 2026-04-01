@@ -19,6 +19,7 @@ type Tokens struct {
 
 type Service interface {
 	Register(email, password, name, deviceToken string) (Tokens, error)
+	RegisterPartner(input PartnerRegisterRequest) (Tokens, error)
 	Login(email, password, deviceToken string) (Tokens, error)
 	RefreshTokens(refreshToken string) (Tokens, error)
 	Logout() error
@@ -67,6 +68,42 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, e
 
 	if deviceToken != "" {
 		user.DeviceToken = &deviceToken
+	}
+
+	if err = s.repo.CreateUser(user); err != nil {
+		return Tokens{}, err
+	}
+
+	return s.generateTokens(user.ID.String(), user.Role)
+}
+
+func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, error) {
+	email := strings.ToLower(strings.TrimSpace(input.Email))
+
+	exists, err := s.repo.ExistsByEmail(email)
+	if err != nil {
+		return Tokens{}, err
+	}
+	if exists {
+		return Tokens{}, ErrEmailAlreadyExists
+	}
+
+	hashedPass, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return Tokens{}, err
+	}
+
+	user := &domain.User{
+		Email:         email,
+		PasswordHash:  string(hashedPass),
+		Name:          input.Name,
+		Role:          "PARTNER",
+		PartnerStatus: "PENDING",
+		AuthProvider:  "email",
+	}
+
+	if input.DeviceToken != "" {
+		user.DeviceToken = &input.DeviceToken
 	}
 
 	if err = s.repo.CreateUser(user); err != nil {

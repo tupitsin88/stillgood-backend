@@ -13,6 +13,39 @@ definitions:
     - email
     - password
     type: object
+  auth.PartnerRegisterRequest:
+    properties:
+      companyName:
+        type: string
+      description:
+        type: string
+      deviceToken:
+        type: string
+      email:
+        type: string
+      establishmentAddress:
+        type: string
+      establishmentName:
+        type: string
+      inn:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      phone:
+        type: string
+    required:
+    - companyName
+    - email
+    - establishmentAddress
+    - establishmentName
+    - inn
+    - name
+    - password
+    - phone
+    type: object
   auth.RefreshRequest:
     properties:
       refreshToken:
@@ -423,6 +456,33 @@ paths:
               type: string
             type: object
       summary: Регистрация USER
+      tags:
+      - Auth
+  /auth/register/partner:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные заявки партнера
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.PartnerRegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/auth.TokenResponse'
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Регистрация PARTNER (заявка)
       tags:
       - Auth
   /categories:

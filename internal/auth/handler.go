@@ -49,6 +49,39 @@ func (h *Handler) Register(c *gin.Context) {
 	})
 }
 
+// RegisterPartner godoc
+// @Summary Регистрация PARTNER (заявка)
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param input body PartnerRegisterRequest true "Данные заявки партнера"
+// @Success 201 {object} TokenResponse
+// @Failure 409 {object} map[string]string
+// @Router /auth/register/partner [post]
+func (h *Handler) RegisterPartner(c *gin.Context) {
+	var input PartnerRegisterRequest
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	tokens, err := h.service.RegisterPartner(input)
+	if err != nil {
+		if errors.Is(err, ErrEmailAlreadyExists) {
+			c.JSON(http.StatusConflict, gin.H{"error": "Email already exists"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register partner"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, TokenResponse{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+	})
+}
+
 // Login godoc
 // @Summary Вход (USER/PARTNER)
 // @Tags Auth

@@ -7,6 +7,19 @@ type RegisterRequest struct {
 	DeviceToken string `json:"device_token"`
 }
 
+type PartnerRegisterRequest struct {
+	Email                string `json:"email" binding:"required,email"`
+	Password             string `json:"password" binding:"required,min=8"`
+	Name                 string `json:"name" binding:"required"`
+	Phone                string `json:"phone" binding:"required"`
+	CompanyName          string `json:"companyName" binding:"required"`
+	Inn                  string `json:"inn" binding:"required"`
+	EstablishmentName    string `json:"establishmentName" binding:"required"`
+	EstablishmentAddress string `json:"establishmentAddress" binding:"required"`
+	Description          string `json:"description"`
+	DeviceToken          string `json:"deviceToken"`
+}
+
 type LoginRequest struct {
 	Email       string `json:"email" binding:"required,email"`
 	Password    string `json:"password" binding:"required,min=8"`
