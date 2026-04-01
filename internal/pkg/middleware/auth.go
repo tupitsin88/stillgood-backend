@@ -51,25 +51,25 @@ func AuthMiddleware(signingKey string) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "USER_ID_NOT_FOUND_IN_TOKEN"})
 			return
 		}
-
-		// Пытаемся распарсить в UUID объект
 		userUUID, _ := uuid.Parse(userIDStr)
-
-		// --- СТРЕЛЯЕМ ИЗ ВСЕХ ОРУДИЙ ---
-		// Записываем ID под всеми возможными ключами
-		c.Set("user_id", userIDStr) // Для твоих Orders/Offers
+		c.Set("user_id", userIDStr)
 		c.Set("userId", userIDStr)
-
-		// Записываем и как строку, и как объект UUID (некоторые хендлеры капризные)
 		if userUUID != uuid.Nil {
 			c.Set("user_uuid", userUUID)
 		}
-
-		// Роль тоже кладем как чистую строку
-		if role, ok := claims["role"]; ok {
-			c.Set("role", fmt.Sprintf("%v", role))
+		role := ""
+		if r, ok := claims["role"]; ok {
+			role = fmt.Sprintf("%v", r)
+			c.Set("role", role)
 		}
-
+		if role == "PARTNER" {
+			restID, ok := claims["restaurant_id"]
+			if !ok || fmt.Sprintf("%v", restID) == "<nil>" {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "RESTAURANT_ID_REQUIRED_FOR_PARTNER"})
+				return
+			}
+			c.Set("restaurant_id", fmt.Sprintf("%v", restID))
+		}
 		c.Next()
 	}
 }

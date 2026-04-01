@@ -17,7 +17,14 @@ func RegisterRoutes(r *gin.Engine, h *OrderHandler, authMiddleware gin.HandlerFu
 	}
 	partner := v1.Group("/partner/orders")
 	partner.Use(authMiddleware)
-	// Тут можно добавить middleware проверки роли: partner.Use(RoleMiddleware("PARTNER"))
+	partner.Use(func(c *gin.Context) {
+		role := c.GetString("role")
+		if role != "PARTNER" {
+			c.AbortWithStatusJSON(403, gin.H{"error": "FORBIDDEN", "message": "Only partners allowed"})
+			return
+		}
+		c.Next()
+	})
 	{
 		partner.GET("", h.GetPartnerOrders)
 		partner.POST("/:id/complete", h.CompleteOrder)

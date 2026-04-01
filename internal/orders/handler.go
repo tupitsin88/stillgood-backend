@@ -24,7 +24,7 @@ func errorResponse(c *gin.Context, code int, errorCode string, message string) {
 	})
 }
 
-// @Summary Создание заказа
+// CreateOrder @Summary Создание заказа
 // @Tags Orders
 // @Security ApiKeyAuth
 // @Accept json
@@ -48,7 +48,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	order, err := h.service.CreateOrder(c.Request.Context(), userID, req)
 	if err != nil {
-		if err.Error() == "Offer not found" {
+		if strings.ToLower(err.Error()) == "offer not found" {
 			errorResponse(c, 404, "OFFER_NOT_FOUND", "The requested offer does not exist")
 		} else {
 			errorResponse(c, 400, "CREATION_FAILED", err.Error())
@@ -75,7 +75,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	c.JSON(201, resp)
 }
 
-// @Summary Оплата заказа
+// PayOrder @Summary Оплата заказа
 // @Tags Orders
 // @Security ApiKeyAuth
 // @Produce json
@@ -121,7 +121,7 @@ func (h *OrderHandler) PayOrder(c *gin.Context) {
 	c.JSON(200, resp)
 }
 
-// @Summary Отмена заказа
+// CancelOrder @Summary Отмена заказа
 // @Tags Orders
 // @Security ApiKeyAuth
 // @Accept json
@@ -131,21 +131,24 @@ func (h *OrderHandler) PayOrder(c *gin.Context) {
 // @Success 200 {object} CancelOrderResponse
 // @Router /orders/{id}/cancel [post]
 func (h *OrderHandler) CancelOrder(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	orderID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		errorResponse(c, 400, "INVALID_ID", "Invalid ID format")
 		return
 	}
-	uidStr := c.GetString("user_id")
-	userID, err := uuid.Parse(uidStr)
-	if err != nil {
-		errorResponse(c, 401, "UNAUTHORIZED", "Invalid or missing User ID")
-		return
+	role := c.GetString("role")
+	userIDStr := c.GetString("user_id")
+	userID, _ := uuid.Parse(userIDStr)
+	var actorID uuid.UUID
+	if role == "PARTNER" {
+		restIDStr := c.GetString("restaurant_id")
+		actorID, _ = uuid.Parse(restIDStr)
+	} else {
+		actorID = userID
 	}
 	var req CancelOrderRequest
 	c.ShouldBindJSON(&req)
-
-	order, refund, err := h.service.CancelOrder(c.Request.Context(), id, userID, req.Reason)
+	order, refund, err := h.service.CancelOrder(c.Request.Context(), orderID, actorID, role, req.Reason)
 	if err != nil {
 		switch err.Error() {
 		case "CANNOT_CANCEL":
@@ -171,7 +174,7 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	c.JSON(200, resp)
 }
 
-// @Summary Подтверждение выдачи
+// CompleteOrder @Summary Подтверждение выдачи
 // @Tags Partner
 // @Security ApiKeyAuth
 // @Produce json
@@ -184,9 +187,17 @@ func (h *OrderHandler) CompleteOrder(c *gin.Context) {
 		errorResponse(c, 400, "INVALID_ID", "Invalid ID format")
 		return
 	}
-	order, err := h.service.CompleteOrder(c.Request.Context(), id)
+	restIDStr := c.GetString("restaurant_id")
+	restaurantID, err := uuid.Parse(restIDStr)
+	if err != nil {
+		errorResponse(c, 400, "INVALID_ID", "Invalid ID format")
+		return
+	}
+	order, err := h.service.CompleteOrder(c.Request.Context(), id, restaurantID)
 	if err != nil {
 		switch err.Error() {
+		case "unauthorized":
+			errorResponse(c, 403, "FORBIDDEN", "This order belongs to another restaurant")
 		case "INVALID_ORDER_STATUS":
 			errorResponse(c, 400, "INVALID_ORDER_STATUS", "Can only complete PAID orders")
 		case "not found":
@@ -197,14 +208,14 @@ func (h *OrderHandler) CompleteOrder(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"id":          order.ID,
-		"status":      string(order.Status),
-		"completedAt": order.CompletedAt,
+	c.JSON(200, CompleteOrderResponse{
+		ID:          order.ID,
+		Status:      string(order.Status),
+		CompletedAt: order.CompletedAt,
 	})
 }
 
-// @Summary Заказы пользователя
+// GetUserOrders @Summary Заказы пользователя
 // @Tags Orders
 // @Security ApiKeyAuth
 // @Produce json
@@ -224,6 +235,9 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 	offset := 0
 	if l := c.Query("limit"); l != "" {
 		limit, _ = strconv.Atoi(l)
+	}
+	if o := c.Query("offset"); o != "" {
+		offset, _ = strconv.Atoi(o)
 	}
 	statusStr := c.Query("status")
 	var statuses []string
@@ -265,7 +279,7 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 	})
 }
 
-// @Summary Заказы партнёра
+// GetPartnerOrders @Summary Заказы партнёра
 // @Tags Partner
 // @Security ApiKeyAuth
 // @Produce json
@@ -275,9 +289,18 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 // @Success 200 {object} map[string]interface{}
 // @Router /partner/orders [get]
 func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
-	orders, err := h.service.repo.GetPartnerOrders(c.Request.Context(), 20, 0, []string{"PAID", "CREATED"})
+	restIDStr := c.GetString("restaurant_id")
+	restaurantID, _ := uuid.Parse(restIDStr)
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	statusStr := c.Query("status")
+	var statuses []string
+	if statusStr != "" {
+		statuses = strings.Split(statusStr, ",")
+	}
+	orders, err := h.service.repo.GetPartnerOrders(c.Request.Context(), restaurantID, limit, offset, statuses)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errorResponse(c, 500, "INTERNAL_ERROR", err.Error())
 		return
 	}
 
@@ -292,6 +315,8 @@ func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 			OrderNumber:  num,
 			Status:       string(o.Status),
 			Amount:       o.Amount,
+			ServiceFee:   o.ServiceFee,
+			NetPayout:    o.NetPayout,
 			OfferTitle:   o.Offer.Title,
 			CustomerName: o.User.Name,
 			PickupStart:  o.Offer.PickupStart,
@@ -303,7 +328,7 @@ func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 	c.JSON(200, gin.H{"data": data})
 }
 
-// @Summary Детали заказа
+// GetOrderById @Summary Детали заказа
 // @Tags Orders
 // @Security ApiKeyAuth
 // @Produce json

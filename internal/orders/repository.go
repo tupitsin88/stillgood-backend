@@ -78,19 +78,19 @@ func (r *OrderRepository) GetUserOrders(ctx context.Context, userID uuid.UUID, l
 	return orders, total, err
 }
 
-func (r *OrderRepository) GetPartnerOrders(ctx context.Context, limit, offset int, statuses []string) ([]domain.Order, error) {
+func (r *OrderRepository) GetPartnerOrders(ctx context.Context, restaurantID uuid.UUID, limit, offset int, statuses []string) ([]domain.Order, error) {
 	var orders []domain.Order
-
 	query := r.db.WithContext(ctx).
 		Model(&domain.Order{}).
 		Preload("User").
 		Preload("Offer").
-		Where("status IN ?", statuses)
-
-	// TODO: Добавить фильтр по PartnerID (через Offer.Restaurant.PartnerID) когда будет авторизация партнера
-
+		Joins("JOIN offers ON orders.offer_id = offers.id").
+		Where("offers.restaurant_id = ?", restaurantID)
+	if len(statuses) > 0 {
+		query = query.Where("orders.status IN ?", statuses)
+	}
 	err := query.
-		Order("created_at DESC").
+		Order("orders.created_at DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&orders).Error
