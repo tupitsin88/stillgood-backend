@@ -12,6 +12,7 @@ type Repository interface {
 	GetUserByEmail(email string) (*domain.User, error)
 	GetByID(id uuid.UUID) (*domain.User, error)
 	UpdateDeviceToken(userID uuid.UUID, token string) error
+	UpdatePasswordHash(userID uuid.UUID, passwordHash string) error
 	ExistsByEmail(email string) (bool, error)
 }
 
@@ -41,6 +42,10 @@ func (r *repository) GetByID(id uuid.UUID) (*domain.User, error) {
 
 func (r *repository) UpdateDeviceToken(userID uuid.UUID, token string) error {
 	return r.db.Model(&domain.User{}).Where("id = ?", userID).Update("device_token", token).Error
+}
+
+func (r *repository) UpdatePasswordHash(userID uuid.UUID, passwordHash string) error {
+	return r.db.Model(&domain.User{}).Where("id = ?", userID).Update("password_hash", passwordHash).Error
 }
 
 func (r *repository) ExistsByEmail(email string) (bool, error) {

@@ -145,6 +145,49 @@ func (h *Handler) Me(c *gin.Context) {
 	})
 }
 
+// ChangePassword godoc
+// @Summary Смена пароля (авторизован)
+// @Tags Auth
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param input body ChangePasswordRequest true "Текущий и новый пароль"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Router /auth/change-password [post]
+func (h *Handler) ChangePassword(c *gin.Context) {
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
+		return
+	}
+
+	userIDStr, ok := userID.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	var input ChangePasswordRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.service.ChangePassword(userIDStr, input.CurrentPassword, input.NewPassword)
+	if err != nil {
+		if errors.Is(err, ErrInvalidCurrentPassword) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid current password"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to change password"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
+}
+
 // Refresh godoc
 // @Summary Обновление токенов
 // @Tags Auth

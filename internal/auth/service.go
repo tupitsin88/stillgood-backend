@@ -11,6 +11,7 @@ import (
 )
 
 var ErrEmailAlreadyExists = errors.New("email already exists")
+var ErrInvalidCurrentPassword = errors.New("invalid current password")
 
 type Tokens struct {
 	AccessToken  string
@@ -22,6 +23,7 @@ type Service interface {
 	RegisterPartner(input PartnerRegisterRequest) (Tokens, error)
 	Login(email, password, deviceToken string) (Tokens, error)
 	RefreshTokens(refreshToken string) (Tokens, error)
+	ChangePassword(userID, currentPassword, newPassword string) error
 	Logout() error
 	GetUserByID(id string) (*domain.User, error)
 }
@@ -155,6 +157,29 @@ func (s *service) RefreshTokens(refreshToken string) (Tokens, error) {
 	}
 
 	return s.generateTokens(user.ID.String(), user.Role)
+}
+
+func (s *service) ChangePassword(userID, currentPassword, newPassword string) error {
+	uuidID, err := uuid.Parse(strings.TrimSpace(userID))
+	if err != nil {
+		return err
+	}
+
+	user, err := s.repo.GetByID(uuidID)
+	if err != nil {
+		return err
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); err != nil {
+		return ErrInvalidCurrentPassword
+	}
+
+	hashedPass, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.UpdatePasswordHash(uuidID, string(hashedPass))
 }
 
 func (s *service) Logout() error {

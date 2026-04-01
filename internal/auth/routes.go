@@ -17,6 +17,7 @@ func RegisterRoutes(r *gin.Engine, h *Handler, middleware gin.HandlerFunc) {
 	protected := r.Group("/api/v1/auth", middleware)
 	{
 		protected.GET("/me", h.Me)
+		protected.POST("/change-password", h.ChangePassword)
 		protected.POST("/logout", h.Logout)
 	}
 }
