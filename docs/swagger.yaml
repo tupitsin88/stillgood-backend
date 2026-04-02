@@ -11,6 +11,11 @@ definitions:
     - currentPassword
     - newPassword
     type: object
+  auth.DeleteAccountRequest:
+    properties:
+      password:
+        type: string
+    type: object
   auth.ForgotPasswordRequest:
     properties:
       email:
@@ -37,6 +42,30 @@ definitions:
     required:
     - email
     - password
+    type: object
+  auth.OAuthRequest:
+    properties:
+      deviceToken:
+        type: string
+      idToken:
+        type: string
+      provider:
+        enum:
+        - google
+        - apple
+        type: string
+    required:
+    - idToken
+    - provider
+    type: object
+  auth.OAuthResponse:
+    properties:
+      accessToken:
+        type: string
+      isNewUser:
+        type: boolean
+      refreshToken:
+        type: string
     type: object
   auth.PartnerRegisterRequest:
     properties:
@@ -511,6 +540,37 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Текущий пользователь
+      tags:
+      - Auth
+  /auth/oauth:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: OAuth provider и idToken
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.OAuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.OAuthResponse'
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/auth.OAuthResponse'
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: OAuth вход (Google/Apple) — только USER
       tags:
       - Auth
   /auth/refresh:
@@ -1125,6 +1185,30 @@ paths:
       summary: Загрузка изображения
       tags:
       - Restaurants
+  /users/me:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: Пароль (только для email-аккаунтов)
+        in: body
+        name: input
+        schema:
+          $ref: '#/definitions/auth.DeleteAccountRequest'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Удаление аккаунта (GDPR)
+      tags:
+      - Users
 securityDefinitions:
   ApiKeyAuth:
     in: header

@@ -197,6 +197,54 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/oauth": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "OAuth вход (Google/Apple) — только USER",
+                "parameters": [
+                    {
+                        "description": "OAuth provider и idToken",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.OAuthRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.OAuthResponse"
+                        }
+                    },
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/auth.OAuthResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/refresh": {
             "post": {
                 "consumes": [
@@ -1156,6 +1204,46 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/users/me": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Удаление аккаунта (GDPR)",
+                "parameters": [
+                    {
+                        "description": "Пароль (только для email-аккаунтов)",
+                        "name": "input",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/auth.DeleteAccountRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1172,6 +1260,14 @@ const docTemplate = `{
                 "newPassword": {
                     "type": "string",
                     "minLength": 8
+                }
+            }
+        },
+        "auth.DeleteAccountRequest": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string"
                 }
             }
         },
@@ -1213,6 +1309,42 @@ const docTemplate = `{
                 "password": {
                     "type": "string",
                     "minLength": 8
+                }
+            }
+        },
+        "auth.OAuthRequest": {
+            "type": "object",
+            "required": [
+                "idToken",
+                "provider"
+            ],
+            "properties": {
+                "deviceToken": {
+                    "type": "string"
+                },
+                "idToken": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string",
+                    "enum": [
+                        "google",
+                        "apple"
+                    ]
+                }
+            }
+        },
+        "auth.OAuthResponse": {
+            "type": "object",
+            "properties": {
+                "accessToken": {
+                    "type": "string"
+                },
+                "isNewUser": {
+                    "type": "boolean"
+                },
+                "refreshToken": {
+                    "type": "string"
                 }
             }
         },

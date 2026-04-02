@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 
@@ -111,6 +112,50 @@ func (h *Handler) Login(c *gin.Context) {
 	})
 }
 
+// OAuth godoc
+// @Summary OAuth вход (Google/Apple) — только USER
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param input body OAuthRequest true "OAuth provider и idToken"
+// @Success 200 {object} OAuthResponse
+// @Success 201 {object} OAuthResponse
+// @Failure 409 {object} map[string]string
+// @Router /auth/oauth [post]
+func (h *Handler) OAuth(c *gin.Context) {
+	var input OAuthRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	tokens, isNewUser, err := h.service.OAuthLogin(input.Provider, input.IDToken, input.DeviceToken)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrAuthProviderConflict):
+			c.JSON(http.StatusConflict, gin.H{"error": "Email already linked to another auth provider"})
+		case errors.Is(err, ErrInvalidOAuthProvider):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid OAuth provider"})
+		case errors.Is(err, ErrInvalidOAuthToken):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid OAuth token"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to login via OAuth"})
+		}
+		return
+	}
+
+	status := http.StatusOK
+	if isNewUser {
+		status = http.StatusCreated
+	}
+
+	c.JSON(status, OAuthResponse{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+		IsNewUser:    isNewUser,
+	})
+}
+
 // Me godoc
 // @Summary Текущий пользователь
 // @Tags Auth
@@ -143,6 +188,52 @@ func (h *Handler) Me(c *gin.Context) {
 		Name:  user.Name,
 		Role:  user.Role,
 	})
+}
+
+// DeleteAccount godoc
+// @Summary Удаление аккаунта (GDPR)
+// @Tags Users
+// @Security ApiKeyAuth
+// @Accept json
+// @Param input body DeleteAccountRequest false "Пароль (только для email-аккаунтов)"
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Router /users/me [delete]
+func (h *Handler) DeleteAccount(c *gin.Context) {
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
+		return
+	}
+
+	userIDStr, ok := userID.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	var input DeleteAccountRequest
+	if err := c.ShouldBindJSON(&input); err != nil && !errors.Is(err, io.EOF) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.service.DeleteAccount(userIDStr, input.Password)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrActiveOrdersExist):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Active orders exist"})
+		case errors.Is(err, ErrPasswordRequired):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Password is required for email accounts"})
+		case errors.Is(err, ErrInvalidCurrentPassword):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid password"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete account"})
+		}
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
 
 // ChangePassword godoc

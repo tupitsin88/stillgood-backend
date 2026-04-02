@@ -26,6 +26,18 @@ type LoginRequest struct {
 	DeviceToken string `json:"device_token"`
 }
 
+type OAuthRequest struct {
+	Provider    string `json:"provider" binding:"required,oneof=google apple"`
+	IDToken     string `json:"idToken" binding:"required"`
+	DeviceToken string `json:"deviceToken"`
+}
+
+type OAuthResponse struct {
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
+	IsNewUser    bool   `json:"isNewUser"`
+}
+
 type RefreshRequest struct {
 	RefreshToken string `json:"refreshToken" binding:"required"`
 }
@@ -56,6 +68,10 @@ type VerifyResetCodeResponse struct {
 type ResetPasswordRequest struct {
 	ResetToken  string `json:"resetToken" binding:"required"`
 	NewPassword string `json:"newPassword" binding:"required,min=8"`
+}
+
+type DeleteAccountRequest struct {
+	Password string `json:"password"`
 }
 
 type TokenResponse struct {

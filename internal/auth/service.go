@@ -2,6 +2,8 @@ package auth
 
 import (
 	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"kursach_backend/internal/domain"
@@ -19,6 +21,11 @@ var ErrEmailAlreadyExists = errors.New("email already exists")
 var ErrInvalidCurrentPassword = errors.New("invalid current password")
 var ErrInvalidResetCode = errors.New("invalid reset code")
 var ErrInvalidResetToken = errors.New("invalid reset token")
+var ErrAuthProviderConflict = errors.New("email is linked to another auth provider")
+var ErrInvalidOAuthToken = errors.New("invalid oauth token")
+var ErrInvalidOAuthProvider = errors.New("invalid oauth provider")
+var ErrActiveOrdersExist = errors.New("active orders exist")
+var ErrPasswordRequired = errors.New("password required")
 
 const (
 	passwordResetCodeTTL  = 10 * time.Minute
@@ -34,11 +41,13 @@ type Service interface {
 	Register(email, password, name, deviceToken string) (Tokens, error)
 	RegisterPartner(input PartnerRegisterRequest) (Tokens, error)
 	Login(email, password, deviceToken string) (Tokens, error)
+	OAuthLogin(provider, idToken, deviceToken string) (Tokens, bool, error)
 	RefreshTokens(refreshToken string) (Tokens, error)
 	ChangePassword(userID, currentPassword, newPassword string) error
 	ForgotPassword(email string) (int, error)
 	VerifyResetCode(email, code string) (string, error)
 	ResetPassword(resetToken, newPassword string) error
+	DeleteAccount(userID, password string) error
 	Logout() error
 	GetUserByID(id string) (*domain.User, error)
 }
@@ -168,6 +177,60 @@ func (s *service) Login(email, password, deviceToken string) (Tokens, error) {
 	}
 
 	return s.generateTokens(user.ID.String(), user.Role)
+}
+
+func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, bool, error) {
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	if provider != "google" && provider != "apple" {
+		return Tokens{}, false, ErrInvalidOAuthProvider
+	}
+
+	email, name, err := extractOAuthIdentity(idToken)
+	if err != nil {
+		return Tokens{}, false, err
+	}
+
+	exists, err := s.repo.ExistsByEmail(email)
+	if err != nil {
+		return Tokens{}, false, err
+	}
+
+	if exists {
+		user, err := s.repo.GetUserByEmail(email)
+		if err != nil {
+			return Tokens{}, false, err
+		}
+
+		if user.AuthProvider != provider || user.Role != "USER" {
+			return Tokens{}, false, ErrAuthProviderConflict
+		}
+
+		if deviceToken != "" {
+			if err := s.repo.UpdateDeviceToken(user.ID, deviceToken); err != nil {
+				return Tokens{}, false, err
+			}
+		}
+
+		tokens, err := s.generateTokens(user.ID.String(), user.Role)
+		return tokens, false, err
+	}
+
+	user := &domain.User{
+		Email:        email,
+		Name:         name,
+		Role:         "USER",
+		AuthProvider: provider,
+	}
+	if deviceToken != "" {
+		user.DeviceToken = &deviceToken
+	}
+
+	if err := s.repo.CreateUser(user); err != nil {
+		return Tokens{}, false, err
+	}
+
+	tokens, err := s.generateTokens(user.ID.String(), user.Role)
+	return tokens, true, err
 }
 
 func (s *service) RefreshTokens(refreshToken string) (Tokens, error) {
@@ -303,6 +366,38 @@ func (s *service) ResetPassword(resetToken, newPassword string) error {
 	return s.repo.UpdatePasswordHash(user.ID, string(hashedPass))
 }
 
+func (s *service) DeleteAccount(userID, password string) error {
+	uid, err := uuid.Parse(strings.TrimSpace(userID))
+	if err != nil {
+		return err
+	}
+
+	user, err := s.repo.GetByID(uid)
+	if err != nil {
+		return err
+	}
+
+	// Для email-аккаунтов требуем пароль, чтобы подтвердить владение аккаунтом.
+	if user.AuthProvider == "email" {
+		if strings.TrimSpace(password) == "" {
+			return ErrPasswordRequired
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+			return ErrInvalidCurrentPassword
+		}
+	}
+
+	activeOrders, err := s.repo.CountActiveOrdersByUserID(uid)
+	if err != nil {
+		return err
+	}
+	if activeOrders > 0 {
+		return ErrActiveOrdersExist
+	}
+
+	return s.repo.DeleteAccount(uid)
+}
+
 func (s *service) Logout() error {
 	// Stateless JWTs don't support true server-side logout without a blacklist/redis.
 	// We just return nil as requested.
@@ -338,4 +433,46 @@ func generateSixDigitCode() (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%06d", n.Int64()), nil
+}
+
+func extractOAuthIdentity(idToken string) (string, string, error) {
+	idToken = strings.TrimSpace(idToken)
+	if idToken == "" {
+		return "", "", ErrInvalidOAuthToken
+	}
+
+	// MVP-режим: для локальных тестов разрешаем передавать email напрямую в idToken.
+	if strings.Contains(idToken, "@") && !strings.Contains(idToken, " ") {
+		email := strings.ToLower(strings.TrimSpace(idToken))
+		name := strings.Split(email, "@")[0]
+		return email, name, nil
+	}
+
+	parts := strings.Split(idToken, ".")
+	if len(parts) != 3 {
+		return "", "", ErrInvalidOAuthToken
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", "", ErrInvalidOAuthToken
+	}
+
+	var claims map[string]interface{}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return "", "", ErrInvalidOAuthToken
+	}
+
+	emailRaw, ok := claims["email"].(string)
+	if !ok || strings.TrimSpace(emailRaw) == "" {
+		return "", "", ErrInvalidOAuthToken
+	}
+	email := strings.ToLower(strings.TrimSpace(emailRaw))
+
+	name := strings.Split(email, "@")[0]
+	if claimName, ok := claims["name"].(string); ok && strings.TrimSpace(claimName) != "" {
+		name = strings.TrimSpace(claimName)
+	}
+
+	return email, name, nil
 }
