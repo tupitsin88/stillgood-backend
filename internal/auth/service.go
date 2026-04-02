@@ -3,11 +3,14 @@ package auth
 import (
 	"errors"
 	"kursach_backend/internal/domain"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var ErrEmailAlreadyExists = errors.New("email already exists")
 
 type Tokens struct {
 	AccessToken  string
@@ -39,7 +42,20 @@ func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshT
 }
 
 func (s *service) Register(email, password, name, deviceToken string) (Tokens, error) {
-	hashedPass, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	email = strings.ToLower(strings.TrimSpace(email))
+
+	exists, err := s.repo.ExistsByEmail(email)
+	if err != nil {
+		return Tokens{}, err
+	}
+	if exists {
+		return Tokens{}, ErrEmailAlreadyExists
+	}
+
+	hashedPass, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return Tokens{}, err
+	}
 
 	user := &domain.User{
 		Email:        email,
@@ -53,7 +69,7 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, e
 		user.DeviceToken = &deviceToken
 	}
 
-	if err := s.repo.CreateUser(user); err != nil {
+	if err = s.repo.CreateUser(user); err != nil {
 		return Tokens{}, err
 	}
 
@@ -61,6 +77,8 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, e
 }
 
 func (s *service) Login(email, password, deviceToken string) (Tokens, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+
 	user, err := s.repo.GetUserByEmail(email)
 	if err != nil {
 		return Tokens{}, err

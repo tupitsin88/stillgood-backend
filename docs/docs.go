@@ -34,7 +34,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.LoginRequest"
+                            "$ref": "#/definitions/auth.LoginRequest"
                         }
                     }
                 ],
@@ -42,7 +42,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.TokenResponse"
+                            "$ref": "#/definitions/auth.TokenResponse"
                         }
                     },
                     "401": {
@@ -99,7 +99,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.UserResponse"
+                            "$ref": "#/definitions/auth.UserResponse"
                         }
                     }
                 }
@@ -124,7 +124,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.RefreshRequest"
+                            "$ref": "#/definitions/auth.RefreshRequest"
                         }
                     }
                 ],
@@ -132,7 +132,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.TokenResponse"
+                            "$ref": "#/definitions/auth.TokenResponse"
                         }
                     },
                     "401": {
@@ -166,7 +166,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.RegisterRequest"
+                            "$ref": "#/definitions/auth.RegisterRequest"
                         }
                     }
                 ],
@@ -174,7 +174,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.TokenResponse"
+                            "$ref": "#/definitions/auth.TokenResponse"
                         }
                     },
                     "409": {
@@ -318,7 +318,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_offers.OfferDetailDTO"
+                            "$ref": "#/definitions/offers.OfferDetailDTO"
                         }
                     },
                     "404": {
@@ -400,7 +400,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_orders.CreateOrderRequest"
+                            "$ref": "#/definitions/orders.CreateOrderRequest"
                         }
                     }
                 ],
@@ -408,7 +408,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_orders.CreateOrderResponse"
+                            "$ref": "#/definitions/orders.CreateOrderResponse"
                         }
                     },
                     "400": {
@@ -450,7 +450,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_orders.OrderDetailDTO"
+                            "$ref": "#/definitions/orders.OrderDetailDTO"
                         }
                     },
                     "404": {
@@ -496,7 +496,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_orders.CancelOrderRequest"
+                            "$ref": "#/definitions/orders.CancelOrderRequest"
                         }
                     }
                 ],
@@ -504,7 +504,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_orders.CancelOrderResponse"
+                            "$ref": "#/definitions/orders.CancelOrderResponse"
                         }
                     }
                 }
@@ -537,7 +537,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_orders.PayOrderResponse"
+                            "$ref": "#/definitions/orders.PayOrderResponse"
                         }
                     },
                     "401": {
@@ -662,7 +662,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_offers.CreateOfferRequest"
+                            "$ref": "#/definitions/offers.CreateOfferRequest"
                         }
                     }
                 ],
@@ -670,7 +670,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_offers.OfferDetailDTO"
+                            "$ref": "#/definitions/offers.OfferDetailDTO"
                         }
                     }
                 }
@@ -707,7 +707,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_offers.UpdateOfferRequest"
+                            "$ref": "#/definitions/offers.UpdateOfferRequest"
                         }
                     }
                 ],
@@ -715,7 +715,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_offers.OfferDetailDTO"
+                            "$ref": "#/definitions/offers.OfferDetailDTO"
                         }
                     },
                     "403": {
@@ -868,7 +868,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_restaurants.RestaurantResponse"
+                                "$ref": "#/definitions/restaurants.RestaurantResponse"
                             }
                         }
                     }
@@ -931,7 +931,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_restaurants.RestaurantResponse"
+                            "$ref": "#/definitions/restaurants.RestaurantResponse"
                         }
                     },
                     "404": {
@@ -1013,7 +1013,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_auth.RefreshRequest": {
+        "auth.RefreshRequest": {
             "type": "object",
             "required": [
                 "refreshToken"
@@ -1024,7 +1024,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_auth.RegisterRequest": {
+        "auth.RegisterRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -1047,7 +1047,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_auth.TokenResponse": {
+        "auth.TokenResponse": {
             "type": "object",
             "properties": {
                 "accessToken": {
@@ -1058,7 +1058,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_auth.UserResponse": {
+        "auth.UserResponse": {
             "type": "object",
             "properties": {
                 "email": {
@@ -1075,7 +1075,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_offers.CategoryDTO": {
+        "offers.CategoryDTO": {
             "type": "object",
             "properties": {
                 "id": {
@@ -1086,7 +1086,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_offers.CreateOfferRequest": {
+        "offers.CreateOfferRequest": {
             "type": "object",
             "required": [
                 "categoryId",
@@ -1128,11 +1128,11 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_offers.OfferDetailDTO": {
+        "offers.OfferDetailDTO": {
             "type": "object",
             "properties": {
                 "category": {
-                    "$ref": "#/definitions/internal_offers.CategoryDTO"
+                    "$ref": "#/definitions/offers.CategoryDTO"
                 },
                 "description": {
                     "type": "string"
@@ -1168,14 +1168,14 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "restaurant": {
-                    "$ref": "#/definitions/internal_offers.RestaurantShortDTO"
+                    "$ref": "#/definitions/offers.RestaurantShortDTO"
                 },
                 "title": {
                     "type": "string"
                 }
             }
         },
-        "internal_offers.RestaurantShortDTO": {
+        "offers.RestaurantShortDTO": {
             "type": "object",
             "properties": {
                 "address": {
@@ -1198,7 +1198,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_offers.UpdateOfferRequest": {
+        "offers.UpdateOfferRequest": {
             "type": "object",
             "properties": {
                 "description": {
@@ -1218,7 +1218,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_orders.CancelOrderRequest": {
+        "orders.CancelOrderRequest": {
             "type": "object",
             "properties": {
                 "reason": {
@@ -1226,7 +1226,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_orders.CancelOrderResponse": {
+        "orders.CancelOrderResponse": {
             "type": "object",
             "properties": {
                 "cancelledAt": {
@@ -1243,7 +1243,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_orders.CreateOrderRequest": {
+        "orders.CreateOrderRequest": {
             "type": "object",
             "required": [
                 "offerId"
@@ -1254,7 +1254,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_orders.CreateOrderResponse": {
+        "orders.CreateOrderResponse": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -1267,17 +1267,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "offer": {
-                    "$ref": "#/definitions/internal_orders.OfferShortDTO"
+                    "$ref": "#/definitions/orders.OfferShortDTO"
                 },
                 "restaurant": {
-                    "$ref": "#/definitions/internal_orders.RestaurantSimpleDTO"
+                    "$ref": "#/definitions/orders.RestaurantSimpleDTO"
                 },
                 "status": {
                     "type": "string"
                 }
             }
         },
-        "internal_orders.OfferDetailInternalDTO": {
+        "orders.OfferDetailInternalDTO": {
             "type": "object",
             "properties": {
                 "description": {
@@ -1321,7 +1321,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_orders.OfferShortDTO": {
+        "orders.OfferShortDTO": {
             "type": "object",
             "properties": {
                 "id": {
@@ -1338,7 +1338,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_orders.OrderDetailDTO": {
+        "orders.OrderDetailDTO": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -1363,7 +1363,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "offer": {
-                    "$ref": "#/definitions/internal_orders.OfferDetailInternalDTO"
+                    "$ref": "#/definitions/orders.OfferDetailInternalDTO"
                 },
                 "orderNumber": {
                     "type": "string"
@@ -1372,14 +1372,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "restaurant": {
-                    "$ref": "#/definitions/internal_orders.RestaurantShortDTO"
+                    "$ref": "#/definitions/orders.RestaurantShortDTO"
                 },
                 "status": {
                     "type": "string"
                 }
             }
         },
-        "internal_orders.PayOrderResponse": {
+        "orders.PayOrderResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -1396,7 +1396,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_orders.RestaurantShortDTO": {
+        "orders.RestaurantShortDTO": {
             "type": "object",
             "properties": {
                 "address": {
@@ -1419,7 +1419,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_orders.RestaurantSimpleDTO": {
+        "orders.RestaurantSimpleDTO": {
             "type": "object",
             "properties": {
                 "address": {
@@ -1430,11 +1430,14 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_restaurants.RestaurantResponse": {
+        "restaurants.RestaurantResponse": {
             "type": "object",
             "properties": {
                 "address": {
                     "type": "string"
+                },
+                "distance": {
+                    "type": "integer"
                 },
                 "id": {
                     "type": "string"
@@ -1450,6 +1453,12 @@ const docTemplate = `{
                 },
                 "phone": {
                     "type": "string"
+                },
+                "rating": {
+                    "type": "number"
+                },
+                "reviewCount": {
+                    "type": "integer"
                 }
             }
         }
