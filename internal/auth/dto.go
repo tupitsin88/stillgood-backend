@@ -35,6 +35,29 @@ type ChangePasswordRequest struct {
 	NewPassword     string `json:"newPassword" binding:"required,min=8"`
 }
 
+type ForgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+type ForgotPasswordResponse struct {
+	Message   string `json:"message"`
+	ExpiresIn int    `json:"expiresIn"`
+}
+
+type VerifyResetCodeRequest struct {
+	Email string `json:"email" binding:"required,email"`
+	Code  string `json:"code" binding:"required,len=6,numeric"`
+}
+
+type VerifyResetCodeResponse struct {
+	ResetToken string `json:"resetToken"`
+}
+
+type ResetPasswordRequest struct {
+	ResetToken  string `json:"resetToken" binding:"required"`
+	NewPassword string `json:"newPassword" binding:"required,min=8"`
+}
+
 type TokenResponse struct {
 	AccessToken  string `json:"accessToken"`
 	RefreshToken string `json:"refreshToken"`

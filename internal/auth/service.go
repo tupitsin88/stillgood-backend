@@ -1,9 +1,14 @@
 package auth
 
 import (
+	"crypto/rand"
 	"errors"
+	"fmt"
 	"kursach_backend/internal/domain"
+	"log"
+	"math/big"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,6 +17,13 @@ import (
 
 var ErrEmailAlreadyExists = errors.New("email already exists")
 var ErrInvalidCurrentPassword = errors.New("invalid current password")
+var ErrInvalidResetCode = errors.New("invalid reset code")
+var ErrInvalidResetToken = errors.New("invalid reset token")
+
+const (
+	passwordResetCodeTTL  = 10 * time.Minute
+	passwordResetTokenTTL = 15 * time.Minute
+)
 
 type Tokens struct {
 	AccessToken  string
@@ -24,8 +36,21 @@ type Service interface {
 	Login(email, password, deviceToken string) (Tokens, error)
 	RefreshTokens(refreshToken string) (Tokens, error)
 	ChangePassword(userID, currentPassword, newPassword string) error
+	ForgotPassword(email string) (int, error)
+	VerifyResetCode(email, code string) (string, error)
+	ResetPassword(resetToken, newPassword string) error
 	Logout() error
 	GetUserByID(id string) (*domain.User, error)
+}
+
+type resetCodeEntry struct {
+	Code      string
+	ExpiresAt time.Time
+}
+
+type resetTokenEntry struct {
+	Email     string
+	ExpiresAt time.Time
 }
 
 type service struct {
@@ -33,6 +58,10 @@ type service struct {
 	tokenManager *TokenManager
 	accessTTL    time.Duration
 	refreshTTL   time.Duration
+
+	mu          sync.Mutex
+	resetCodes  map[string]resetCodeEntry
+	resetTokens map[string]resetTokenEntry
 }
 
 func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshTTL time.Duration) Service {
@@ -41,6 +70,8 @@ func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshT
 		tokenManager: tokenManager,
 		accessTTL:    accessTTL,
 		refreshTTL:   refreshTTL,
+		resetCodes:   make(map[string]resetCodeEntry),
+		resetTokens:  make(map[string]resetTokenEntry),
 	}
 }
 
@@ -182,6 +213,96 @@ func (s *service) ChangePassword(userID, currentPassword, newPassword string) er
 	return s.repo.UpdatePasswordHash(uuidID, string(hashedPass))
 }
 
+func (s *service) ForgotPassword(email string) (int, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+
+	exists, err := s.repo.ExistsByEmail(email)
+	if err != nil {
+		return 0, err
+	}
+
+	// Всегда возвращаем одинаковый ответ, чтобы не раскрывать наличие email.
+	if !exists {
+		return int(passwordResetCodeTTL.Seconds()), nil
+	}
+
+	code, err := generateSixDigitCode()
+	if err != nil {
+		return 0, err
+	}
+
+	s.mu.Lock()
+	s.resetCodes[email] = resetCodeEntry{
+		Code:      code,
+		ExpiresAt: time.Now().Add(passwordResetCodeTTL),
+	}
+	s.mu.Unlock()
+
+	// Для MVP выводим OTP в лог до интеграции email/SMS.
+	log.Printf("Password reset code for %s: %s", email, code)
+
+	return int(passwordResetCodeTTL.Seconds()), nil
+}
+
+func (s *service) VerifyResetCode(email, code string) (string, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	code = strings.TrimSpace(code)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	entry, ok := s.resetCodes[email]
+	if !ok {
+		return "", ErrInvalidResetCode
+	}
+	if time.Now().After(entry.ExpiresAt) {
+		delete(s.resetCodes, email)
+		return "", ErrInvalidResetCode
+	}
+	if entry.Code != code {
+		return "", ErrInvalidResetCode
+	}
+
+	resetToken := uuid.NewString()
+	s.resetTokens[resetToken] = resetTokenEntry{
+		Email:     email,
+		ExpiresAt: time.Now().Add(passwordResetTokenTTL),
+	}
+	delete(s.resetCodes, email)
+
+	return resetToken, nil
+}
+
+func (s *service) ResetPassword(resetToken, newPassword string) error {
+	resetToken = strings.TrimSpace(resetToken)
+
+	s.mu.Lock()
+	entry, ok := s.resetTokens[resetToken]
+	if !ok {
+		s.mu.Unlock()
+		return ErrInvalidResetToken
+	}
+	if time.Now().After(entry.ExpiresAt) {
+		delete(s.resetTokens, resetToken)
+		s.mu.Unlock()
+		return ErrInvalidResetToken
+	}
+	delete(s.resetTokens, resetToken)
+	s.mu.Unlock()
+
+	user, err := s.repo.GetUserByEmail(entry.Email)
+	if err != nil {
+		return ErrInvalidResetToken
+	}
+
+	hashedPass, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.UpdatePasswordHash(user.ID, string(hashedPass))
+}
+
 func (s *service) Logout() error {
 	// Stateless JWTs don't support true server-side logout without a blacklist/redis.
 	// We just return nil as requested.
@@ -209,4 +330,12 @@ func (s *service) generateTokens(userID, role string) (Tokens, error) {
 	}
 
 	return Tokens{AccessToken: accessToken, RefreshToken: refreshToken}, nil
+}
+
+func generateSixDigitCode() (string, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%06d", n.Int64()), nil
 }

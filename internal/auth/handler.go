@@ -188,6 +188,91 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
 }
 
+// ForgotPassword godoc
+// @Summary Запрос OTP для сброса пароля
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param input body ForgotPasswordRequest true "Email для сброса"
+// @Success 200 {object} ForgotPasswordResponse
+// @Router /auth/forgot-password [post]
+func (h *Handler) ForgotPassword(c *gin.Context) {
+	var input ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	expiresIn, err := h.service.ForgotPassword(input.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process forgot password"})
+		return
+	}
+
+	c.JSON(http.StatusOK, ForgotPasswordResponse{
+		Message:   "OTP sent if email exists",
+		ExpiresIn: expiresIn,
+	})
+}
+
+// VerifyResetCode godoc
+// @Summary Проверка OTP-кода
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param input body VerifyResetCodeRequest true "Email и OTP-код"
+// @Success 200 {object} VerifyResetCodeResponse
+// @Failure 400 {object} map[string]string
+// @Router /auth/verify-reset-code [post]
+func (h *Handler) VerifyResetCode(c *gin.Context) {
+	var input VerifyResetCodeRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	resetToken, err := h.service.VerifyResetCode(input.Email, input.Code)
+	if err != nil {
+		if errors.Is(err, ErrInvalidResetCode) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reset code"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify reset code"})
+		return
+	}
+
+	c.JSON(http.StatusOK, VerifyResetCodeResponse{ResetToken: resetToken})
+}
+
+// ResetPassword godoc
+// @Summary Установка нового пароля
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param input body ResetPasswordRequest true "Reset token и новый пароль"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Router /auth/reset-password [post]
+func (h *Handler) ResetPassword(c *gin.Context) {
+	var input ResetPasswordRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.service.ResetPassword(input.ResetToken, input.NewPassword)
+	if err != nil {
+		if errors.Is(err, ErrInvalidResetToken) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reset token"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reset password"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
+}
+
 // Refresh godoc
 // @Summary Обновление токенов
 // @Tags Auth

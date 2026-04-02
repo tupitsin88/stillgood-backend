@@ -11,6 +11,9 @@ func RegisterRoutes(r *gin.Engine, h *Handler, middleware gin.HandlerFunc) {
 		router.POST("/register", h.Register)
 		router.POST("/register/partner", h.RegisterPartner)
 		router.POST("/login", h.Login)
+		router.POST("/forgot-password", h.ForgotPassword)
+		router.POST("/verify-reset-code", h.VerifyResetCode)
+		router.POST("/reset-password", h.ResetPassword)
 		router.POST("/refresh", h.Refresh)
 	}
 

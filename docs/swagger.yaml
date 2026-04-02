@@ -11,6 +11,20 @@ definitions:
     - currentPassword
     - newPassword
     type: object
+  auth.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  auth.ForgotPasswordResponse:
+    properties:
+      expiresIn:
+        type: integer
+      message:
+        type: string
+    type: object
   auth.LoginRequest:
     properties:
       device_token:
@@ -80,6 +94,17 @@ definitions:
     - name
     - password
     type: object
+  auth.ResetPasswordRequest:
+    properties:
+      newPassword:
+        minLength: 8
+        type: string
+      resetToken:
+        type: string
+    required:
+    - newPassword
+    - resetToken
+    type: object
   auth.TokenResponse:
     properties:
       accessToken:
@@ -96,6 +121,21 @@ definitions:
       name:
         type: string
       role:
+        type: string
+    type: object
+  auth.VerifyResetCodeRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+    required:
+    - code
+    - email
+    type: object
+  auth.VerifyResetCodeResponse:
+    properties:
+      resetToken:
         type: string
     type: object
   offers.CategoryDTO:
@@ -397,6 +437,27 @@ paths:
       summary: Смена пароля (авторизован)
       tags:
       - Auth
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email для сброса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.ForgotPasswordResponse'
+      summary: Запрос OTP для сброса пароля
+      tags:
+      - Auth
   /auth/login:
     post:
       consumes:
@@ -531,6 +592,62 @@ paths:
               type: string
             type: object
       summary: Регистрация PARTNER (заявка)
+      tags:
+      - Auth
+  /auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Reset token и новый пароль
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Установка нового пароля
+      tags:
+      - Auth
+  /auth/verify-reset-code:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email и OTP-код
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.VerifyResetCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.VerifyResetCodeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Проверка OTP-кода
       tags:
       - Auth
   /categories:
