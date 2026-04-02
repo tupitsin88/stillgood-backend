@@ -401,13 +401,44 @@ definitions:
       name:
         type: string
     type: object
+  restaurants.Pagination:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
+  restaurants.PartnerRestaurantUpdateRequest:
+    properties:
+      description:
+        type: string
+      imageUrl:
+        type: string
+      workingHours:
+        type: string
+    type: object
+  restaurants.RestaurantListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/restaurants.RestaurantResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/restaurants.Pagination'
+    type: object
   restaurants.RestaurantResponse:
     properties:
       address:
         type: string
+      description:
+        type: string
       distance:
         type: integer
       id:
+        type: string
+      imageUrl:
         type: string
       latitude:
         type: number
@@ -421,6 +452,8 @@ definitions:
         type: number
       reviewCount:
         type: integer
+      workingHours:
+        type: string
     type: object
 host: localhost:8080
 info:
@@ -1100,6 +1133,53 @@ paths:
       summary: Подтверждение выдачи
       tags:
       - Partner
+  /partner/restaurant:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/restaurants.RestaurantResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Профиль заведения партнёра
+      tags:
+      - Partner
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Поля профиля
+        in: body
+        name: input
+        schema:
+          $ref: '#/definitions/restaurants.PartnerRestaurantUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/restaurants.RestaurantResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Обновление профиля заведения
+      tags:
+      - Partner
   /restaurants:
     get:
       parameters:
@@ -1133,9 +1213,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/restaurants.RestaurantResponse'
-            type: array
+            $ref: '#/definitions/restaurants.RestaurantListResponse'
       summary: Список ресторанов
       tags:
       - Restaurants

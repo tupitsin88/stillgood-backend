@@ -5,12 +5,15 @@ import (
 	"kursach_backend/internal/domain"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type Repository interface {
 	GetList(params ListParams) ([]domain.Restaurant, int64, error)
 	GetByID(id string) (*domain.Restaurant, error)
+	GetByPartnerID(partnerID uuid.UUID) (*domain.Restaurant, error)
+	UpdatePartnerProfile(partnerID uuid.UUID, req PartnerRestaurantUpdateRequest) (*domain.Restaurant, error)
 }
 
 type repository struct {
@@ -64,4 +67,33 @@ func (r *repository) GetByID(id string) (*domain.Restaurant, error) {
 		return nil, err
 	}
 	return &restaurant, nil
+}
+
+func (r *repository) GetByPartnerID(partnerID uuid.UUID) (*domain.Restaurant, error) {
+	var restaurant domain.Restaurant
+	if err := r.db.Where("partner_id = ?", partnerID).First(&restaurant).Error; err != nil {
+		return nil, err
+	}
+	return &restaurant, nil
+}
+
+func (r *repository) UpdatePartnerProfile(partnerID uuid.UUID, req PartnerRestaurantUpdateRequest) (*domain.Restaurant, error) {
+	updates := map[string]interface{}{}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.WorkingHours != nil {
+		updates["working_hours"] = *req.WorkingHours
+	}
+	if req.ImageURL != nil {
+		updates["image_url"] = *req.ImageURL
+	}
+
+	if len(updates) > 0 {
+		if err := r.db.Model(&domain.Restaurant{}).Where("partner_id = ?", partnerID).Updates(updates).Error; err != nil {
+			return nil, err
+		}
+	}
+
+	return r.GetByPartnerID(partnerID)
 }

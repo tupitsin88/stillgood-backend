@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Handler struct {
@@ -54,7 +55,7 @@ func (h *Handler) UploadImage(c *gin.Context) {
 // @Param categoryId query string false "Category ID"
 // @Param limit query integer false "Limit"
 // @Param offset query integer false "Offset"
-// @Success 200 {array} RestaurantResponse
+// @Success 200 {object} RestaurantListResponse
 // @Router /restaurants [get]
 func (h *Handler) GetList(c *gin.Context) {
 	limit, err := strconv.Atoi(c.DefaultQuery("limit", "20"))
@@ -123,15 +124,18 @@ func (h *Handler) GetList(c *gin.Context) {
 			distance = &val
 		}
 		response = append(response, RestaurantResponse{
-			ID:          r.ID.String(),
-			Name:        r.Name,
-			Address:     r.Address,
-			Phone:       r.Phone,
-			Latitude:    r.Latitude,
-			Longitude:   r.Longitude,
-			Rating:      r.Rating,
-			ReviewCount: r.ReviewCount,
-			Distance:    distance,
+			ID:           r.ID.String(),
+			Name:         r.Name,
+			Address:      r.Address,
+			Phone:        r.Phone,
+			ImageURL:     r.ImageURL,
+			Description:  r.Description,
+			WorkingHours: r.WorkingHours,
+			Latitude:     r.Latitude,
+			Longitude:    r.Longitude,
+			Rating:       r.Rating,
+			ReviewCount:  r.ReviewCount,
+			Distance:     distance,
 		})
 	}
 
@@ -162,17 +166,106 @@ func (h *Handler) GetByID(c *gin.Context) {
 	}
 
 	response := RestaurantResponse{
-		ID:          restaurant.ID.String(),
-		Name:        restaurant.Name,
-		Address:     restaurant.Address,
-		Phone:       restaurant.Phone,
-		Latitude:    restaurant.Latitude,
-		Longitude:   restaurant.Longitude,
-		Rating:      restaurant.Rating,
-		ReviewCount: restaurant.ReviewCount,
+		ID:           restaurant.ID.String(),
+		Name:         restaurant.Name,
+		Address:      restaurant.Address,
+		Phone:        restaurant.Phone,
+		ImageURL:     restaurant.ImageURL,
+		Description:  restaurant.Description,
+		WorkingHours: restaurant.WorkingHours,
+		Latitude:     restaurant.Latitude,
+		Longitude:    restaurant.Longitude,
+		Rating:       restaurant.Rating,
+		ReviewCount:  restaurant.ReviewCount,
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// @Summary Профиль заведения партнёра
+// @Tags Partner
+// @Security ApiKeyAuth
+// @Produce json
+// @Success 200 {object} RestaurantResponse
+// @Failure 404 {object} map[string]string
+// @Router /partner/restaurant [get]
+func (h *Handler) GetPartnerRestaurant(c *gin.Context) {
+	partnerID := c.GetString("user_id")
+	if partnerID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	restaurant, err := h.service.GetPartnerRestaurant(partnerID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Restaurant not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch restaurant"})
+		return
+	}
+
+	c.JSON(http.StatusOK, RestaurantResponse{
+		ID:           restaurant.ID.String(),
+		Name:         restaurant.Name,
+		Address:      restaurant.Address,
+		Phone:        restaurant.Phone,
+		ImageURL:     restaurant.ImageURL,
+		Description:  restaurant.Description,
+		WorkingHours: restaurant.WorkingHours,
+		Latitude:     restaurant.Latitude,
+		Longitude:    restaurant.Longitude,
+		Rating:       restaurant.Rating,
+		ReviewCount:  restaurant.ReviewCount,
+	})
+}
+
+// @Summary Обновление профиля заведения
+// @Tags Partner
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param input body PartnerRestaurantUpdateRequest false "Поля профиля"
+// @Success 200 {object} RestaurantResponse
+// @Failure 404 {object} map[string]string
+// @Router /partner/restaurant [patch]
+func (h *Handler) UpdatePartnerRestaurant(c *gin.Context) {
+	partnerID := c.GetString("user_id")
+	if partnerID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var req PartnerRestaurantUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	restaurant, err := h.service.UpdatePartnerRestaurant(partnerID, req)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Restaurant not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update restaurant"})
+		return
+	}
+
+	c.JSON(http.StatusOK, RestaurantResponse{
+		ID:           restaurant.ID.String(),
+		Name:         restaurant.Name,
+		Address:      restaurant.Address,
+		Phone:        restaurant.Phone,
+		ImageURL:     restaurant.ImageURL,
+		Description:  restaurant.Description,
+		WorkingHours: restaurant.WorkingHours,
+		Latitude:     restaurant.Latitude,
+		Longitude:    restaurant.Longitude,
+		Rating:       restaurant.Rating,
+		ReviewCount:  restaurant.ReviewCount,
+	})
 }
 
 func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {

@@ -14,6 +14,8 @@ import (
 type Service interface {
 	GetList(params ListParams) ([]domain.Restaurant, int64, error)
 	GetByID(id string) (*domain.Restaurant, error)
+	GetPartnerRestaurant(partnerID string) (*domain.Restaurant, error)
+	UpdatePartnerRestaurant(partnerID string, req PartnerRestaurantUpdateRequest) (*domain.Restaurant, error)
 	UploadImage(file *multipart.FileHeader) (string, error)
 }
 
@@ -46,6 +48,22 @@ func (s *service) GetList(params ListParams) ([]domain.Restaurant, int64, error)
 
 func (s *service) GetByID(id string) (*domain.Restaurant, error) {
 	return s.repo.GetByID(id)
+}
+
+func (s *service) GetPartnerRestaurant(partnerID string) (*domain.Restaurant, error) {
+	uid, err := uuid.Parse(partnerID)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.GetByPartnerID(uid)
+}
+
+func (s *service) UpdatePartnerRestaurant(partnerID string, req PartnerRestaurantUpdateRequest) (*domain.Restaurant, error) {
+	uid, err := uuid.Parse(partnerID)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.UpdatePartnerProfile(uid, req)
 }
 
 func (s *service) UploadImage(file *multipart.FileHeader) (string, error) {

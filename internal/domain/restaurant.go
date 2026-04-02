@@ -13,6 +13,7 @@ type Restaurant struct {
 	CompanyName  string    `json:"company_name"`
 	Inn          string    `json:"inn"`
 	Address      string    `json:"address"`
+	Description  *string   `json:"description,omitempty"`
 	Rating       float64   `json:"rating"`
 	ReviewCount  int       `json:"review_count"`
 	ImageURL     *string   `json:"image_url"`

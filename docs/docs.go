@@ -1074,6 +1074,83 @@ const docTemplate = `{
                 }
             }
         },
+        "/partner/restaurant": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "Профиль заведения партнёра",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/restaurants.RestaurantResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "Обновление профиля заведения",
+                "parameters": [
+                    {
+                        "description": "Поля профиля",
+                        "name": "input",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/restaurants.PartnerRestaurantUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/restaurants.RestaurantResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/restaurants": {
             "get": {
                 "produces": [
@@ -1125,10 +1202,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/restaurants.RestaurantResponse"
-                            }
+                            "$ref": "#/definitions/restaurants.RestaurantListResponse"
                         }
                     }
                 }
@@ -1850,16 +1924,64 @@ const docTemplate = `{
                 }
             }
         },
+        "restaurants.Pagination": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "restaurants.PartnerRestaurantUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "imageUrl": {
+                    "type": "string"
+                },
+                "workingHours": {
+                    "type": "string"
+                }
+            }
+        },
+        "restaurants.RestaurantListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/restaurants.RestaurantResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/restaurants.Pagination"
+                }
+            }
+        },
         "restaurants.RestaurantResponse": {
             "type": "object",
             "properties": {
                 "address": {
                     "type": "string"
                 },
+                "description": {
+                    "type": "string"
+                },
                 "distance": {
                     "type": "integer"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "imageUrl": {
                     "type": "string"
                 },
                 "latitude": {
@@ -1879,6 +2001,9 @@ const docTemplate = `{
                 },
                 "reviewCount": {
                     "type": "integer"
+                },
+                "workingHours": {
+                    "type": "string"
                 }
             }
         }
