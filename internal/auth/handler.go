@@ -401,13 +401,26 @@ func (h *Handler) Refresh(c *gin.Context) {
 // @Summary Выход (инвалидация refresh token)
 // @Security ApiKeyAuth
 // @Tags Auth
-// @Success 200 {object} map[string]string
+// @Accept json
+// @Param input body RefreshRequest true "Refresh token"
+// @Success 204
+// @Failure 400 {object} map[string]string
 // @Router /auth/logout [post]
 func (h *Handler) Logout(c *gin.Context) {
+	var input RefreshRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(input.RefreshToken) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "refreshToken is required"})
+		return
+	}
+
 	if err := h.service.Logout(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to logout"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
+	c.Status(http.StatusNoContent)
 }
