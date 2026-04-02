@@ -43,14 +43,14 @@ definitions:
     - email
     - password
     type: object
-  auth.RefreshRequest:
+  internal_auth.RefreshRequest:
     properties:
       refreshToken:
         type: string
     required:
     - refreshToken
     type: object
-  auth.RegisterRequest:
+  internal_auth.RegisterRequest:
     properties:
       device_token:
         type: string
@@ -66,14 +66,14 @@ definitions:
     - name
     - password
     type: object
-  auth.TokenResponse:
+  internal_auth.TokenResponse:
     properties:
       accessToken:
         type: string
       refreshToken:
         type: string
     type: object
-  auth.UserResponse:
+  internal_auth.UserResponse:
     properties:
       email:
         type: string
@@ -84,14 +84,14 @@ definitions:
       role:
         type: string
     type: object
-  offers.CategoryDTO:
+  internal_offers.CategoryDTO:
     properties:
       id:
         type: string
       name:
         type: string
     type: object
-  offers.CreateOfferRequest:
+  internal_offers.CreateOfferRequest:
     properties:
       categoryId:
         type: string
@@ -121,10 +121,10 @@ definitions:
     - quantity
     - title
     type: object
-  offers.OfferDetailDTO:
+  internal_offers.OfferDetailDTO:
     properties:
       category:
-        $ref: '#/definitions/offers.CategoryDTO'
+        $ref: '#/definitions/internal_offers.CategoryDTO'
       description:
         type: string
       discount:
@@ -148,11 +148,11 @@ definitions:
       quantityTotal:
         type: integer
       restaurant:
-        $ref: '#/definitions/offers.RestaurantShortDTO'
+        $ref: '#/definitions/internal_offers.RestaurantShortDTO'
       title:
         type: string
     type: object
-  offers.RestaurantShortDTO:
+  internal_offers.RestaurantShortDTO:
     properties:
       address:
         type: string
@@ -167,7 +167,7 @@ definitions:
       phone:
         type: string
     type: object
-  offers.UpdateOfferRequest:
+  internal_offers.UpdateOfferRequest:
     properties:
       description:
         type: string
@@ -180,12 +180,12 @@ definitions:
       title:
         type: string
     type: object
-  orders.CancelOrderRequest:
+  internal_orders.CancelOrderRequest:
     properties:
       reason:
         type: string
     type: object
-  orders.CancelOrderResponse:
+  internal_orders.CancelOrderResponse:
     properties:
       cancelledAt:
         type: string
@@ -196,14 +196,14 @@ definitions:
       status:
         type: string
     type: object
-  orders.CreateOrderRequest:
+  internal_orders.CreateOrderRequest:
     properties:
       offerId:
         type: string
     required:
     - offerId
     type: object
-  orders.CreateOrderResponse:
+  internal_orders.CreateOrderResponse:
     properties:
       amount:
         type: number
@@ -212,13 +212,13 @@ definitions:
       id:
         type: string
       offer:
-        $ref: '#/definitions/orders.OfferShortDTO'
+        $ref: '#/definitions/internal_orders.OfferShortDTO'
       restaurant:
-        $ref: '#/definitions/orders.RestaurantSimpleDTO'
+        $ref: '#/definitions/internal_orders.RestaurantSimpleDTO'
       status:
         type: string
     type: object
-  orders.OfferDetailInternalDTO:
+  internal_orders.OfferDetailInternalDTO:
     properties:
       description:
         type: string
@@ -247,7 +247,7 @@ definitions:
       title:
         type: string
     type: object
-  orders.OfferShortDTO:
+  internal_orders.OfferShortDTO:
     properties:
       id:
         type: string
@@ -258,7 +258,7 @@ definitions:
       title:
         type: string
     type: object
-  orders.OrderDetailDTO:
+  internal_orders.OrderDetailDTO:
     properties:
       amount:
         type: number
@@ -275,17 +275,17 @@ definitions:
       id:
         type: string
       offer:
-        $ref: '#/definitions/orders.OfferDetailInternalDTO'
+        $ref: '#/definitions/internal_orders.OfferDetailInternalDTO'
       orderNumber:
         type: string
       paidAt:
         type: string
       restaurant:
-        $ref: '#/definitions/orders.RestaurantShortDTO'
+        $ref: '#/definitions/internal_orders.RestaurantShortDTO'
       status:
         type: string
     type: object
-  orders.PayOrderResponse:
+  internal_orders.PayOrderResponse:
     properties:
       id:
         type: string
@@ -296,7 +296,7 @@ definitions:
       status:
         type: string
     type: object
-  orders.RestaurantShortDTO:
+  internal_orders.RestaurantShortDTO:
     properties:
       address:
         type: string
@@ -311,14 +311,14 @@ definitions:
       phone:
         type: string
     type: object
-  orders.RestaurantSimpleDTO:
+  internal_orders.RestaurantSimpleDTO:
     properties:
       address:
         type: string
       name:
         type: string
     type: object
-  restaurants.RestaurantResponse:
+  internal_restaurants.RestaurantResponse:
     properties:
       address:
         type: string
@@ -356,14 +356,14 @@ paths:
         name: input
         required: true
         schema:
-          $ref: '#/definitions/auth.LoginRequest'
+          $ref: '#/definitions/internal_auth.LoginRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.TokenResponse'
+            $ref: '#/definitions/internal_auth.TokenResponse'
         "401":
           description: Unauthorized
           schema:
@@ -395,7 +395,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.UserResponse'
+            $ref: '#/definitions/internal_auth.UserResponse'
       security:
       - ApiKeyAuth: []
       summary: Текущий пользователь
@@ -411,14 +411,14 @@ paths:
         name: input
         required: true
         schema:
-          $ref: '#/definitions/auth.RefreshRequest'
+          $ref: '#/definitions/internal_auth.RefreshRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.TokenResponse'
+            $ref: '#/definitions/internal_auth.TokenResponse'
         "401":
           description: Unauthorized
           schema:
@@ -438,14 +438,14 @@ paths:
         name: input
         required: true
         schema:
-          $ref: '#/definitions/auth.RegisterRequest'
+          $ref: '#/definitions/internal_auth.RegisterRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/auth.TokenResponse'
+            $ref: '#/definitions/internal_auth.TokenResponse'
         "409":
           description: Conflict
           schema:
@@ -540,7 +540,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/offers.OfferDetailDTO'
+            $ref: '#/definitions/internal_offers.OfferDetailDTO'
         "404":
           description: Not Found
           schema:
@@ -575,7 +575,6 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Заказы пользователя
       tags:
       - Orders
     post:
@@ -587,14 +586,14 @@ paths:
         name: input
         required: true
         schema:
-          $ref: '#/definitions/orders.CreateOrderRequest'
+          $ref: '#/definitions/internal_orders.CreateOrderRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/orders.CreateOrderResponse'
+            $ref: '#/definitions/internal_orders.CreateOrderResponse'
         "400":
           description: Bad Request
           schema:
@@ -603,7 +602,6 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Создание заказа
       tags:
       - Orders
   /orders/{id}:
@@ -620,7 +618,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/orders.OrderDetailDTO'
+            $ref: '#/definitions/internal_orders.OrderDetailDTO'
         "404":
           description: Not Found
           schema:
@@ -629,7 +627,6 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Детали заказа
       tags:
       - Orders
   /orders/{id}/cancel:
@@ -647,17 +644,16 @@ paths:
         name: input
         required: true
         schema:
-          $ref: '#/definitions/orders.CancelOrderRequest'
+          $ref: '#/definitions/internal_orders.CancelOrderRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/orders.CancelOrderResponse'
+            $ref: '#/definitions/internal_orders.CancelOrderResponse'
       security:
       - ApiKeyAuth: []
-      summary: Отмена заказа
       tags:
       - Orders
   /orders/{id}/pay:
@@ -674,7 +670,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/orders.PayOrderResponse'
+            $ref: '#/definitions/internal_orders.PayOrderResponse'
         "401":
           description: Unauthorized
           schema:
@@ -683,7 +679,6 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Оплата заказа
       tags:
       - Orders
   /partner/analytics:
@@ -752,14 +747,14 @@ paths:
         name: input
         required: true
         schema:
-          $ref: '#/definitions/offers.CreateOfferRequest'
+          $ref: '#/definitions/internal_offers.CreateOfferRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/offers.OfferDetailDTO'
+            $ref: '#/definitions/internal_offers.OfferDetailDTO'
       security:
       - ApiKeyAuth: []
       summary: Создание предложения
@@ -780,14 +775,14 @@ paths:
         name: input
         required: true
         schema:
-          $ref: '#/definitions/offers.UpdateOfferRequest'
+          $ref: '#/definitions/internal_offers.UpdateOfferRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/offers.OfferDetailDTO'
+            $ref: '#/definitions/internal_offers.OfferDetailDTO'
         "403":
           description: Forbidden
           schema:
@@ -829,7 +824,6 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Заказы партнёра
       tags:
       - Partner
   /partner/orders/{id}/complete:
@@ -850,7 +844,6 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Подтверждение выдачи
       tags:
       - Partner
   /restaurants:
@@ -887,7 +880,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/restaurants.RestaurantResponse'
+              $ref: '#/definitions/internal_restaurants.RestaurantResponse'
             type: array
       summary: Список ресторанов
       tags:
@@ -906,7 +899,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/restaurants.RestaurantResponse'
+            $ref: '#/definitions/internal_restaurants.RestaurantResponse'
         "404":
           description: Not Found
           schema:

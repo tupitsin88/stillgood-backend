@@ -34,7 +34,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.LoginRequest"
+                            "$ref": "#/definitions/internal_auth.LoginRequest"
                         }
                     }
                 ],
@@ -42,7 +42,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.TokenResponse"
+                            "$ref": "#/definitions/internal_auth.TokenResponse"
                         }
                     },
                     "401": {
@@ -99,7 +99,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.UserResponse"
+                            "$ref": "#/definitions/internal_auth.UserResponse"
                         }
                     }
                 }
@@ -124,7 +124,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.RefreshRequest"
+                            "$ref": "#/definitions/internal_auth.RefreshRequest"
                         }
                     }
                 ],
@@ -132,7 +132,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.TokenResponse"
+                            "$ref": "#/definitions/internal_auth.TokenResponse"
                         }
                     },
                     "401": {
@@ -166,7 +166,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.RegisterRequest"
+                            "$ref": "#/definitions/internal_auth.RegisterRequest"
                         }
                     }
                 ],
@@ -174,7 +174,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/auth.TokenResponse"
+                            "$ref": "#/definitions/internal_auth.TokenResponse"
                         }
                     },
                     "409": {
@@ -318,7 +318,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/offers.OfferDetailDTO"
+                            "$ref": "#/definitions/internal_offers.OfferDetailDTO"
                         }
                     },
                     "404": {
@@ -346,7 +346,6 @@ const docTemplate = `{
                 "tags": [
                     "Orders"
                 ],
-                "summary": "Заказы пользователя",
                 "parameters": [
                     {
                         "type": "string",
@@ -392,7 +391,6 @@ const docTemplate = `{
                 "tags": [
                     "Orders"
                 ],
-                "summary": "Создание заказа",
                 "parameters": [
                     {
                         "description": "Данные заказа",
@@ -400,7 +398,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/orders.CreateOrderRequest"
+                            "$ref": "#/definitions/internal_orders.CreateOrderRequest"
                         }
                     }
                 ],
@@ -408,7 +406,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/orders.CreateOrderResponse"
+                            "$ref": "#/definitions/internal_orders.CreateOrderResponse"
                         }
                     },
                     "400": {
@@ -436,7 +434,6 @@ const docTemplate = `{
                 "tags": [
                     "Orders"
                 ],
-                "summary": "Детали заказа",
                 "parameters": [
                     {
                         "type": "string",
@@ -450,7 +447,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/orders.OrderDetailDTO"
+                            "$ref": "#/definitions/internal_orders.OrderDetailDTO"
                         }
                     },
                     "404": {
@@ -481,7 +478,6 @@ const docTemplate = `{
                 "tags": [
                     "Orders"
                 ],
-                "summary": "Отмена заказа",
                 "parameters": [
                     {
                         "type": "string",
@@ -496,7 +492,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/orders.CancelOrderRequest"
+                            "$ref": "#/definitions/internal_orders.CancelOrderRequest"
                         }
                     }
                 ],
@@ -504,7 +500,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/orders.CancelOrderResponse"
+                            "$ref": "#/definitions/internal_orders.CancelOrderResponse"
                         }
                     }
                 }
@@ -523,7 +519,6 @@ const docTemplate = `{
                 "tags": [
                     "Orders"
                 ],
-                "summary": "Оплата заказа",
                 "parameters": [
                     {
                         "type": "string",
@@ -537,7 +532,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/orders.PayOrderResponse"
+                            "$ref": "#/definitions/internal_orders.PayOrderResponse"
                         }
                     },
                     "401": {
@@ -662,7 +657,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/offers.CreateOfferRequest"
+                            "$ref": "#/definitions/internal_offers.CreateOfferRequest"
                         }
                     }
                 ],
@@ -670,7 +665,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/offers.OfferDetailDTO"
+                            "$ref": "#/definitions/internal_offers.OfferDetailDTO"
                         }
                     }
                 }
@@ -707,7 +702,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/offers.UpdateOfferRequest"
+                            "$ref": "#/definitions/internal_offers.UpdateOfferRequest"
                         }
                     }
                 ],
@@ -715,7 +710,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/offers.OfferDetailDTO"
+                            "$ref": "#/definitions/internal_offers.OfferDetailDTO"
                         }
                     },
                     "403": {
@@ -743,7 +738,6 @@ const docTemplate = `{
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Заказы партнёра",
                 "parameters": [
                     {
                         "enum": [
@@ -794,7 +788,6 @@ const docTemplate = `{
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Подтверждение выдачи",
                 "parameters": [
                     {
                         "type": "string",
@@ -868,7 +861,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/restaurants.RestaurantResponse"
+                                "$ref": "#/definitions/internal_restaurants.RestaurantResponse"
                             }
                         }
                     }
@@ -931,7 +924,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/restaurants.RestaurantResponse"
+                            "$ref": "#/definitions/internal_restaurants.RestaurantResponse"
                         }
                     },
                     "404": {
@@ -1013,7 +1006,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.RefreshRequest": {
+        "internal_auth.RefreshRequest": {
             "type": "object",
             "required": [
                 "refreshToken"
@@ -1024,7 +1017,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.RegisterRequest": {
+        "internal_auth.RegisterRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -1047,7 +1040,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.TokenResponse": {
+        "internal_auth.TokenResponse": {
             "type": "object",
             "properties": {
                 "accessToken": {
@@ -1058,7 +1051,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.UserResponse": {
+        "internal_auth.UserResponse": {
             "type": "object",
             "properties": {
                 "email": {
@@ -1075,7 +1068,7 @@ const docTemplate = `{
                 }
             }
         },
-        "offers.CategoryDTO": {
+        "internal_offers.CategoryDTO": {
             "type": "object",
             "properties": {
                 "id": {
@@ -1086,7 +1079,7 @@ const docTemplate = `{
                 }
             }
         },
-        "offers.CreateOfferRequest": {
+        "internal_offers.CreateOfferRequest": {
             "type": "object",
             "required": [
                 "categoryId",
@@ -1128,11 +1121,11 @@ const docTemplate = `{
                 }
             }
         },
-        "offers.OfferDetailDTO": {
+        "internal_offers.OfferDetailDTO": {
             "type": "object",
             "properties": {
                 "category": {
-                    "$ref": "#/definitions/offers.CategoryDTO"
+                    "$ref": "#/definitions/internal_offers.CategoryDTO"
                 },
                 "description": {
                     "type": "string"
@@ -1168,14 +1161,14 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "restaurant": {
-                    "$ref": "#/definitions/offers.RestaurantShortDTO"
+                    "$ref": "#/definitions/internal_offers.RestaurantShortDTO"
                 },
                 "title": {
                     "type": "string"
                 }
             }
         },
-        "offers.RestaurantShortDTO": {
+        "internal_offers.RestaurantShortDTO": {
             "type": "object",
             "properties": {
                 "address": {
@@ -1198,7 +1191,7 @@ const docTemplate = `{
                 }
             }
         },
-        "offers.UpdateOfferRequest": {
+        "internal_offers.UpdateOfferRequest": {
             "type": "object",
             "properties": {
                 "description": {
@@ -1218,7 +1211,7 @@ const docTemplate = `{
                 }
             }
         },
-        "orders.CancelOrderRequest": {
+        "internal_orders.CancelOrderRequest": {
             "type": "object",
             "properties": {
                 "reason": {
@@ -1226,7 +1219,7 @@ const docTemplate = `{
                 }
             }
         },
-        "orders.CancelOrderResponse": {
+        "internal_orders.CancelOrderResponse": {
             "type": "object",
             "properties": {
                 "cancelledAt": {
@@ -1243,7 +1236,7 @@ const docTemplate = `{
                 }
             }
         },
-        "orders.CreateOrderRequest": {
+        "internal_orders.CreateOrderRequest": {
             "type": "object",
             "required": [
                 "offerId"
@@ -1254,7 +1247,7 @@ const docTemplate = `{
                 }
             }
         },
-        "orders.CreateOrderResponse": {
+        "internal_orders.CreateOrderResponse": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -1267,17 +1260,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "offer": {
-                    "$ref": "#/definitions/orders.OfferShortDTO"
+                    "$ref": "#/definitions/internal_orders.OfferShortDTO"
                 },
                 "restaurant": {
-                    "$ref": "#/definitions/orders.RestaurantSimpleDTO"
+                    "$ref": "#/definitions/internal_orders.RestaurantSimpleDTO"
                 },
                 "status": {
                     "type": "string"
                 }
             }
         },
-        "orders.OfferDetailInternalDTO": {
+        "internal_orders.OfferDetailInternalDTO": {
             "type": "object",
             "properties": {
                 "description": {
@@ -1321,7 +1314,7 @@ const docTemplate = `{
                 }
             }
         },
-        "orders.OfferShortDTO": {
+        "internal_orders.OfferShortDTO": {
             "type": "object",
             "properties": {
                 "id": {
@@ -1338,7 +1331,7 @@ const docTemplate = `{
                 }
             }
         },
-        "orders.OrderDetailDTO": {
+        "internal_orders.OrderDetailDTO": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -1363,7 +1356,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "offer": {
-                    "$ref": "#/definitions/orders.OfferDetailInternalDTO"
+                    "$ref": "#/definitions/internal_orders.OfferDetailInternalDTO"
                 },
                 "orderNumber": {
                     "type": "string"
@@ -1372,14 +1365,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "restaurant": {
-                    "$ref": "#/definitions/orders.RestaurantShortDTO"
+                    "$ref": "#/definitions/internal_orders.RestaurantShortDTO"
                 },
                 "status": {
                     "type": "string"
                 }
             }
         },
-        "orders.PayOrderResponse": {
+        "internal_orders.PayOrderResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -1396,7 +1389,7 @@ const docTemplate = `{
                 }
             }
         },
-        "orders.RestaurantShortDTO": {
+        "internal_orders.RestaurantShortDTO": {
             "type": "object",
             "properties": {
                 "address": {
@@ -1419,7 +1412,7 @@ const docTemplate = `{
                 }
             }
         },
-        "orders.RestaurantSimpleDTO": {
+        "internal_orders.RestaurantSimpleDTO": {
             "type": "object",
             "properties": {
                 "address": {
@@ -1430,7 +1423,7 @@ const docTemplate = `{
                 }
             }
         },
-        "restaurants.RestaurantResponse": {
+        "internal_restaurants.RestaurantResponse": {
             "type": "object",
             "properties": {
                 "address": {
