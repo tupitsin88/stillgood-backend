@@ -143,11 +143,17 @@ definitions:
     type: object
   auth.UserResponse:
     properties:
+      authProvider:
+        type: string
+      createdAt:
+        type: string
       email:
         type: string
       id:
         type: string
       name:
+        type: string
+      partnerStatus:
         type: string
       role:
         type: string

@@ -1,5 +1,7 @@
 package auth
 
+import "time"
+
 type RegisterRequest struct {
 	Email       string `json:"email" binding:"required,email"`
 	Password    string `json:"password" binding:"required,min=8"`
@@ -80,8 +82,11 @@ type TokenResponse struct {
 }
 
 type UserResponse struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
-	Name  string `json:"name"`
-	Role  string `json:"role"`
+	ID            string    `json:"id"`
+	Email         string    `json:"email"`
+	Name          string    `json:"name"`
+	Role          string    `json:"role"`
+	AuthProvider  string    `json:"authProvider"`
+	PartnerStatus string    `json:"partnerStatus,omitempty"`
+	CreatedAt     time.Time `json:"createdAt"`
 }

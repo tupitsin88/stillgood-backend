@@ -1549,6 +1549,12 @@ const docTemplate = `{
         "auth.UserResponse": {
             "type": "object",
             "properties": {
+                "authProvider": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
@@ -1556,6 +1562,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "partnerStatus": {
                     "type": "string"
                 },
                 "role": {

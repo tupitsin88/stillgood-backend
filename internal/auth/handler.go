@@ -183,10 +183,13 @@ func (h *Handler) Me(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, UserResponse{
-		ID:    user.ID.String(),
-		Email: user.Email,
-		Name:  user.Name,
-		Role:  user.Role,
+		ID:            user.ID.String(),
+		Email:         user.Email,
+		Name:          user.Name,
+		Role:          user.Role,
+		AuthProvider:  user.AuthProvider,
+		PartnerStatus: user.PartnerStatus,
+		CreatedAt:     user.CreatedAt,
 	})
 }
 
