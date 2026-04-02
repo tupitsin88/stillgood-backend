@@ -1,6 +1,36 @@
 basePath: /api/v1
 definitions:
-  auth.LoginRequest:
+  internal_analytics.AnalyticsSummary:
+    properties:
+      cancelRate:
+        type: number
+      cancelledOrders:
+        type: integer
+      categoryBreakdown:
+        items:
+          $ref: '#/definitions/internal_analytics.CategoryStat'
+        type: array
+      completedOrders:
+        type: integer
+      conversionRate:
+        type: number
+      grossRevenue:
+        type: number
+      netPayout:
+        type: number
+      serviceFee:
+        type: number
+      totalBookings:
+        type: integer
+    type: object
+  internal_analytics.CategoryStat:
+    properties:
+      grossRevenue:
+        type: number
+      name:
+        type: string
+    type: object
+  internal_auth.LoginRequest:
     properties:
       device_token:
         type: string
@@ -658,7 +688,8 @@ paths:
       - Orders
   /partner/analytics:
     get:
-      description: Получение статистики продаж и выручки за период
+      description: Получение статистики продаж, выручки и процента отмен за период
+        с группировкой
       parameters:
       - description: Дата начала (YYYY-MM-DD)
         in: query
@@ -670,15 +701,22 @@ paths:
         name: endDate
         required: true
         type: string
+      - default: day
+        description: Группировка данных
+        enum:
+        - day
+        - week
+        - month
+        in: query
+        name: groupBy
+        type: string
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_analytics.AnalyticsSummary'
       security:
       - ApiKeyAuth: []
-      summary: Аналитика партнёра
       tags:
       - Analytics
   /partner/offers:

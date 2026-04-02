@@ -24,6 +24,8 @@ type Order struct {
 	OrderNumber        *string     `gorm:"type:varchar(20)" json:"order_number"`
 	Status             OrderStatus `gorm:"type:varchar(20)" json:"status"`
 	Amount             float64     `gorm:"type:decimal(10,2)" json:"amount"`
+	ServiceFee         float64     `gorm:"type:decimal(10,2)" json:"service_fee"`
+	NetPayout          float64     `gorm:"type:decimal(10,2)" json:"net_payout"`
 	CreatedAt          time.Time   `json:"created_at"`
 	PaidAt             *time.Time  `json:"paid_at,omitempty"`
 	CompletedAt        *time.Time  `json:"completed_at,omitempty"`

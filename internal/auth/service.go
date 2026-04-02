@@ -73,7 +73,7 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, e
 		return Tokens{}, err
 	}
 
-	return s.generateTokens(user.ID.String(), user.Role)
+	return s.generateTokens(user.ID.String(), user.Role, "")
 }
 
 func (s *service) Login(email, password, deviceToken string) (Tokens, error) {
@@ -96,8 +96,12 @@ func (s *service) Login(email, password, deviceToken string) (Tokens, error) {
 			return Tokens{}, err
 		}
 	}
+	restID := ""
+	if user.RestaurantID != nil {
+		restID = user.RestaurantID.String()
+	}
 
-	return s.generateTokens(user.ID.String(), user.Role)
+	return s.generateTokens(user.ID.String(), user.Role, restID)
 }
 
 func (s *service) RefreshTokens(refreshToken string) (Tokens, error) {
@@ -116,8 +120,12 @@ func (s *service) RefreshTokens(refreshToken string) (Tokens, error) {
 	if err != nil {
 		return Tokens{}, err // User probably deleted or ID changed
 	}
+	restID := ""
+	if user.RestaurantID != nil {
+		restID = user.RestaurantID.String()
+	}
 
-	return s.generateTokens(user.ID.String(), user.Role)
+	return s.generateTokens(user.ID.String(), user.Role, restID)
 }
 
 func (s *service) Logout() error {
@@ -135,8 +143,8 @@ func (s *service) GetUserByID(id string) (*domain.User, error) {
 	return s.repo.GetByID(uuidID)
 }
 
-func (s *service) generateTokens(userID, role string) (Tokens, error) {
-	accessToken, err := s.tokenManager.NewAccessToken(userID, role, s.accessTTL)
+func (s *service) generateTokens(userID, role, restaurantID string) (Tokens, error) {
+	accessToken, err := s.tokenManager.NewAccessToken(userID, role, restaurantID, s.accessTTL)
 	if err != nil {
 		return Tokens{}, err
 	}

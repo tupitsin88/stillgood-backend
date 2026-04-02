@@ -63,6 +63,7 @@ type AnalyticsSummary struct {
 	ServiceFee        float64        `json:"serviceFee"`
 	NetPayout         float64        `json:"netPayout"`
 	ConversionRate    float64        `json:"conversionRate"`
+	CancelRate        float64        `json:"cancelRate"`
 	CategoryBreakdown []CategoryStat `json:"categoryBreakdown"`
 }
 
@@ -71,7 +72,7 @@ type CategoryStat struct {
 	GrossRevenue float64 `json:"grossRevenue"`
 }
 
-func (s *AnalyticsService) GetPartnerAnalytics(ctx context.Context, restaurantID uuid.UUID, start, end time.Time) (AnalyticsSummary, []domain.DailyAnalytics, error) {
+func (s *AnalyticsService) GetPartnerAnalytics(ctx context.Context, restaurantID uuid.UUID, start, end time.Time, groupBy string) (AnalyticsSummary, []domain.DailyAnalytics, error) {
 	dailyStats, err := s.repo.GetStats(ctx, restaurantID, start, end)
 	if err != nil {
 		return AnalyticsSummary{}, nil, err
@@ -90,14 +91,60 @@ func (s *AnalyticsService) GetPartnerAnalytics(ctx context.Context, restaurantID
 			categoryMap[day.CategoryName] += day.GrossRevenue
 		}
 	}
+	if summary.TotalBookings > 0 {
+		summary.ConversionRate = (float64(summary.CompletedOrders) / float64(summary.TotalBookings)) * 100
+		summary.CancelRate = (float64(summary.CancelledOrders) / float64(summary.TotalBookings)) * 100
+	}
+
 	for name, revenue := range categoryMap {
 		summary.CategoryBreakdown = append(summary.CategoryBreakdown, CategoryStat{
 			Name:         name,
 			GrossRevenue: revenue,
 		})
 	}
-	if summary.TotalBookings > 0 {
-		summary.ConversionRate = (float64(summary.CompletedOrders) / float64(summary.TotalBookings)) * 100
+	if groupBy == "week" || groupBy == "month" {
+		return summary, s.groupStats(dailyStats, groupBy), nil
 	}
 	return summary, dailyStats, nil
+}
+
+func (s *AnalyticsService) groupStats(stats []domain.DailyAnalytics, interval string) []domain.DailyAnalytics {
+	if interval == "day" || len(stats) == 0 {
+		return stats
+	}
+	groupedMap := make(map[time.Time]*domain.DailyAnalytics)
+	for _, day := range stats {
+		var periodKey time.Time
+		if interval == "week" {
+			weekday := int(day.Date.Weekday())
+			if weekday == 0 {
+				weekday = 7
+			}
+			periodKey = day.Date.AddDate(0, 0, -(weekday - 1))
+		} else if interval == "month" {
+			periodKey = time.Date(day.Date.Year(), day.Date.Month(), 1, 0, 0, 0, 0, day.Date.Location())
+		}
+
+		if _, exists := groupedMap[periodKey]; !exists {
+			groupedMap[periodKey] = &domain.DailyAnalytics{
+				ID:           uuid.New(),
+				Date:         periodKey,
+				RestaurantID: day.RestaurantID,
+				CategoryName: "Все категории",
+				CreatedAt:    time.Now(),
+			}
+		}
+		g := groupedMap[periodKey]
+		g.TotalBookings += day.TotalBookings
+		g.CompletedOrders += day.CompletedOrders
+		g.CancelledOrders += day.CancelledOrders
+		g.GrossRevenue += day.GrossRevenue
+		g.ServiceFee += day.ServiceFee
+		g.NetPayout += day.NetPayout
+	}
+	var result []domain.DailyAnalytics
+	for _, v := range groupedMap {
+		result = append(result, *v)
+	}
+	return result
 }

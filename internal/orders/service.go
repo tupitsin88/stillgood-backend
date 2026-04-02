@@ -101,6 +101,10 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID uuid.UUID, req Cr
 		if err := txRepo.UpdateOfferQuantity(ctx, offer.ID, -1); err != nil {
 			return err
 		}
+		if offer.QuantityAvailable-1 == 0 {
+
+			txRepo.db.Model(&domain.Offer{}).Where("id = ?", offer.ID).Update("is_active", false)
+		}
 		if err := txRepo.CreateOrder(ctx, order); err != nil {
 			return err
 		}
@@ -163,15 +167,23 @@ func (s *OrderService) PayOrder(ctx context.Context, orderID, userID uuid.UUID) 
 	return order, nil
 }
 
-func (s *OrderService) CancelOrder(ctx context.Context, orderID, userID uuid.UUID, reason string) (*domain.Order, float64, error) {
+func (s *OrderService) CancelOrder(ctx context.Context, orderID, actorID uuid.UUID, role string, reason string) (*domain.Order, float64, error) {
 	order, err := s.repo.GetByIDWithDetails(ctx, orderID)
 	if err != nil {
 		return nil, 0, fmt.Errorf("not found")
 	}
-	if order.UserID != userID {
-		return nil, 0, fmt.Errorf("unauthorized")
+	if role == "USER" {
+		if order.UserID != actorID {
+			return nil, 0, fmt.Errorf("unauthorized")
+		}
+	} else if role == "PARTNER" {
+		if order.Offer.RestaurantID != actorID {
+			return nil, 0, fmt.Errorf("unauthorized: not your restaurant's order")
+		}
 	}
-
+	if order.Status == domain.OrderCompleted || order.Status == domain.OrderCancelled {
+		return nil, 0, fmt.Errorf("CANNOT_CANCEL")
+	}
 	refundAmount := 0.0
 
 	if order.Status == domain.OrderPaid {
@@ -179,8 +191,6 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID, userID uuid.UUI
 			return nil, 0, fmt.Errorf("CANCELLATION_WINDOW_CLOSED")
 		}
 		refundAmount = order.Amount
-	} else if order.Status != domain.OrderCreated {
-		return nil, 0, fmt.Errorf("CANNOT_CANCEL")
 	}
 
 	now := time.Now()
@@ -210,12 +220,15 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID, userID uuid.UUI
 	return order, refundAmount, nil
 }
 
-func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID) (*domain.Order, error) {
+func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID, restaurantID uuid.UUID) (*domain.Order, error) {
 	order, err := s.repo.GetByIDWithDetails(ctx, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("not found")
 	}
 
+	if order.Offer.RestaurantID != restaurantID {
+		return nil, fmt.Errorf("unauthorized")
+	}
 	if order.Status != domain.OrderPaid {
 		return nil, fmt.Errorf("INVALID_ORDER_STATUS")
 	}
@@ -227,6 +240,8 @@ func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID) (*d
 	grossRevenue := order.Amount
 	serviceFee := grossRevenue * 0.15
 	netPayout := grossRevenue - serviceFee
+	order.ServiceFee = order.Amount * 0.15
+	order.NetPayout = order.Amount - order.ServiceFee
 	fmt.Printf("Order %s completed. Gross: %.2f, Fee: %.2f, Net: %.2f\n", order.ID, grossRevenue, serviceFee, netPayout)
 
 	err = s.repo.Transaction(func(txRepo *OrderRepository) error {
