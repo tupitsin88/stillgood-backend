@@ -1,36 +1,47 @@
 basePath: /api/v1
 definitions:
-  internal_analytics.AnalyticsSummary:
+  auth.AuthResponse:
     properties:
-      cancelRate:
-        type: number
-      cancelledOrders:
+      accessToken:
+        type: string
+      expiresIn:
         type: integer
-      categoryBreakdown:
-        items:
-          $ref: '#/definitions/internal_analytics.CategoryStat'
-        type: array
-      completedOrders:
-        type: integer
-      conversionRate:
-        type: number
-      grossRevenue:
-        type: number
-      netPayout:
-        type: number
-      serviceFee:
-        type: number
-      totalBookings:
-        type: integer
+      refreshToken:
+        type: string
+      user:
+        $ref: '#/definitions/auth.UserResponse'
     type: object
-  internal_analytics.CategoryStat:
+  auth.ChangePasswordRequest:
     properties:
-      grossRevenue:
-        type: number
-      name:
+      currentPassword:
+        type: string
+      newPassword:
+        minLength: 8
+        type: string
+    required:
+    - currentPassword
+    - newPassword
+    type: object
+  auth.DeleteAccountRequest:
+    properties:
+      password:
         type: string
     type: object
-  internal_auth.LoginRequest:
+  auth.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  auth.ForgotPasswordResponse:
+    properties:
+      expiresIn:
+        type: integer
+      message:
+        type: string
+    type: object
+  auth.LoginRequest:
     properties:
       device_token:
         type: string
@@ -43,7 +54,68 @@ definitions:
     - email
     - password
     type: object
-  internal_auth.RefreshRequest:
+  auth.OAuthRequest:
+    properties:
+      deviceToken:
+        type: string
+      idToken:
+        type: string
+      provider:
+        enum:
+        - google
+        - apple
+        type: string
+    required:
+    - idToken
+    - provider
+    type: object
+  auth.OAuthResponse:
+    properties:
+      accessToken:
+        type: string
+      expiresIn:
+        type: integer
+      isNewUser:
+        type: boolean
+      refreshToken:
+        type: string
+      user:
+        $ref: '#/definitions/auth.UserResponse'
+    type: object
+  auth.PartnerRegisterRequest:
+    properties:
+      companyName:
+        type: string
+      description:
+        type: string
+      deviceToken:
+        type: string
+      email:
+        type: string
+      establishmentAddress:
+        type: string
+      establishmentName:
+        type: string
+      inn:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      phone:
+        type: string
+    required:
+    - companyName
+    - email
+    - establishmentAddress
+    - establishmentName
+    - inn
+    - name
+    - password
+    - phone
+    type: object
+  auth.RefreshRequest:
     properties:
       refreshToken:
         type: string
@@ -66,25 +138,59 @@ definitions:
     - name
     - password
     type: object
-  internal_auth.TokenResponse:
+  auth.ResetPasswordRequest:
+    properties:
+      newPassword:
+        minLength: 8
+        type: string
+      resetToken:
+        type: string
+    required:
+    - newPassword
+    - resetToken
+    type: object
+  auth.TokenResponse:
     properties:
       accessToken:
         type: string
+      expiresIn:
+        type: integer
       refreshToken:
         type: string
     type: object
   internal_auth.UserResponse:
     properties:
+      authProvider:
+        type: string
+      createdAt:
+        type: string
       email:
         type: string
       id:
         type: string
       name:
         type: string
+      partnerStatus:
+        type: string
       role:
         type: string
     type: object
-  internal_offers.CategoryDTO:
+  auth.VerifyResetCodeRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+    required:
+    - code
+    - email
+    type: object
+  auth.VerifyResetCodeResponse:
+    properties:
+      resetToken:
+        type: string
+    type: object
+  offers.CategoryDTO:
     properties:
       id:
         type: string
@@ -318,13 +424,50 @@ definitions:
       name:
         type: string
     type: object
-  internal_restaurants.RestaurantResponse:
+  restaurants.Pagination:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
+  restaurants.PartnerRestaurantUpdateRequest:
+    properties:
+      description:
+        type: string
+      imageUrl:
+        type: string
+      workingHours:
+        type: string
+    type: object
+  restaurants.RestaurantListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/restaurants.RestaurantResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/restaurants.Pagination'
+    type: object
+  restaurants.RestaurantResponse:
     properties:
       address:
         type: string
+      categories:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
       distance:
         type: integer
+      hasActiveOffers:
+        type: boolean
       id:
+        type: string
+      imageUrl:
         type: string
       latitude:
         type: number
@@ -338,6 +481,8 @@ definitions:
         type: number
       reviewCount:
         type: integer
+      workingHours:
+        type: string
     type: object
 host: localhost:8080
 info:
@@ -346,6 +491,64 @@ info:
   title: FoodSharing App API
   version: "1.0"
 paths:
+  /auth/change-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Текущий и новый пароль
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Смена пароля (авторизован)
+      tags:
+      - Auth
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email для сброса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.ForgotPasswordResponse'
+      summary: Запрос OTP для сброса пароля
+      tags:
+      - Auth
   /auth/login:
     post:
       consumes:
@@ -363,7 +566,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_auth.TokenResponse'
+            $ref: '#/definitions/auth.AuthResponse'
         "401":
           description: Unauthorized
           schema:
@@ -375,9 +578,20 @@ paths:
       - Auth
   /auth/logout:
     post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Refresh token
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RefreshRequest'
       responses:
-        "200":
-          description: OK
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
           schema:
             additionalProperties:
               type: string
@@ -399,6 +613,37 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Текущий пользователь
+      tags:
+      - Auth
+  /auth/oauth:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: OAuth provider и idToken
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.OAuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.OAuthResponse'
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/auth.OAuthResponse'
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: OAuth вход (Google/Apple) — только USER
       tags:
       - Auth
   /auth/refresh:
@@ -445,7 +690,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_auth.TokenResponse'
+            $ref: '#/definitions/auth.AuthResponse'
         "409":
           description: Conflict
           schema:
@@ -453,6 +698,89 @@ paths:
               type: string
             type: object
       summary: Регистрация USER
+      tags:
+      - Auth
+  /auth/register/partner:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные заявки партнера
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.PartnerRegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/auth.AuthResponse'
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Регистрация PARTNER (заявка)
+      tags:
+      - Auth
+  /auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Reset token и новый пароль
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Установка нового пароля
+      tags:
+      - Auth
+  /auth/verify-reset-code:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email и OTP-код
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.VerifyResetCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.VerifyResetCodeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Проверка OTP-кода
       tags:
       - Auth
   /categories:
@@ -846,6 +1174,65 @@ paths:
       - ApiKeyAuth: []
       tags:
       - Partner
+  /partner/restaurant:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/restaurants.RestaurantResponse'
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Профиль заведения партнёра
+      tags:
+      - Partner
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Поля профиля
+        in: body
+        name: input
+        schema:
+          $ref: '#/definitions/restaurants.PartnerRestaurantUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/restaurants.RestaurantResponse'
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Обновление профиля заведения
+      tags:
+      - Partner
   /restaurants:
     get:
       parameters:
@@ -879,9 +1266,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/internal_restaurants.RestaurantResponse'
-            type: array
+            $ref: '#/definitions/restaurants.RestaurantListResponse'
       summary: Список ресторанов
       tags:
       - Restaurants
@@ -931,6 +1316,30 @@ paths:
       summary: Загрузка изображения
       tags:
       - Restaurants
+  /users/me:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: Пароль (только для email-аккаунтов)
+        in: body
+        name: input
+        schema:
+          $ref: '#/definitions/auth.DeleteAccountRequest'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Удаление аккаунта (GDPR)
+      tags:
+      - Users
 securityDefinitions:
   ApiKeyAuth:
     in: header

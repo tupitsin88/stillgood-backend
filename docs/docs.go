@@ -15,6 +15,98 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/auth/change-password": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Смена пароля (авторизован)",
+                "parameters": [
+                    {
+                        "description": "Текущий и новый пароль",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/forgot-password": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Запрос OTP для сброса пароля",
+                "parameters": [
+                    {
+                        "description": "Email для сброса",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.ForgotPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.ForgotPasswordResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "consumes": [
@@ -42,7 +134,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.TokenResponse"
+                            "$ref": "#/definitions/auth.AuthResponse"
                         }
                     },
                     "401": {
@@ -64,13 +156,30 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
+                "consumes": [
+                    "application/json"
+                ],
                 "tags": [
                     "Auth"
                 ],
                 "summary": "Выход (инвалидация refresh token)",
+                "parameters": [
+                    {
+                        "description": "Refresh token",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.RefreshRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -100,6 +209,54 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/internal_auth.UserResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/oauth": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "OAuth вход (Google/Apple) — только USER",
+                "parameters": [
+                    {
+                        "description": "OAuth provider и idToken",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.OAuthRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.OAuthResponse"
+                        }
+                    },
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/auth.OAuthResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -174,11 +331,140 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.TokenResponse"
+                            "$ref": "#/definitions/auth.AuthResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/register/partner": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Регистрация PARTNER (заявка)",
+                "parameters": [
+                    {
+                        "description": "Данные заявки партнера",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.PartnerRegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/auth.AuthResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/reset-password": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Установка нового пароля",
+                "parameters": [
+                    {
+                        "description": "Reset token и новый пароль",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.ResetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/verify-reset-code": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Проверка OTP-кода",
+                "parameters": [
+                    {
+                        "description": "Email и OTP-код",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.VerifyResetCodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.VerifyResetCodeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -788,6 +1074,7 @@ const docTemplate = `{
                 "tags": [
                     "Partner"
                 ],
+                "summary": "Подтверждение выдачи",
                 "parameters": [
                     {
                         "type": "string",
@@ -803,6 +1090,101 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/partner/restaurant": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "Профиль заведения партнёра",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/restaurants.RestaurantResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "Обновление профиля заведения",
+                "parameters": [
+                    {
+                        "description": "Поля профиля",
+                        "name": "input",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/restaurants.PartnerRestaurantUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/restaurants.RestaurantResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -859,10 +1241,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/internal_restaurants.RestaurantResponse"
-                            }
+                            "$ref": "#/definitions/restaurants.RestaurantListResponse"
                         }
                     }
                 }
@@ -938,56 +1317,113 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/users/me": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Удаление аккаунта (GDPR)",
+                "parameters": [
+                    {
+                        "description": "Пароль (только для email-аккаунтов)",
+                        "name": "input",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/auth.DeleteAccountRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
-        "internal_analytics.AnalyticsSummary": {
+        "auth.AuthResponse": {
             "type": "object",
             "properties": {
-                "cancelRate": {
-                    "type": "number"
+                "accessToken": {
+                    "type": "string"
                 },
-                "cancelledOrders": {
+                "expiresIn": {
                     "type": "integer"
                 },
-                "categoryBreakdown": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_analytics.CategoryStat"
-                    }
+                "refreshToken": {
+                    "type": "string"
                 },
-                "completedOrders": {
-                    "type": "integer"
-                },
-                "conversionRate": {
-                    "type": "number"
-                },
-                "grossRevenue": {
-                    "type": "number"
-                },
-                "netPayout": {
-                    "type": "number"
-                },
-                "serviceFee": {
-                    "type": "number"
-                },
-                "totalBookings": {
-                    "type": "integer"
+                "user": {
+                    "$ref": "#/definitions/auth.UserResponse"
                 }
             }
         },
-        "internal_analytics.CategoryStat": {
+        "auth.ChangePasswordRequest": {
+            "type": "object",
+            "required": [
+                "currentPassword",
+                "newPassword"
+            ],
+            "properties": {
+                "currentPassword": {
+                    "type": "string"
+                },
+                "newPassword": {
+                    "type": "string",
+                    "minLength": 8
+                }
+            }
+        },
+        "auth.DeleteAccountRequest": {
             "type": "object",
             "properties": {
-                "grossRevenue": {
-                    "type": "number"
-                },
-                "name": {
+                "password": {
                     "type": "string"
                 }
             }
         },
-        "internal_auth.LoginRequest": {
+        "auth.ForgotPasswordRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.ForgotPasswordResponse": {
+            "type": "object",
+            "properties": {
+                "expiresIn": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -1006,7 +1442,95 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_auth.RefreshRequest": {
+        "auth.OAuthRequest": {
+            "type": "object",
+            "required": [
+                "idToken",
+                "provider"
+            ],
+            "properties": {
+                "deviceToken": {
+                    "type": "string"
+                },
+                "idToken": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string",
+                    "enum": [
+                        "google",
+                        "apple"
+                    ]
+                }
+            }
+        },
+        "auth.OAuthResponse": {
+            "type": "object",
+            "properties": {
+                "accessToken": {
+                    "type": "string"
+                },
+                "expiresIn": {
+                    "type": "integer"
+                },
+                "isNewUser": {
+                    "type": "boolean"
+                },
+                "refreshToken": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/auth.UserResponse"
+                }
+            }
+        },
+        "auth.PartnerRegisterRequest": {
+            "type": "object",
+            "required": [
+                "companyName",
+                "email",
+                "establishmentAddress",
+                "establishmentName",
+                "inn",
+                "name",
+                "password",
+                "phone"
+            ],
+            "properties": {
+                "companyName": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "deviceToken": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "establishmentAddress": {
+                    "type": "string"
+                },
+                "establishmentName": {
+                    "type": "string"
+                },
+                "inn": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 8
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.RefreshRequest": {
             "type": "object",
             "required": [
                 "refreshToken"
@@ -1040,11 +1564,30 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_auth.TokenResponse": {
+        "auth.ResetPasswordRequest": {
+            "type": "object",
+            "required": [
+                "newPassword",
+                "resetToken"
+            ],
+            "properties": {
+                "newPassword": {
+                    "type": "string",
+                    "minLength": 8
+                },
+                "resetToken": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.TokenResponse": {
             "type": "object",
             "properties": {
                 "accessToken": {
                     "type": "string"
+                },
+                "expiresIn": {
+                    "type": "integer"
                 },
                 "refreshToken": {
                     "type": "string"
@@ -1054,6 +1597,12 @@ const docTemplate = `{
         "internal_auth.UserResponse": {
             "type": "object",
             "properties": {
+                "authProvider": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
@@ -1063,12 +1612,38 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "partnerStatus": {
+                    "type": "string"
+                },
                 "role": {
                     "type": "string"
                 }
             }
         },
-        "internal_offers.CategoryDTO": {
+        "auth.VerifyResetCodeRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "email"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.VerifyResetCodeResponse": {
+            "type": "object",
+            "properties": {
+                "resetToken": {
+                    "type": "string"
+                }
+            }
+        },
+        "offers.CategoryDTO": {
             "type": "object",
             "properties": {
                 "id": {
@@ -1423,16 +1998,73 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_restaurants.RestaurantResponse": {
+        "restaurants.Pagination": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "restaurants.PartnerRestaurantUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "imageUrl": {
+                    "type": "string"
+                },
+                "workingHours": {
+                    "type": "string"
+                }
+            }
+        },
+        "restaurants.RestaurantListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/restaurants.RestaurantResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/restaurants.Pagination"
+                }
+            }
+        },
+        "restaurants.RestaurantResponse": {
             "type": "object",
             "properties": {
                 "address": {
                     "type": "string"
                 },
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
                 "distance": {
                     "type": "integer"
                 },
+                "hasActiveOffers": {
+                    "type": "boolean"
+                },
                 "id": {
+                    "type": "string"
+                },
+                "imageUrl": {
                     "type": "string"
                 },
                 "latitude": {
@@ -1452,6 +2084,9 @@ const docTemplate = `{
                 },
                 "reviewCount": {
                     "type": "integer"
+                },
+                "workingHours": {
+                    "type": "string"
                 }
             }
         }

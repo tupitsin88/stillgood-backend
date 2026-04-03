@@ -26,7 +26,7 @@ func NewRouter(handler *gin.Engine, authHandler *auth.Handler, restaurantsHandle
 
 	// Init Routes
 	auth.RegisterRoutes(handler, authHandler, middleware.AuthMiddleware(jwtSecret))
-	restaurants.RegisterRoutes(handler, restaurantsHandler)
+	restaurants.RegisterRoutes(handler, restaurantsHandler, middleware.AuthMiddleware(jwtSecret))
 	categories.RegisterRoutes(handler, categoriesHandler)
 	orders.RegisterRoutes(handler, orderHandler, middleware.AuthMiddleware(jwtSecret))
 	offers.RegisterRoutes(handler, offerHandler, middleware.AuthMiddleware(jwtSecret))
