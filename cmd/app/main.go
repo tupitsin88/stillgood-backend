@@ -55,7 +55,7 @@ func main() {
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		jwtSecret = "supersecretkey"
+		log.Fatal("JWT_SECRET is required")
 	}
 
 	// 2. Авто-миграции
