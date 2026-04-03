@@ -34,10 +34,19 @@ type OAuthRequest struct {
 	DeviceToken string `json:"deviceToken"`
 }
 
+type AuthResponse struct {
+	AccessToken  string       `json:"accessToken"`
+	RefreshToken string       `json:"refreshToken"`
+	ExpiresIn    int          `json:"expiresIn"`
+	User         UserResponse `json:"user"`
+}
+
 type OAuthResponse struct {
-	AccessToken  string `json:"accessToken"`
-	RefreshToken string `json:"refreshToken"`
-	IsNewUser    bool   `json:"isNewUser"`
+	AccessToken  string       `json:"accessToken"`
+	RefreshToken string       `json:"refreshToken"`
+	ExpiresIn    int          `json:"expiresIn"`
+	User         UserResponse `json:"user"`
+	IsNewUser    bool         `json:"isNewUser"`
 }
 
 type RefreshRequest struct {
@@ -79,6 +88,7 @@ type DeleteAccountRequest struct {
 type TokenResponse struct {
 	AccessToken  string `json:"accessToken"`
 	RefreshToken string `json:"refreshToken"`
+	ExpiresIn    int    `json:"expiresIn"`
 }
 
 type UserResponse struct {

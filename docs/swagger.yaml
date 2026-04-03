@@ -1,5 +1,16 @@
 basePath: /api/v1
 definitions:
+  auth.AuthResponse:
+    properties:
+      accessToken:
+        type: string
+      expiresIn:
+        type: integer
+      refreshToken:
+        type: string
+      user:
+        $ref: '#/definitions/auth.UserResponse'
+    type: object
   auth.ChangePasswordRequest:
     properties:
       currentPassword:
@@ -62,10 +73,14 @@ definitions:
     properties:
       accessToken:
         type: string
+      expiresIn:
+        type: integer
       isNewUser:
         type: boolean
       refreshToken:
         type: string
+      user:
+        $ref: '#/definitions/auth.UserResponse'
     type: object
   auth.PartnerRegisterRequest:
     properties:
@@ -138,6 +153,8 @@ definitions:
     properties:
       accessToken:
         type: string
+      expiresIn:
+        type: integer
       refreshToken:
         type: string
     type: object
@@ -543,7 +560,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.TokenResponse'
+            $ref: '#/definitions/auth.AuthResponse'
         "401":
           description: Unauthorized
           schema:
@@ -667,7 +684,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/auth.TokenResponse'
+            $ref: '#/definitions/auth.AuthResponse'
         "409":
           description: Conflict
           schema:
@@ -694,7 +711,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/auth.TokenResponse'
+            $ref: '#/definitions/auth.AuthResponse'
         "409":
           description: Conflict
           schema:

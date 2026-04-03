@@ -134,7 +134,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.TokenResponse"
+                            "$ref": "#/definitions/auth.AuthResponse"
                         }
                     },
                     "401": {
@@ -331,7 +331,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/auth.TokenResponse"
+                            "$ref": "#/definitions/auth.AuthResponse"
                         }
                     },
                     "409": {
@@ -373,7 +373,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/auth.TokenResponse"
+                            "$ref": "#/definitions/auth.AuthResponse"
                         }
                     },
                     "409": {
@@ -1338,6 +1338,23 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "auth.AuthResponse": {
+            "type": "object",
+            "properties": {
+                "accessToken": {
+                    "type": "string"
+                },
+                "expiresIn": {
+                    "type": "integer"
+                },
+                "refreshToken": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/auth.UserResponse"
+                }
+            }
+        },
         "auth.ChangePasswordRequest": {
             "type": "object",
             "required": [
@@ -1431,11 +1448,17 @@ const docTemplate = `{
                 "accessToken": {
                     "type": "string"
                 },
+                "expiresIn": {
+                    "type": "integer"
+                },
                 "isNewUser": {
                     "type": "boolean"
                 },
                 "refreshToken": {
                     "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/auth.UserResponse"
                 }
             }
         },
@@ -1540,6 +1563,9 @@ const docTemplate = `{
             "properties": {
                 "accessToken": {
                     "type": "string"
+                },
+                "expiresIn": {
+                    "type": "integer"
                 },
                 "refreshToken": {
                     "type": "string"

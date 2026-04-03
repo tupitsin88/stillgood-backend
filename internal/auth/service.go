@@ -35,13 +35,14 @@ const (
 type Tokens struct {
 	AccessToken  string
 	RefreshToken string
+	ExpiresIn    int
 }
 
 type Service interface {
-	Register(email, password, name, deviceToken string) (Tokens, error)
-	RegisterPartner(input PartnerRegisterRequest) (Tokens, error)
-	Login(email, password, deviceToken string) (Tokens, error)
-	OAuthLogin(provider, idToken, deviceToken string) (Tokens, bool, error)
+	Register(email, password, name, deviceToken string) (Tokens, *domain.User, error)
+	RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain.User, error)
+	Login(email, password, deviceToken string) (Tokens, *domain.User, error)
+	OAuthLogin(provider, idToken, deviceToken string) (Tokens, *domain.User, bool, error)
 	RefreshTokens(refreshToken string) (Tokens, error)
 	ChangePassword(userID, currentPassword, newPassword string) error
 	ForgotPassword(email string) (int, error)
@@ -84,20 +85,20 @@ func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshT
 	}
 }
 
-func (s *service) Register(email, password, name, deviceToken string) (Tokens, error) {
+func (s *service) Register(email, password, name, deviceToken string) (Tokens, *domain.User, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 
 	exists, err := s.repo.ExistsByEmail(email)
 	if err != nil {
-		return Tokens{}, err
+		return Tokens{}, nil, err
 	}
 	if exists {
-		return Tokens{}, ErrEmailAlreadyExists
+		return Tokens{}, nil, ErrEmailAlreadyExists
 	}
 
 	hashedPass, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return Tokens{}, err
+		return Tokens{}, nil, err
 	}
 
 	user := &domain.User{
@@ -113,26 +114,30 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, e
 	}
 
 	if err = s.repo.CreateUser(user); err != nil {
-		return Tokens{}, err
+		return Tokens{}, nil, err
 	}
 
-	return s.generateTokens(user.ID.String(), user.Role)
+	tokens, err := s.generateTokens(user.ID.String(), user.Role)
+	if err != nil {
+		return Tokens{}, nil, err
+	}
+	return tokens, user, nil
 }
 
-func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, error) {
+func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain.User, error) {
 	email := strings.ToLower(strings.TrimSpace(input.Email))
 
 	exists, err := s.repo.ExistsByEmail(email)
 	if err != nil {
-		return Tokens{}, err
+		return Tokens{}, nil, err
 	}
 	if exists {
-		return Tokens{}, ErrEmailAlreadyExists
+		return Tokens{}, nil, ErrEmailAlreadyExists
 	}
 
 	hashedPass, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return Tokens{}, err
+		return Tokens{}, nil, err
 	}
 
 	user := &domain.User{
@@ -149,22 +154,26 @@ func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, error) 
 	}
 
 	if err = s.repo.CreateUser(user); err != nil {
-		return Tokens{}, err
+		return Tokens{}, nil, err
 	}
 
-	return s.generateTokens(user.ID.String(), user.Role)
+	tokens, err := s.generateTokens(user.ID.String(), user.Role)
+	if err != nil {
+		return Tokens{}, nil, err
+	}
+	return tokens, user, nil
 }
 
-func (s *service) Login(email, password, deviceToken string) (Tokens, error) {
+func (s *service) Login(email, password, deviceToken string) (Tokens, *domain.User, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 
 	user, err := s.repo.GetUserByEmail(email)
 	if err != nil {
-		return Tokens{}, err
+		return Tokens{}, nil, err
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return Tokens{}, err
+		return Tokens{}, nil, err
 	}
 
 	// Update Device Token if provided
@@ -172,47 +181,51 @@ func (s *service) Login(email, password, deviceToken string) (Tokens, error) {
 		if err := s.repo.UpdateDeviceToken(user.ID, deviceToken); err != nil {
 			// Log error but don't fail login? Or fail? Usually, we just log it.
 			// For simplicity nicely, we can ignore it or return error. Let's return error for now to be safe.
-			return Tokens{}, err
+			return Tokens{}, nil, err
 		}
 	}
 
-	return s.generateTokens(user.ID.String(), user.Role)
+	tokens, err := s.generateTokens(user.ID.String(), user.Role)
+	if err != nil {
+		return Tokens{}, nil, err
+	}
+	return tokens, user, nil
 }
 
-func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, bool, error) {
+func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *domain.User, bool, error) {
 	provider = strings.ToLower(strings.TrimSpace(provider))
 	if provider != "google" && provider != "apple" {
-		return Tokens{}, false, ErrInvalidOAuthProvider
+		return Tokens{}, nil, false, ErrInvalidOAuthProvider
 	}
 
 	email, name, err := extractOAuthIdentity(idToken)
 	if err != nil {
-		return Tokens{}, false, err
+		return Tokens{}, nil, false, err
 	}
 
 	exists, err := s.repo.ExistsByEmail(email)
 	if err != nil {
-		return Tokens{}, false, err
+		return Tokens{}, nil, false, err
 	}
 
 	if exists {
 		user, err := s.repo.GetUserByEmail(email)
 		if err != nil {
-			return Tokens{}, false, err
+			return Tokens{}, nil, false, err
 		}
 
 		if user.AuthProvider != provider || user.Role != "USER" {
-			return Tokens{}, false, ErrAuthProviderConflict
+			return Tokens{}, nil, false, ErrAuthProviderConflict
 		}
 
 		if deviceToken != "" {
 			if err := s.repo.UpdateDeviceToken(user.ID, deviceToken); err != nil {
-				return Tokens{}, false, err
+				return Tokens{}, nil, false, err
 			}
 		}
 
 		tokens, err := s.generateTokens(user.ID.String(), user.Role)
-		return tokens, false, err
+		return tokens, user, false, err
 	}
 
 	user := &domain.User{
@@ -226,11 +239,11 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, boo
 	}
 
 	if err := s.repo.CreateUser(user); err != nil {
-		return Tokens{}, false, err
+		return Tokens{}, nil, false, err
 	}
 
 	tokens, err := s.generateTokens(user.ID.String(), user.Role)
-	return tokens, true, err
+	return tokens, user, true, err
 }
 
 func (s *service) RefreshTokens(refreshToken string) (Tokens, error) {
@@ -424,7 +437,11 @@ func (s *service) generateTokens(userID, role string) (Tokens, error) {
 		return Tokens{}, err
 	}
 
-	return Tokens{AccessToken: accessToken, RefreshToken: refreshToken}, nil
+	return Tokens{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    int(s.accessTTL.Seconds()),
+	}, nil
 }
 
 func generateSixDigitCode() (string, error) {

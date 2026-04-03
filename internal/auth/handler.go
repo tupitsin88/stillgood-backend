@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,13 +18,25 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
+func toUserResponse(userID, email, name, role, authProvider, partnerStatus string, createdAt time.Time) UserResponse {
+	return UserResponse{
+		ID:            userID,
+		Email:         email,
+		Name:          name,
+		Role:          role,
+		AuthProvider:  authProvider,
+		PartnerStatus: partnerStatus,
+		CreatedAt:     createdAt,
+	}
+}
+
 // Register godoc
 // @Summary Регистрация USER
 // @Tags Auth
 // @Accept json
 // @Produce json
 // @Param input body RegisterRequest true "Данные для регистрации"
-// @Success 201 {object} TokenResponse
+// @Success 201 {object} AuthResponse
 // @Failure 409 {object} map[string]string
 // @Router /auth/register [post]
 func (h *Handler) Register(c *gin.Context) {
@@ -34,7 +47,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.service.Register(input.Email, input.Password, input.Name, input.DeviceToken)
+	tokens, user, err := h.service.Register(input.Email, input.Password, input.Name, input.DeviceToken)
 	if err != nil {
 		if errors.Is(err, ErrEmailAlreadyExists) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Email already exists"})
@@ -44,9 +57,13 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, TokenResponse{
+	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.CreatedAt)
+
+	c.JSON(http.StatusCreated, AuthResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
+		ExpiresIn:    tokens.ExpiresIn,
+		User:         responseUser,
 	})
 }
 
@@ -56,7 +73,7 @@ func (h *Handler) Register(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param input body PartnerRegisterRequest true "Данные заявки партнера"
-// @Success 201 {object} TokenResponse
+// @Success 201 {object} AuthResponse
 // @Failure 409 {object} map[string]string
 // @Router /auth/register/partner [post]
 func (h *Handler) RegisterPartner(c *gin.Context) {
@@ -67,7 +84,7 @@ func (h *Handler) RegisterPartner(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.service.RegisterPartner(input)
+	tokens, user, err := h.service.RegisterPartner(input)
 	if err != nil {
 		if errors.Is(err, ErrEmailAlreadyExists) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Email already exists"})
@@ -77,9 +94,13 @@ func (h *Handler) RegisterPartner(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, TokenResponse{
+	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.CreatedAt)
+
+	c.JSON(http.StatusCreated, AuthResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
+		ExpiresIn:    tokens.ExpiresIn,
+		User:         responseUser,
 	})
 }
 
@@ -89,7 +110,7 @@ func (h *Handler) RegisterPartner(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param input body LoginRequest true "Данные для входа"
-// @Success 200 {object} TokenResponse
+// @Success 200 {object} AuthResponse
 // @Failure 401 {object} map[string]string
 // @Router /auth/login [post]
 func (h *Handler) Login(c *gin.Context) {
@@ -100,15 +121,19 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.service.Login(input.Email, input.Password, input.DeviceToken)
+	tokens, user, err := h.service.Login(input.Email, input.Password, input.DeviceToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
-	c.JSON(http.StatusOK, TokenResponse{
+	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.CreatedAt)
+
+	c.JSON(http.StatusOK, AuthResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
+		ExpiresIn:    tokens.ExpiresIn,
+		User:         responseUser,
 	})
 }
 
@@ -129,7 +154,7 @@ func (h *Handler) OAuth(c *gin.Context) {
 		return
 	}
 
-	tokens, isNewUser, err := h.service.OAuthLogin(input.Provider, input.IDToken, input.DeviceToken)
+	tokens, user, isNewUser, err := h.service.OAuthLogin(input.Provider, input.IDToken, input.DeviceToken)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrAuthProviderConflict):
@@ -149,9 +174,13 @@ func (h *Handler) OAuth(c *gin.Context) {
 		status = http.StatusCreated
 	}
 
+	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.CreatedAt)
+
 	c.JSON(status, OAuthResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
+		ExpiresIn:    tokens.ExpiresIn,
+		User:         responseUser,
 		IsNewUser:    isNewUser,
 	})
 }
@@ -182,15 +211,15 @@ func (h *Handler) Me(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, UserResponse{
-		ID:            user.ID.String(),
-		Email:         user.Email,
-		Name:          user.Name,
-		Role:          user.Role,
-		AuthProvider:  user.AuthProvider,
-		PartnerStatus: user.PartnerStatus,
-		CreatedAt:     user.CreatedAt,
-	})
+	c.JSON(http.StatusOK, toUserResponse(
+		user.ID.String(),
+		user.Email,
+		user.Name,
+		user.Role,
+		user.AuthProvider,
+		user.PartnerStatus,
+		user.CreatedAt,
+	))
 }
 
 // DeleteAccount godoc
@@ -397,6 +426,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 	c.JSON(http.StatusOK, TokenResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
+		ExpiresIn:    tokens.ExpiresIn,
 	})
 }
 
