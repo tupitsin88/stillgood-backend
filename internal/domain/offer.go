@@ -10,6 +10,7 @@ type Offer struct {
 	Title             string     `json:"title"`
 	Description       string     `json:"description"`
 	CategoryID        uuid.UUID  `gorm:"type:uuid" json:"category_id"`
+	Category          Category   `gorm:"foreignKey:CategoryID" json:"category"`
 	ImageURL          *string    `json:"image_url"`
 	Price             float64    `json:"price"`
 	OriginalPrice     float64    `json:"original_price"`

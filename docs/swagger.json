@@ -497,7 +497,6 @@
                 "tags": [
                     "Offers"
                 ],
-                "summary": "Список предложений",
                 "parameters": [
                     {
                         "type": "number",
@@ -584,7 +583,6 @@
                 "tags": [
                     "Offers"
                 ],
-                "summary": "Детали предложения",
                 "parameters": [
                     {
                         "type": "string",
@@ -889,7 +887,6 @@
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Предложения партнёра",
                 "parameters": [
                     {
                         "type": "integer",
@@ -929,7 +926,6 @@
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Создание предложения",
                 "parameters": [
                     {
                         "description": "Данные предложения",
@@ -952,6 +948,39 @@
             }
         },
         "/partner/offers/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Offer ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
             "patch": {
                 "security": [
                     {
@@ -967,7 +996,6 @@
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Обновление предложения",
                 "parameters": [
                     {
                         "type": "string",

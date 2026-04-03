@@ -503,7 +503,6 @@ const docTemplate = `{
                 "tags": [
                     "Offers"
                 ],
-                "summary": "Список предложений",
                 "parameters": [
                     {
                         "type": "number",
@@ -590,7 +589,6 @@ const docTemplate = `{
                 "tags": [
                     "Offers"
                 ],
-                "summary": "Детали предложения",
                 "parameters": [
                     {
                         "type": "string",
@@ -895,7 +893,6 @@ const docTemplate = `{
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Предложения партнёра",
                 "parameters": [
                     {
                         "type": "integer",
@@ -935,7 +932,6 @@ const docTemplate = `{
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Создание предложения",
                 "parameters": [
                     {
                         "description": "Данные предложения",
@@ -958,6 +954,39 @@ const docTemplate = `{
             }
         },
         "/partner/offers/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Offer ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
             "patch": {
                 "security": [
                     {
@@ -973,7 +1002,6 @@ const docTemplate = `{
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Обновление предложения",
                 "parameters": [
                     {
                         "type": "string",

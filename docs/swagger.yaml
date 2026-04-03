@@ -881,7 +881,6 @@ paths:
           schema:
             additionalProperties: true
             type: object
-      summary: Список предложений
       tags:
       - Offers
   /offers/{id}:
@@ -905,7 +904,6 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Детали предложения
       tags:
       - Offers
   /orders:
@@ -1093,7 +1091,6 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Предложения партнёра
       tags:
       - Partner
     post:
@@ -1115,10 +1112,29 @@ paths:
             $ref: '#/definitions/offers.OfferDetailDTO'
       security:
       - ApiKeyAuth: []
-      summary: Создание предложения
       tags:
       - Partner
   /partner/offers/{id}:
+    delete:
+      parameters:
+      - description: Offer ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      tags:
+      - Partner
     patch:
       consumes:
       - application/json
@@ -1149,7 +1165,6 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Обновление предложения
       tags:
       - Partner
   /partner/orders:

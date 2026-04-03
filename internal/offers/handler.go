@@ -17,7 +17,7 @@ func NewOfferHandler(service *OfferService) *OfferHandler {
 	return &OfferHandler{service: service}
 }
 
-// @Summary Создание предложения
+// CreateOffer @Summary Создание предложения
 // @Tags Partner
 // @Security ApiKeyAuth
 // @Accept json
@@ -54,11 +54,11 @@ func (h *OfferHandler) CreateOffer(c *gin.Context) {
 		}
 		return
 	}
-
-	c.JSON(http.StatusCreated, offer)
+	dto := h.service.mapToDetailDTO(offer)
+	c.JSON(http.StatusCreated, dto)
 }
 
-// @Summary Обновление предложения
+// UpdateOffer @Summary Обновление предложения
 // @Tags Partner
 // @Security ApiKeyAuth
 // @Accept json
@@ -96,7 +96,7 @@ func (h *OfferHandler) UpdateOffer(c *gin.Context) {
 	c.JSON(200, dto)
 }
 
-// @Summary Предложения партнёра
+// GetPartnerOffers @Summary Предложения партнёра
 // @Tags Partner
 // @Security ApiKeyAuth
 // @Produce json
@@ -122,7 +122,7 @@ func (h *OfferHandler) GetPartnerOffers(c *gin.Context) {
 	})
 }
 
-// @Summary Список предложений
+// GetPublicOffers @Summary Список предложений
 // @Tags Offers
 // @Produce json
 // @Param lat query number false "Latitude"
@@ -198,7 +198,7 @@ func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 	})
 }
 
-// @Summary Детали предложения
+// GetOfferByID @Summary Детали предложения
 // @Tags Offers
 // @Produce json
 // @Param id path string true "Offer ID"
@@ -215,4 +215,30 @@ func (h *OfferHandler) GetOfferByID(c *gin.Context) {
 	}
 
 	c.JSON(200, dto)
+}
+
+// DeleteOffer @Summary Удаление предложения
+// @Tags Partner
+// @Security ApiKeyAuth
+// @Param id path string true "Offer ID"
+// @Success 204 "No Content"
+// @Failure 403 {object} map[string]string
+// @Router /partner/offers/{id} [delete]
+func (h *OfferHandler) DeleteOffer(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid offer ID format"})
+		return
+	}
+	uidStr := c.GetString("user_id")
+	partnerID, _ := uuid.Parse(uidStr)
+	if err := h.service.DeleteOffer(c.Request.Context(), id, partnerID); err != nil {
+		if err.Error() == "FORBIDDEN" {
+			c.JSON(403, gin.H{"error": "FORBIDDEN", "message": "You do not own this offer"})
+		} else {
+			c.JSON(404, gin.H{"error": "NOT_FOUND", "message": "Offer not found"})
+		}
+		return
+	}
+	c.Status(204)
 }
