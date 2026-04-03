@@ -20,6 +20,7 @@ type Repository interface {
 	GetByPartnerID(partnerID uuid.UUID) (*domain.Restaurant, error)
 	UpdatePartnerProfile(partnerID uuid.UUID, req PartnerRestaurantUpdateRequest) (*domain.Restaurant, error)
 	GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error)
+	IsPartner(userID uuid.UUID) (bool, error)
 }
 
 type repository struct {
@@ -150,4 +151,15 @@ func (r *repository) GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map
 	}
 
 	return metaByID, nil
+}
+
+func (r *repository) IsPartner(userID uuid.UUID) (bool, error) {
+	var count int64
+	err := r.db.Model(&domain.User{}).
+		Where("id = ? AND role = ?", userID, "PARTNER").
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

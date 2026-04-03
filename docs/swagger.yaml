@@ -1182,6 +1182,12 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/restaurants.RestaurantResponse'
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "404":
           description: Not Found
           schema:
@@ -1209,6 +1215,12 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/restaurants.RestaurantResponse'
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "404":
           description: Not Found
           schema:

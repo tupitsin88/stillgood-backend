@@ -19,6 +19,26 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
+func (h *Handler) requirePartner(c *gin.Context) (string, bool) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UNAUTHORIZED"})
+		return "", false
+	}
+
+	isPartner, err := h.service.IsPartner(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify user role"})
+		return "", false
+	}
+	if !isPartner {
+		c.JSON(http.StatusForbidden, gin.H{"error": "FORBIDDEN", "message": "Partner role required"})
+		return "", false
+	}
+
+	return userID, true
+}
+
 // @Summary Загрузка изображения
 // @Tags Restaurants
 // @Accept multipart/form-data
@@ -209,12 +229,12 @@ func (h *Handler) GetByID(c *gin.Context) {
 // @Security ApiKeyAuth
 // @Produce json
 // @Success 200 {object} RestaurantResponse
+// @Failure 403 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Router /partner/restaurant [get]
 func (h *Handler) GetPartnerRestaurant(c *gin.Context) {
-	partnerID := c.GetString("user_id")
-	if partnerID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+	partnerID, ok := h.requirePartner(c)
+	if !ok {
 		return
 	}
 
@@ -259,12 +279,12 @@ func (h *Handler) GetPartnerRestaurant(c *gin.Context) {
 // @Produce json
 // @Param input body PartnerRestaurantUpdateRequest false "Поля профиля"
 // @Success 200 {object} RestaurantResponse
+// @Failure 403 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Router /partner/restaurant [patch]
 func (h *Handler) UpdatePartnerRestaurant(c *gin.Context) {
-	partnerID := c.GetString("user_id")
-	if partnerID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+	partnerID, ok := h.requirePartner(c)
+	if !ok {
 		return
 	}
 
