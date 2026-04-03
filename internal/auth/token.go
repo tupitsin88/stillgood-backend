@@ -18,13 +18,16 @@ func NewTokenManager(signingKey string) (*TokenManager, error) {
 	return &TokenManager{signingKey: []byte(signingKey)}, nil
 }
 
-func (m *TokenManager) NewAccessToken(userID, role string, ttl time.Duration) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+func (m *TokenManager) NewAccessToken(userID, role, restaurantID string, ttl time.Duration) (string, error) {
+	claims := jwt.MapClaims{
 		"sub":  userID,
 		"role": role,
 		"exp":  time.Now().Add(ttl).Unix(),
-	})
-
+	}
+	if restaurantID != "" {
+		claims["restaurant_id"] = restaurantID
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(m.signingKey)
 }
 

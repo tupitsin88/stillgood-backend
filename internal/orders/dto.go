@@ -74,6 +74,8 @@ type PartnerOrderDTO struct {
 	OrderNumber  string    `json:"orderNumber"`
 	Status       string    `json:"status"`
 	Amount       float64   `json:"amount"`
+	ServiceFee   float64   `json:"serviceFee"`
+	NetPayout    float64   `json:"netPayout"`
 	OfferTitle   string    `json:"offerTitle"`
 	CustomerName string    `json:"customerName"`
 	PickupStart  time.Time `json:"pickupStart"`

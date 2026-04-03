@@ -17,13 +17,14 @@ func NewAnalyticsHandler(service *AnalyticsService) *AnalyticsHandler {
 	return &AnalyticsHandler{service: service}
 }
 
-// @Summary Аналитика партнёра
-// @Description Получение статистики продаж и выручки за период
+// GetPartnerAnalytics @Summary Аналитика партнёра
+// @Description Получение статистики продаж, выручки и процента отмен за период с группировкой
 // @Tags Analytics
 // @Security ApiKeyAuth
 // @Param startDate query string true "Дата начала (YYYY-MM-DD)"
 // @Param endDate query string true "Дата конца (YYYY-MM-DD)"
-// @Success 200 {object} map[string]interface{}
+// @Param groupBy query string false "Группировка данных" Enums(day, week, month) default(day) // <-- ДОБАВЛЯЕМ ЭТУ СТРОКУ
+// @Success 200 {object} AnalyticsSummary
 // @Router /partner/analytics [get]
 func (h *AnalyticsHandler) GetPartnerAnalytics(c *gin.Context) {
 	uidValue, exists := c.Get("user_id")
@@ -48,7 +49,8 @@ func (h *AnalyticsHandler) GetPartnerAnalytics(c *gin.Context) {
 		end = time.Now()
 		start = end.AddDate(0, 0, -7)
 	}
-	summary, periods, err := h.service.GetPartnerAnalytics(c.Request.Context(), restaurant.ID, start, end)
+	groupBy := c.DefaultQuery("groupBy", "day")
+	summary, periods, err := h.service.GetPartnerAnalytics(c.Request.Context(), restaurant.ID, start, end, groupBy)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

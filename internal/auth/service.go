@@ -184,6 +184,10 @@ func (s *service) Login(email, password, deviceToken string) (Tokens, *domain.Us
 			return Tokens{}, nil, err
 		}
 	}
+	restID := ""
+	if user.RestaurantID != nil {
+		restID = user.RestaurantID.String()
+	}
 
 	tokens, err := s.generateTokens(user.ID.String(), user.Role)
 	if err != nil {
@@ -262,8 +266,12 @@ func (s *service) RefreshTokens(refreshToken string) (Tokens, error) {
 	if err != nil {
 		return Tokens{}, err // User probably deleted or ID changed
 	}
+	restID := ""
+	if user.RestaurantID != nil {
+		restID = user.RestaurantID.String()
+	}
 
-	return s.generateTokens(user.ID.String(), user.Role)
+	return s.generateTokens(user.ID.String(), user.Role, restID)
 }
 
 func (s *service) ChangePassword(userID, currentPassword, newPassword string) error {
@@ -426,8 +434,8 @@ func (s *service) GetUserByID(id string) (*domain.User, error) {
 	return s.repo.GetByID(uuidID)
 }
 
-func (s *service) generateTokens(userID, role string) (Tokens, error) {
-	accessToken, err := s.tokenManager.NewAccessToken(userID, role, s.accessTTL)
+func (s *service) generateTokens(userID, role, restaurantID string) (Tokens, error) {
+	accessToken, err := s.tokenManager.NewAccessToken(userID, role, restaurantID, s.accessTTL)
 	if err != nil {
 		return Tokens{}, err
 	}
