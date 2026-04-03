@@ -33,7 +33,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.ChangePasswordRequest"
+                            "$ref": "#/definitions/internal_auth.ChangePasswordRequest"
                         }
                     }
                 ],
@@ -87,7 +87,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.ForgotPasswordRequest"
+                            "$ref": "#/definitions/internal_auth.ForgotPasswordRequest"
                         }
                     }
                 ],
@@ -95,7 +95,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.ForgotPasswordResponse"
+                            "$ref": "#/definitions/internal_auth.ForgotPasswordResponse"
                         }
                     }
                 }
@@ -120,7 +120,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.LoginRequest"
+                            "$ref": "#/definitions/internal_auth.LoginRequest"
                         }
                     }
                 ],
@@ -128,7 +128,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.AuthResponse"
+                            "$ref": "#/definitions/internal_auth.AuthResponse"
                         }
                     },
                     "401": {
@@ -164,7 +164,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.RefreshRequest"
+                            "$ref": "#/definitions/internal_auth.RefreshRequest"
                         }
                     }
                 ],
@@ -202,7 +202,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.UserResponse"
+                            "$ref": "#/definitions/internal_auth.UserResponse"
                         }
                     }
                 }
@@ -227,7 +227,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.OAuthRequest"
+                            "$ref": "#/definitions/internal_auth.OAuthRequest"
                         }
                     }
                 ],
@@ -235,13 +235,13 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.OAuthResponse"
+                            "$ref": "#/definitions/internal_auth.OAuthResponse"
                         }
                     },
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/auth.OAuthResponse"
+                            "$ref": "#/definitions/internal_auth.OAuthResponse"
                         }
                     },
                     "409": {
@@ -275,7 +275,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.RefreshRequest"
+                            "$ref": "#/definitions/internal_auth.RefreshRequest"
                         }
                     }
                 ],
@@ -283,7 +283,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.TokenResponse"
+                            "$ref": "#/definitions/internal_auth.TokenResponse"
                         }
                     },
                     "401": {
@@ -317,7 +317,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.RegisterRequest"
+                            "$ref": "#/definitions/internal_auth.RegisterRequest"
                         }
                     }
                 ],
@@ -325,7 +325,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/auth.AuthResponse"
+                            "$ref": "#/definitions/internal_auth.AuthResponse"
                         }
                     },
                     "409": {
@@ -359,7 +359,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.PartnerRegisterRequest"
+                            "$ref": "#/definitions/internal_auth.PartnerRegisterRequest"
                         }
                     }
                 ],
@@ -367,7 +367,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/auth.AuthResponse"
+                            "$ref": "#/definitions/internal_auth.AuthResponse"
                         }
                     },
                     "409": {
@@ -401,7 +401,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.ResetPasswordRequest"
+                            "$ref": "#/definitions/internal_auth.ResetPasswordRequest"
                         }
                     }
                 ],
@@ -446,7 +446,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.VerifyResetCodeRequest"
+                            "$ref": "#/definitions/internal_auth.VerifyResetCodeRequest"
                         }
                     }
                 ],
@@ -454,7 +454,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.VerifyResetCodeResponse"
+                            "$ref": "#/definitions/internal_auth.VerifyResetCodeResponse"
                         }
                     },
                     "400": {
@@ -497,7 +497,6 @@
                 "tags": [
                     "Offers"
                 ],
-                "summary": "Список предложений",
                 "parameters": [
                     {
                         "type": "number",
@@ -584,7 +583,6 @@
                 "tags": [
                     "Offers"
                 ],
-                "summary": "Детали предложения",
                 "parameters": [
                     {
                         "type": "string",
@@ -598,7 +596,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/offers.OfferDetailDTO"
+                            "$ref": "#/definitions/internal_offers.OfferDetailDTO"
                         }
                     },
                     "404": {
@@ -678,7 +676,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/orders.CreateOrderRequest"
+                            "$ref": "#/definitions/internal_orders.CreateOrderRequest"
                         }
                     }
                 ],
@@ -686,7 +684,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/orders.CreateOrderResponse"
+                            "$ref": "#/definitions/internal_orders.CreateOrderResponse"
                         }
                     },
                     "400": {
@@ -727,7 +725,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/orders.OrderDetailDTO"
+                            "$ref": "#/definitions/internal_orders.OrderDetailDTO"
                         }
                     },
                     "404": {
@@ -772,7 +770,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/orders.CancelOrderRequest"
+                            "$ref": "#/definitions/internal_orders.CancelOrderRequest"
                         }
                     }
                 ],
@@ -780,7 +778,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/orders.CancelOrderResponse"
+                            "$ref": "#/definitions/internal_orders.CancelOrderResponse"
                         }
                     }
                 }
@@ -812,7 +810,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/orders.PayOrderResponse"
+                            "$ref": "#/definitions/internal_orders.PayOrderResponse"
                         }
                     },
                     "401": {
@@ -870,7 +868,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/analytics.AnalyticsSummary"
+                            "$ref": "#/definitions/internal_analytics.AnalyticsSummary"
                         }
                     }
                 }
@@ -889,7 +887,6 @@
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Предложения партнёра",
                 "parameters": [
                     {
                         "type": "integer",
@@ -929,7 +926,6 @@
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Создание предложения",
                 "parameters": [
                     {
                         "description": "Данные предложения",
@@ -937,7 +933,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/offers.CreateOfferRequest"
+                            "$ref": "#/definitions/internal_offers.CreateOfferRequest"
                         }
                     }
                 ],
@@ -945,13 +941,46 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/offers.OfferDetailDTO"
+                            "$ref": "#/definitions/internal_offers.OfferDetailDTO"
                         }
                     }
                 }
             }
         },
         "/partner/offers/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Offer ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
             "patch": {
                 "security": [
                     {
@@ -967,7 +996,6 @@
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Обновление предложения",
                 "parameters": [
                     {
                         "type": "string",
@@ -982,7 +1010,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/offers.UpdateOfferRequest"
+                            "$ref": "#/definitions/internal_offers.UpdateOfferRequest"
                         }
                     }
                 ],
@@ -990,7 +1018,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/offers.OfferDetailDTO"
+                            "$ref": "#/definitions/internal_offers.OfferDetailDTO"
                         }
                     },
                     "403": {
@@ -1106,7 +1134,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/restaurants.RestaurantResponse"
+                            "$ref": "#/definitions/internal_restaurants.RestaurantResponse"
                         }
                     },
                     "403": {
@@ -1151,7 +1179,7 @@
                         "name": "input",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/restaurants.PartnerRestaurantUpdateRequest"
+                            "$ref": "#/definitions/internal_restaurants.PartnerRestaurantUpdateRequest"
                         }
                     }
                 ],
@@ -1159,7 +1187,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/restaurants.RestaurantResponse"
+                            "$ref": "#/definitions/internal_restaurants.RestaurantResponse"
                         }
                     },
                     "403": {
@@ -1234,7 +1262,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/restaurants.RestaurantListResponse"
+                            "$ref": "#/definitions/internal_restaurants.RestaurantListResponse"
                         }
                     }
                 }
@@ -1296,7 +1324,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/restaurants.RestaurantResponse"
+                            "$ref": "#/definitions/internal_restaurants.RestaurantResponse"
                         }
                     },
                     "404": {
@@ -1331,7 +1359,7 @@
                         "name": "input",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/auth.DeleteAccountRequest"
+                            "$ref": "#/definitions/internal_auth.DeleteAccountRequest"
                         }
                     }
                 ],
@@ -1353,7 +1381,7 @@
         }
     },
     "definitions": {
-        "analytics.AnalyticsSummary": {
+        "internal_analytics.AnalyticsSummary": {
             "type": "object",
             "properties": {
                 "cancelRate": {
@@ -1365,7 +1393,7 @@
                 "categoryBreakdown": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/analytics.CategoryStat"
+                        "$ref": "#/definitions/internal_analytics.CategoryStat"
                     }
                 },
                 "completedOrders": {
@@ -1388,7 +1416,7 @@
                 }
             }
         },
-        "analytics.CategoryStat": {
+        "internal_analytics.CategoryStat": {
             "type": "object",
             "properties": {
                 "grossRevenue": {
@@ -1399,7 +1427,7 @@
                 }
             }
         },
-        "auth.AuthResponse": {
+        "internal_auth.AuthResponse": {
             "type": "object",
             "properties": {
                 "accessToken": {
@@ -1412,11 +1440,11 @@
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/auth.UserResponse"
+                    "$ref": "#/definitions/internal_auth.UserResponse"
                 }
             }
         },
-        "auth.ChangePasswordRequest": {
+        "internal_auth.ChangePasswordRequest": {
             "type": "object",
             "required": [
                 "currentPassword",
@@ -1432,7 +1460,7 @@
                 }
             }
         },
-        "auth.DeleteAccountRequest": {
+        "internal_auth.DeleteAccountRequest": {
             "type": "object",
             "properties": {
                 "password": {
@@ -1440,7 +1468,7 @@
                 }
             }
         },
-        "auth.ForgotPasswordRequest": {
+        "internal_auth.ForgotPasswordRequest": {
             "type": "object",
             "required": [
                 "email"
@@ -1451,7 +1479,7 @@
                 }
             }
         },
-        "auth.ForgotPasswordResponse": {
+        "internal_auth.ForgotPasswordResponse": {
             "type": "object",
             "properties": {
                 "expiresIn": {
@@ -1462,7 +1490,7 @@
                 }
             }
         },
-        "auth.LoginRequest": {
+        "internal_auth.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -1481,7 +1509,7 @@
                 }
             }
         },
-        "auth.OAuthRequest": {
+        "internal_auth.OAuthRequest": {
             "type": "object",
             "required": [
                 "idToken",
@@ -1503,7 +1531,7 @@
                 }
             }
         },
-        "auth.OAuthResponse": {
+        "internal_auth.OAuthResponse": {
             "type": "object",
             "properties": {
                 "accessToken": {
@@ -1519,11 +1547,11 @@
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/auth.UserResponse"
+                    "$ref": "#/definitions/internal_auth.UserResponse"
                 }
             }
         },
-        "auth.PartnerRegisterRequest": {
+        "internal_auth.PartnerRegisterRequest": {
             "type": "object",
             "required": [
                 "companyName",
@@ -1569,7 +1597,7 @@
                 }
             }
         },
-        "auth.RefreshRequest": {
+        "internal_auth.RefreshRequest": {
             "type": "object",
             "required": [
                 "refreshToken"
@@ -1580,7 +1608,7 @@
                 }
             }
         },
-        "auth.RegisterRequest": {
+        "internal_auth.RegisterRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -1603,7 +1631,7 @@
                 }
             }
         },
-        "auth.ResetPasswordRequest": {
+        "internal_auth.ResetPasswordRequest": {
             "type": "object",
             "required": [
                 "newPassword",
@@ -1619,7 +1647,7 @@
                 }
             }
         },
-        "auth.TokenResponse": {
+        "internal_auth.TokenResponse": {
             "type": "object",
             "properties": {
                 "accessToken": {
@@ -1633,7 +1661,7 @@
                 }
             }
         },
-        "auth.UserResponse": {
+        "internal_auth.UserResponse": {
             "type": "object",
             "properties": {
                 "authProvider": {
@@ -1659,7 +1687,7 @@
                 }
             }
         },
-        "auth.VerifyResetCodeRequest": {
+        "internal_auth.VerifyResetCodeRequest": {
             "type": "object",
             "required": [
                 "code",
@@ -1674,7 +1702,7 @@
                 }
             }
         },
-        "auth.VerifyResetCodeResponse": {
+        "internal_auth.VerifyResetCodeResponse": {
             "type": "object",
             "properties": {
                 "resetToken": {
@@ -1682,7 +1710,7 @@
                 }
             }
         },
-        "offers.CategoryDTO": {
+        "internal_offers.CategoryDTO": {
             "type": "object",
             "properties": {
                 "id": {
@@ -1693,7 +1721,7 @@
                 }
             }
         },
-        "offers.CreateOfferRequest": {
+        "internal_offers.CreateOfferRequest": {
             "type": "object",
             "required": [
                 "categoryId",
@@ -1735,11 +1763,11 @@
                 }
             }
         },
-        "offers.OfferDetailDTO": {
+        "internal_offers.OfferDetailDTO": {
             "type": "object",
             "properties": {
                 "category": {
-                    "$ref": "#/definitions/offers.CategoryDTO"
+                    "$ref": "#/definitions/internal_offers.CategoryDTO"
                 },
                 "description": {
                     "type": "string"
@@ -1775,14 +1803,14 @@
                     "type": "integer"
                 },
                 "restaurant": {
-                    "$ref": "#/definitions/offers.RestaurantShortDTO"
+                    "$ref": "#/definitions/internal_offers.RestaurantShortDTO"
                 },
                 "title": {
                     "type": "string"
                 }
             }
         },
-        "offers.RestaurantShortDTO": {
+        "internal_offers.RestaurantShortDTO": {
             "type": "object",
             "properties": {
                 "address": {
@@ -1805,7 +1833,7 @@
                 }
             }
         },
-        "offers.UpdateOfferRequest": {
+        "internal_offers.UpdateOfferRequest": {
             "type": "object",
             "properties": {
                 "description": {
@@ -1825,7 +1853,7 @@
                 }
             }
         },
-        "orders.CancelOrderRequest": {
+        "internal_orders.CancelOrderRequest": {
             "type": "object",
             "properties": {
                 "reason": {
@@ -1833,7 +1861,7 @@
                 }
             }
         },
-        "orders.CancelOrderResponse": {
+        "internal_orders.CancelOrderResponse": {
             "type": "object",
             "properties": {
                 "cancelledAt": {
@@ -1850,7 +1878,7 @@
                 }
             }
         },
-        "orders.CreateOrderRequest": {
+        "internal_orders.CreateOrderRequest": {
             "type": "object",
             "required": [
                 "offerId"
@@ -1861,7 +1889,7 @@
                 }
             }
         },
-        "orders.CreateOrderResponse": {
+        "internal_orders.CreateOrderResponse": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -1874,17 +1902,17 @@
                     "type": "string"
                 },
                 "offer": {
-                    "$ref": "#/definitions/orders.OfferShortDTO"
+                    "$ref": "#/definitions/internal_orders.OfferShortDTO"
                 },
                 "restaurant": {
-                    "$ref": "#/definitions/orders.RestaurantSimpleDTO"
+                    "$ref": "#/definitions/internal_orders.RestaurantSimpleDTO"
                 },
                 "status": {
                     "type": "string"
                 }
             }
         },
-        "orders.OfferDetailInternalDTO": {
+        "internal_orders.OfferDetailInternalDTO": {
             "type": "object",
             "properties": {
                 "description": {
@@ -1928,7 +1956,7 @@
                 }
             }
         },
-        "orders.OfferShortDTO": {
+        "internal_orders.OfferShortDTO": {
             "type": "object",
             "properties": {
                 "id": {
@@ -1945,7 +1973,7 @@
                 }
             }
         },
-        "orders.OrderDetailDTO": {
+        "internal_orders.OrderDetailDTO": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -1970,7 +1998,7 @@
                     "type": "string"
                 },
                 "offer": {
-                    "$ref": "#/definitions/orders.OfferDetailInternalDTO"
+                    "$ref": "#/definitions/internal_orders.OfferDetailInternalDTO"
                 },
                 "orderNumber": {
                     "type": "string"
@@ -1979,14 +2007,14 @@
                     "type": "string"
                 },
                 "restaurant": {
-                    "$ref": "#/definitions/orders.RestaurantShortDTO"
+                    "$ref": "#/definitions/internal_orders.RestaurantShortDTO"
                 },
                 "status": {
                     "type": "string"
                 }
             }
         },
-        "orders.PayOrderResponse": {
+        "internal_orders.PayOrderResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -2003,7 +2031,7 @@
                 }
             }
         },
-        "orders.RestaurantShortDTO": {
+        "internal_orders.RestaurantShortDTO": {
             "type": "object",
             "properties": {
                 "address": {
@@ -2026,7 +2054,7 @@
                 }
             }
         },
-        "orders.RestaurantSimpleDTO": {
+        "internal_orders.RestaurantSimpleDTO": {
             "type": "object",
             "properties": {
                 "address": {
@@ -2037,7 +2065,7 @@
                 }
             }
         },
-        "restaurants.Pagination": {
+        "internal_restaurants.Pagination": {
             "type": "object",
             "properties": {
                 "limit": {
@@ -2051,7 +2079,7 @@
                 }
             }
         },
-        "restaurants.PartnerRestaurantUpdateRequest": {
+        "internal_restaurants.PartnerRestaurantUpdateRequest": {
             "type": "object",
             "properties": {
                 "description": {
@@ -2065,21 +2093,21 @@
                 }
             }
         },
-        "restaurants.RestaurantListResponse": {
+        "internal_restaurants.RestaurantListResponse": {
             "type": "object",
             "properties": {
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/restaurants.RestaurantResponse"
+                        "$ref": "#/definitions/internal_restaurants.RestaurantResponse"
                     }
                 },
                 "pagination": {
-                    "$ref": "#/definitions/restaurants.Pagination"
+                    "$ref": "#/definitions/internal_restaurants.Pagination"
                 }
             }
         },
-        "restaurants.RestaurantResponse": {
+        "internal_restaurants.RestaurantResponse": {
             "type": "object",
             "properties": {
                 "address": {

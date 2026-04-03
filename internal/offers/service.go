@@ -56,8 +56,12 @@ func (s *OfferService) CreateOffer(ctx context.Context, partnerID uuid.UUID, req
 		return nil, err
 	}
 
-	offer.Restaurant = *restaurant
-	return offer, nil
+	fullOffer, err := s.repo.GetByID(ctx, offer.ID)
+	if err != nil {
+		offer.Restaurant = *restaurant
+		return offer, nil
+	}
+	return fullOffer, nil
 }
 
 func (s *OfferService) UpdateOffer(ctx context.Context, id, partnerID uuid.UUID, req UpdateOfferRequest) (*domain.Offer, error) {
@@ -136,15 +140,22 @@ func (s *OfferService) GetOfferByID(ctx context.Context, id uuid.UUID) (*OfferDe
 	return &dto, nil
 }
 
+func (s *OfferService) DeleteOffer(ctx context.Context, id, partnerID uuid.UUID) error {
+	offer, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("OFFER_NOT_FOUND")
+	}
+	if offer.Restaurant.PartnerID != partnerID {
+		return fmt.Errorf("FORBIDDEN")
+	}
+	return s.repo.Delete(ctx, id)
+}
+
 func (s *OfferService) mapToDetailDTO(o *domain.Offer) OfferDetailDTO {
 	discount := 0
 	if o.OriginalPrice > 0 {
 		discount = int(math.Round((1 - o.Price/o.OriginalPrice) * 100))
 	}
-
-	// Заглушка, так как таблицы categories пока нет в join'ах репозитория
-	catName := "General"
-
 	return OfferDetailDTO{
 		ID:                o.ID.String(),
 		Title:             o.Title,
@@ -158,7 +169,7 @@ func (s *OfferService) mapToDetailDTO(o *domain.Offer) OfferDetailDTO {
 		PickupStart:       o.PickupStart,
 		PickupEnd:         o.PickupEnd,
 		IsActive:          o.IsActive,
-		Category:          CategoryDTO{ID: o.CategoryID.String(), Name: catName},
+		Category:          CategoryDTO{ID: o.CategoryID.String(), Name: o.Category.Name},
 		Restaurant: RestaurantShortDTO{
 			ID:        o.Restaurant.ID.String(),
 			Name:      o.Restaurant.Name,

@@ -30,6 +30,7 @@ func (r *OfferRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Of
 	var offer domain.Offer
 	err := r.db.WithContext(ctx).
 		Preload("Restaurant").
+		Preload("Category").
 		First(&offer, "id = ?", id).Error
 	if err != nil {
 		return nil, err
@@ -44,7 +45,8 @@ func (r *OfferRepository) GetPartnerOffers(ctx context.Context, restaurantID uui
 	query := r.db.WithContext(ctx).
 		Model(&domain.Offer{}).
 		Where("restaurant_id = ?", restaurantID).
-		Preload("Restaurant")
+		Preload("Restaurant").
+		Preload("Category")
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -66,6 +68,7 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 		Model(&domain.Offer{}).
 		Joins("JOIN restaurants ON restaurants.id = offers.restaurant_id").
 		Preload("Restaurant").
+		Preload("Category").
 		Where("offers.is_active = ?", true).
 		Where("offers.quantity_available > 0").
 		Where("offers.pickup_time_end > ?", time.Now())
@@ -97,6 +100,8 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 		query = query.Order("offers.price ASC")
 	case "pickupTime":
 		query = query.Order("offers.pickup_time_start ASC")
+	case "rating":
+		query = query.Order("restaurants.rating DESC")
 	case "distance":
 		if params.Lat != nil && params.Lng != nil {
 			distanceSQL := fmt.Sprintf(
@@ -128,4 +133,8 @@ func (r *OfferRepository) GetRestaurantByPartnerID(ctx context.Context, partnerI
 		Where("partner_id = ?", partnerID).
 		First(&restaurant).Error
 	return &restaurant, err
+}
+
+func (r *OfferRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	return r.db.WithContext(ctx).Delete(&domain.Offer{}, "id = ?", id).Error
 }

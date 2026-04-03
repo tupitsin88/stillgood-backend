@@ -18,5 +18,6 @@ func RegisterRoutes(r *gin.Engine, h *OfferHandler, authMiddleware gin.HandlerFu
 		partner.GET("/offers", h.GetPartnerOffers)
 		partner.POST("/offers", h.CreateOffer)
 		partner.PATCH("/offers/:id", h.UpdateOffer)
+		partner.DELETE("/offers/:id", h.DeleteOffer)
 	}
 }
