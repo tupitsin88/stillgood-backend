@@ -2024,11 +2024,20 @@ const docTemplate = `{
                 "address": {
                     "type": "string"
                 },
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "description": {
                     "type": "string"
                 },
                 "distance": {
                     "type": "integer"
+                },
+                "hasActiveOffers": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "string"

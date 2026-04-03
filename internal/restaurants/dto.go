@@ -1,18 +1,20 @@
 package restaurants
 
 type RestaurantResponse struct {
-	ID           string  `json:"id"`
-	Name         string  `json:"name"`
-	Address      string  `json:"address"`
-	Latitude     float64 `json:"latitude"`
-	Longitude    float64 `json:"longitude"`
-	ImageURL     *string `json:"imageUrl,omitempty"`
-	Phone        *string `json:"phone,omitempty"`
-	Rating       float64 `json:"rating"`
-	ReviewCount  int     `json:"reviewCount"`
-	Distance     *int    `json:"distance,omitempty"`
-	Description  *string `json:"description,omitempty"`
-	WorkingHours string  `json:"workingHours,omitempty"`
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Address         string   `json:"address"`
+	Latitude        float64  `json:"latitude"`
+	Longitude       float64  `json:"longitude"`
+	ImageURL        *string  `json:"imageUrl,omitempty"`
+	Phone           *string  `json:"phone,omitempty"`
+	Rating          float64  `json:"rating"`
+	ReviewCount     int      `json:"reviewCount"`
+	Categories      []string `json:"categories,omitempty"`
+	Distance        *int     `json:"distance,omitempty"`
+	HasActiveOffers bool     `json:"hasActiveOffers"`
+	Description     *string  `json:"description,omitempty"`
+	WorkingHours    string   `json:"workingHours,omitempty"`
 }
 
 type Pagination struct {

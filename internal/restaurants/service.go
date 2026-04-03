@@ -16,6 +16,7 @@ type Service interface {
 	GetByID(id string) (*domain.Restaurant, error)
 	GetPartnerRestaurant(partnerID string) (*domain.Restaurant, error)
 	UpdatePartnerRestaurant(partnerID string, req PartnerRestaurantUpdateRequest) (*domain.Restaurant, error)
+	GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error)
 	UploadImage(file *multipart.FileHeader) (string, error)
 }
 
@@ -64,6 +65,10 @@ func (s *service) UpdatePartnerRestaurant(partnerID string, req PartnerRestauran
 		return nil, err
 	}
 	return s.repo.UpdatePartnerProfile(uid, req)
+}
+
+func (s *service) GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error) {
+	return s.repo.GetOfferMetaByRestaurantIDs(restaurantIDs)
 }
 
 func (s *service) UploadImage(file *multipart.FileHeader) (string, error) {

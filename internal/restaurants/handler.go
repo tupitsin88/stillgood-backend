@@ -116,6 +116,16 @@ func (h *Handler) GetList(c *gin.Context) {
 		return
 	}
 
+	restaurantIDs := make([]uuid.UUID, 0, len(restaurants))
+	for _, r := range restaurants {
+		restaurantIDs = append(restaurantIDs, r.ID)
+	}
+	metaByRestaurantID, err := h.service.GetOfferMetaByRestaurantIDs(restaurantIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to aggregate restaurant metadata"})
+		return
+	}
+
 	var response []RestaurantResponse
 	for _, r := range restaurants {
 		var distance *int
@@ -123,19 +133,22 @@ func (h *Handler) GetList(c *gin.Context) {
 			val := int(calculateDistance(*params.Lat, *params.Lng, r.Latitude, r.Longitude))
 			distance = &val
 		}
+		meta := metaByRestaurantID[r.ID]
 		response = append(response, RestaurantResponse{
-			ID:           r.ID.String(),
-			Name:         r.Name,
-			Address:      r.Address,
-			Phone:        r.Phone,
-			ImageURL:     r.ImageURL,
-			Description:  r.Description,
-			WorkingHours: r.WorkingHours,
-			Latitude:     r.Latitude,
-			Longitude:    r.Longitude,
-			Rating:       r.Rating,
-			ReviewCount:  r.ReviewCount,
-			Distance:     distance,
+			ID:              r.ID.String(),
+			Name:            r.Name,
+			Address:         r.Address,
+			Phone:           r.Phone,
+			ImageURL:        r.ImageURL,
+			Description:     r.Description,
+			WorkingHours:    r.WorkingHours,
+			Latitude:        r.Latitude,
+			Longitude:       r.Longitude,
+			Rating:          r.Rating,
+			ReviewCount:     r.ReviewCount,
+			Categories:      meta.Categories,
+			HasActiveOffers: meta.HasActiveOffers,
+			Distance:        distance,
 		})
 	}
 
@@ -165,18 +178,27 @@ func (h *Handler) GetByID(c *gin.Context) {
 		return
 	}
 
+	metaByRestaurantID, err := h.service.GetOfferMetaByRestaurantIDs([]uuid.UUID{restaurant.ID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to aggregate restaurant metadata"})
+		return
+	}
+	meta := metaByRestaurantID[restaurant.ID]
+
 	response := RestaurantResponse{
-		ID:           restaurant.ID.String(),
-		Name:         restaurant.Name,
-		Address:      restaurant.Address,
-		Phone:        restaurant.Phone,
-		ImageURL:     restaurant.ImageURL,
-		Description:  restaurant.Description,
-		WorkingHours: restaurant.WorkingHours,
-		Latitude:     restaurant.Latitude,
-		Longitude:    restaurant.Longitude,
-		Rating:       restaurant.Rating,
-		ReviewCount:  restaurant.ReviewCount,
+		ID:              restaurant.ID.String(),
+		Name:            restaurant.Name,
+		Address:         restaurant.Address,
+		Phone:           restaurant.Phone,
+		ImageURL:        restaurant.ImageURL,
+		Description:     restaurant.Description,
+		WorkingHours:    restaurant.WorkingHours,
+		Latitude:        restaurant.Latitude,
+		Longitude:       restaurant.Longitude,
+		Rating:          restaurant.Rating,
+		ReviewCount:     restaurant.ReviewCount,
+		Categories:      meta.Categories,
+		HasActiveOffers: meta.HasActiveOffers,
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -206,18 +228,27 @@ func (h *Handler) GetPartnerRestaurant(c *gin.Context) {
 		return
 	}
 
+	metaByRestaurantID, err := h.service.GetOfferMetaByRestaurantIDs([]uuid.UUID{restaurant.ID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to aggregate restaurant metadata"})
+		return
+	}
+	meta := metaByRestaurantID[restaurant.ID]
+
 	c.JSON(http.StatusOK, RestaurantResponse{
-		ID:           restaurant.ID.String(),
-		Name:         restaurant.Name,
-		Address:      restaurant.Address,
-		Phone:        restaurant.Phone,
-		ImageURL:     restaurant.ImageURL,
-		Description:  restaurant.Description,
-		WorkingHours: restaurant.WorkingHours,
-		Latitude:     restaurant.Latitude,
-		Longitude:    restaurant.Longitude,
-		Rating:       restaurant.Rating,
-		ReviewCount:  restaurant.ReviewCount,
+		ID:              restaurant.ID.String(),
+		Name:            restaurant.Name,
+		Address:         restaurant.Address,
+		Phone:           restaurant.Phone,
+		ImageURL:        restaurant.ImageURL,
+		Description:     restaurant.Description,
+		WorkingHours:    restaurant.WorkingHours,
+		Latitude:        restaurant.Latitude,
+		Longitude:       restaurant.Longitude,
+		Rating:          restaurant.Rating,
+		ReviewCount:     restaurant.ReviewCount,
+		Categories:      meta.Categories,
+		HasActiveOffers: meta.HasActiveOffers,
 	})
 }
 
@@ -253,18 +284,27 @@ func (h *Handler) UpdatePartnerRestaurant(c *gin.Context) {
 		return
 	}
 
+	metaByRestaurantID, err := h.service.GetOfferMetaByRestaurantIDs([]uuid.UUID{restaurant.ID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to aggregate restaurant metadata"})
+		return
+	}
+	meta := metaByRestaurantID[restaurant.ID]
+
 	c.JSON(http.StatusOK, RestaurantResponse{
-		ID:           restaurant.ID.String(),
-		Name:         restaurant.Name,
-		Address:      restaurant.Address,
-		Phone:        restaurant.Phone,
-		ImageURL:     restaurant.ImageURL,
-		Description:  restaurant.Description,
-		WorkingHours: restaurant.WorkingHours,
-		Latitude:     restaurant.Latitude,
-		Longitude:    restaurant.Longitude,
-		Rating:       restaurant.Rating,
-		ReviewCount:  restaurant.ReviewCount,
+		ID:              restaurant.ID.String(),
+		Name:            restaurant.Name,
+		Address:         restaurant.Address,
+		Phone:           restaurant.Phone,
+		ImageURL:        restaurant.ImageURL,
+		Description:     restaurant.Description,
+		WorkingHours:    restaurant.WorkingHours,
+		Latitude:        restaurant.Latitude,
+		Longitude:       restaurant.Longitude,
+		Rating:          restaurant.Rating,
+		ReviewCount:     restaurant.ReviewCount,
+		Categories:      meta.Categories,
+		HasActiveOffers: meta.HasActiveOffers,
 	})
 }
 
