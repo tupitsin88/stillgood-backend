@@ -6,7 +6,7 @@ type RegisterRequest struct {
 	Email       string `json:"email" binding:"required,email"`
 	Password    string `json:"password" binding:"required,min=8"`
 	Name        string `json:"name" binding:"required"`
-	DeviceToken string `json:"device_token"`
+	DeviceToken string `json:"deviceToken"`
 }
 
 type PartnerRegisterRequest struct {
@@ -25,7 +25,7 @@ type PartnerRegisterRequest struct {
 type LoginRequest struct {
 	Email       string `json:"email" binding:"required,email"`
 	Password    string `json:"password" binding:"required,min=8"`
-	DeviceToken string `json:"device_token"`
+	DeviceToken string `json:"deviceToken"`
 }
 
 type OAuthRequest struct {
