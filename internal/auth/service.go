@@ -117,7 +117,12 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, *
 		return Tokens{}, nil, err
 	}
 
-	tokens, err := s.generateTokens(user.ID.String(), user.Role)
+	restID := ""
+	if user.RestaurantID != nil {
+		restID = user.RestaurantID.String()
+	}
+
+	tokens, err := s.generateTokens(user.ID.String(), user.Role, restID)
 	if err != nil {
 		return Tokens{}, nil, err
 	}
@@ -157,7 +162,12 @@ func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain
 		return Tokens{}, nil, err
 	}
 
-	tokens, err := s.generateTokens(user.ID.String(), user.Role)
+	restID := ""
+	if user.RestaurantID != nil {
+		restID = user.RestaurantID.String()
+	}
+
+	tokens, err := s.generateTokens(user.ID.String(), user.Role, restID)
 	if err != nil {
 		return Tokens{}, nil, err
 	}
@@ -189,7 +199,7 @@ func (s *service) Login(email, password, deviceToken string) (Tokens, *domain.Us
 		restID = user.RestaurantID.String()
 	}
 
-	tokens, err := s.generateTokens(user.ID.String(), user.Role)
+	tokens, err := s.generateTokens(user.ID.String(), user.Role, restID)
 	if err != nil {
 		return Tokens{}, nil, err
 	}
@@ -228,7 +238,12 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 			}
 		}
 
-		tokens, err := s.generateTokens(user.ID.String(), user.Role)
+		restID := ""
+		if user.RestaurantID != nil {
+			restID = user.RestaurantID.String()
+		}
+
+		tokens, err := s.generateTokens(user.ID.String(), user.Role, restID)
 		return tokens, user, false, err
 	}
 
@@ -246,7 +261,12 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 		return Tokens{}, nil, false, err
 	}
 
-	tokens, err := s.generateTokens(user.ID.String(), user.Role)
+	restID := ""
+	if user.RestaurantID != nil {
+		restID = user.RestaurantID.String()
+	}
+
+	tokens, err := s.generateTokens(user.ID.String(), user.Role, restID)
 	return tokens, user, true, err
 }
 
