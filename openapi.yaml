@@ -676,6 +676,53 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /restaurants/upload:
+    post:
+      tags: [Restaurants]
+      summary: Загрузка изображения
+      operationId: uploadRestaurantImage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: JPG/PNG/HEIC(HEIF), максимум 10MB
+      responses:
+        '200':
+          description: Изображение загружено
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    example: https://cdn.feedex.ru/food-images/0f3d3f95-0e2b-4b5c-9ce9-7f4ef0b6a312.jpg
+        '400':
+          description: Невалидный формат файла или пустой файл
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Файл слишком большой
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Хранилище временно недоступно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # ==================== OFFERS ====================
   /offers:
     get:

@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -43,12 +44,24 @@ func (h *Handler) requirePartner(c *gin.Context) (string, bool) {
 // @Tags Restaurants
 // @Accept multipart/form-data
 // @Produce json
-// @Param image formData file true "Image file"
+// @Param image formData file true "Image file (JPG, PNG, HEIC/HEIF, max 10MB)"
 // @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 413 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /restaurants/upload [post]
 func (h *Handler) UploadImage(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUploadRequestBodyBytes)
+
 	file, err := c.FormFile("image")
 	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) || strings.Contains(strings.ToLower(err.Error()), "request body too large") {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Image is too large"})
+			return
+		}
+
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
 		return
 	}
@@ -57,6 +70,14 @@ func (h *Handler) UploadImage(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, ErrInvalidImageFormat) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image format"})
+			return
+		}
+		if errors.Is(err, ErrImageTooLarge) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Image is too large"})
+			return
+		}
+		if errors.Is(err, ErrStorageUnavailable) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Storage is unavailable"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})

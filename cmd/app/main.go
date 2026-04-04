@@ -5,6 +5,7 @@ import (
 	"kursach_backend/internal/analytics"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -99,16 +100,27 @@ func main() {
 	if minioEndpoint == "" {
 		minioEndpoint = "minio:9000"
 	}
-	minioAccessKey := os.Getenv("MINIO_ROOT_USER")
-	minioSecretKey := os.Getenv("MINIO_ROOT_PASSWORD")
+	minioAccessKey := os.Getenv("MINIO_ACCESS_KEY")
+	if minioAccessKey == "" {
+		minioAccessKey = os.Getenv("MINIO_ROOT_USER")
+	}
+	minioSecretKey := os.Getenv("MINIO_SECRET_KEY")
+	if minioSecretKey == "" {
+		minioSecretKey = os.Getenv("MINIO_ROOT_PASSWORD")
+	}
 	minioBucket := os.Getenv("MINIO_BUCKET")
 	if minioBucket == "" {
 		minioBucket = "food-images"
 	}
-
-	fileStorage, err := filestorage.NewFileStorage(minioEndpoint, minioAccessKey, minioSecretKey, minioBucket, false)
+	minioUseSSL, err := strconv.ParseBool(os.Getenv("MINIO_USE_SSL"))
 	if err != nil {
-		log.Fatalf("Warning: failed to init file storage: %v", err)
+		minioUseSSL = false
+	}
+	minioPublicBaseURL := os.Getenv("MINIO_PUBLIC_BASE_URL")
+
+	fileStorage, err := filestorage.NewFileStorage(minioEndpoint, minioAccessKey, minioSecretKey, minioBucket, minioUseSSL, minioPublicBaseURL)
+	if err != nil {
+		log.Fatalf("Failed to init file storage: %v", err)
 	} else {
 		log.Printf("File storage initialized for endpoint: %s", minioEndpoint)
 	}

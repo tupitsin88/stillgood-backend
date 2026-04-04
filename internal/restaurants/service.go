@@ -1,14 +1,23 @@
 package restaurants
 
 import (
+	"bytes"
 	"errors"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/jpeg"
+	"io"
 	"mime/multipart"
+	"net/http"
 	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
 	"kursach_backend/internal/domain"
 	"kursach_backend/internal/pkg/filestorage"
+
+	_ "image/png"
 )
 
 type Service interface {
@@ -31,6 +40,15 @@ type ListParams struct {
 }
 
 var ErrInvalidImageFormat = errors.New("invalid image format")
+var ErrImageTooLarge = errors.New("image is too large")
+var ErrImageProcessingFailed = errors.New("image processing failed")
+var ErrStorageUnavailable = errors.New("file storage is unavailable")
+
+const (
+	maxUploadImageSizeBytes   = 10 << 20 // 10MB
+	maxUploadRequestBodyBytes = maxUploadImageSizeBytes + (1 << 20)
+	jpegCompressionQuality    = 80
+)
 
 type service struct {
 	repo        Repository
@@ -81,13 +99,112 @@ func (s *service) IsPartner(userID string) (bool, error) {
 }
 
 func (s *service) UploadImage(file *multipart.FileHeader) (string, error) {
+	if s.fileStorage == nil {
+		return "", ErrStorageUnavailable
+	}
+
+	if file == nil {
+		return "", ErrInvalidImageFormat
+	}
+
+	if file.Size == 0 || file.Size > maxUploadImageSizeBytes {
+		return "", ErrImageTooLarge
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return "", err
+	}
+	defer src.Close()
+
+	content, err := io.ReadAll(io.LimitReader(src, maxUploadImageSizeBytes+1))
+	if err != nil {
+		return "", err
+	}
+	if int64(len(content)) > maxUploadImageSizeBytes {
+		return "", ErrImageTooLarge
+	}
+
 	ext := strings.ToLower(filepath.Ext(file.Filename))
-	contentType := strings.ToLower(file.Header.Get("Content-Type"))
-	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".heic" {
+	normalizedExt, contentType, isHEIC := normalizeImageFormat(ext, content)
+	if normalizedExt == "" {
 		return "", ErrInvalidImageFormat
 	}
-	if !strings.HasPrefix(contentType, "image/") {
-		return "", ErrInvalidImageFormat
+
+	if isHEIC {
+		return s.fileStorage.UploadBytes(content, normalizedExt, contentType)
 	}
-	return s.fileStorage.Upload(file)
+
+	compressed, err := compressToJPEG(content)
+	if err != nil {
+		return "", ErrImageProcessingFailed
+	}
+
+	return s.fileStorage.UploadBytes(compressed, ".jpg", "image/jpeg")
+}
+
+func normalizeImageFormat(ext string, content []byte) (normalizedExt string, contentType string, isHEIC bool) {
+	ext = strings.ToLower(ext)
+	detectedType := http.DetectContentType(content)
+	switch detectedType {
+	case "image/jpeg":
+		return ".jpg", "image/jpeg", false
+	case "image/png":
+		return ".png", "image/png", false
+	}
+
+	if isHEICContent(content) || strings.Contains(detectedType, "heic") || strings.Contains(detectedType, "heif") || (isHEICExtension(ext) && detectedType == "application/octet-stream") {
+		if ext == ".heif" {
+			return ".heif", "image/heif", true
+		}
+		return ".heic", "image/heic", true
+	}
+
+	return "", "", false
+}
+
+func isHEICExtension(ext string) bool {
+	switch ext {
+	case ".heic", ".heif":
+		return true
+	default:
+		return false
+	}
+}
+
+func isHEICContent(content []byte) bool {
+	if len(content) < 12 {
+		return false
+	}
+
+	if string(content[4:8]) != "ftyp" {
+		return false
+	}
+
+	brand := string(content[8:12])
+	switch brand {
+	case "heic", "heix", "hevc", "hevx", "mif1", "msf1":
+		return true
+	default:
+		return false
+	}
+}
+
+func compressToJPEG(content []byte) ([]byte, error) {
+	img, _, err := image.Decode(bytes.NewReader(content))
+	if err != nil {
+		return nil, err
+	}
+
+	bounds := img.Bounds()
+	background := image.NewRGBA(bounds)
+	draw.Draw(background, bounds, &image.Uniform{C: color.White}, image.Point{}, draw.Src)
+	draw.Draw(background, bounds, img, bounds.Min, draw.Over)
+
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, background, &jpeg.Options{Quality: jpegCompressionQuality}); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
