@@ -15,7 +15,8 @@ services:
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
       - MINIO_BUCKET=${MINIO_BUCKET}
-      - MINIO_USE_SSL=false
+      - MINIO_USE_SSL=${MINIO_USE_SSL}
+      - MINIO_PUBLIC_BASE_URL=${MINIO_PUBLIC_BASE_URL}
     depends_on:
       - postgres
 
