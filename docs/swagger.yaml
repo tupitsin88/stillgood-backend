@@ -1344,7 +1344,7 @@ paths:
       consumes:
       - multipart/form-data
       parameters:
-      - description: Image file
+      - description: Image file (JPG, PNG, HEIC/HEIF, max 10MB)
         in: formData
         name: image
         required: true
@@ -1354,6 +1354,30 @@ paths:
       responses:
         "200":
           description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "413":
+          description: Request Entity Too Large
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Service Unavailable
           schema:
             additionalProperties:
               type: string
