@@ -18,7 +18,7 @@ import (
 
 func NewRouter(handler *gin.Engine, authHandler *auth.Handler, restaurantsHandler *restaurants.Handler, categoriesHandler *categories.Handler, orderHandler *orders.OrderHandler, offerHandler *offers.OfferHandler, analyticsHandler *analytics.AnalyticsHandler, jwtSecret string) {
 	// Options
-	handler.Use(gin.Logger())
+	//handler.Use(gin.Logger()) // кажется он не нужен и дублирует все логи, поэтому вообще стоит убрать его
 	handler.Use(gin.Recovery())
 
 	// Swagger UI

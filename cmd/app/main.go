@@ -82,7 +82,7 @@ func main() {
 	}
 	// --- Orders ---
 	orderRepo := orders.NewOrderRepository(db)
-	orderService := orders.NewOrderService(orderRepo)
+	orderService := orders.NewOrderService(orderRepo, &orders.LogNotificationProvider{})
 	orderHandler := orders.NewOrderHandler(orderService)
 
 	// --- Offers ---
