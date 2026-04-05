@@ -4,6 +4,7 @@ import (
 	"context"
 	"kursach_backend/internal/domain"
 	"log"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -146,5 +147,8 @@ func (s *AnalyticsService) groupStats(stats []domain.DailyAnalytics, interval st
 	for _, v := range groupedMap {
 		result = append(result, *v)
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Date.Before(result[j].Date)
+	})
 	return result
 }

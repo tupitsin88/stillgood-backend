@@ -26,6 +26,7 @@ func (r *AnalyticsRepository) AggregateDailyStats(ctx context.Context, date time
 			off.restaurant_id,
 			c.name as category_name,
 			COUNT(o.id) as total_bookings,
+			COUNT(o.id) FILTER (WHERE o.status != 'CREATED') as total_bookings,
 			COUNT(o.id) FILTER (WHERE o.status = 'COMPLETED') as completed_orders,
 			COUNT(o.id) FILTER (WHERE o.status = 'CANCELLED') as cancelled_orders,
 			COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'COMPLETED'), 0) as gross_revenue
