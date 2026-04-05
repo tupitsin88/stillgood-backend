@@ -11,12 +11,27 @@ import (
 	"github.com/google/uuid"
 )
 
-type OrderService struct {
-	repo *OrderRepository
+type NotificationProvider interface {
+	Send(ctx context.Context, userID uuid.UUID, message string) error
 }
 
-func NewOrderService(repo *OrderRepository) *OrderService {
-	return &OrderService{repo: repo}
+type LogNotificationProvider struct{}
+
+func (l LogNotificationProvider) Send(ctx context.Context, userID uuid.UUID, message string) error {
+	log.Printf("[NOTIFICATION STUB] Отправка пользователю %s: %s", userID, message)
+	return nil
+}
+
+type OrderService struct {
+	repo     *OrderRepository
+	notifier NotificationProvider
+}
+
+func NewOrderService(repo *OrderRepository, notifier NotificationProvider) *OrderService {
+	return &OrderService{
+		repo:     repo,
+		notifier: notifier,
+	}
 }
 
 func (s *OrderService) StartExpirationWorker(ctx context.Context) {
@@ -163,7 +178,10 @@ func (s *OrderService) PayOrder(ctx context.Context, orderID, userID uuid.UUID) 
 	if err != nil {
 		return nil, err
 	}
-
+	if err == nil {
+		msg := fmt.Sprintf("Ваш заказ №%s успешно оплачен!", *order.OrderNumber)
+		s.notifier.Send(ctx, order.UserID, msg)
+	}
 	return order, nil
 }
 
@@ -217,6 +235,9 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID, actorID uuid.UU
 	if err != nil {
 		return nil, 0, err
 	}
+	if err == nil {
+		s.notifier.Send(ctx, order.UserID, "Ваш заказ был отменен. Средства будут возвращены.") //
+	}
 	return order, refundAmount, nil
 }
 
@@ -259,6 +280,9 @@ func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID, res
 
 	if err != nil {
 		return nil, err
+	}
+	if err == nil {
+		s.notifier.Send(ctx, order.UserID, "Заказ выдан! Приятного аппетита.")
 	}
 	return order, nil
 }
