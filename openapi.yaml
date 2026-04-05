@@ -571,6 +571,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [ Partner ]
+      summary: Удаление предложения
+      operationId: deleteOffer
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Предложение успешно удалено
+        '403':
+          description: Попытка удаления чужого предложения
+        '404':
+          description: Предложение не найдено
 
   /partner/analytics:
     get:
@@ -766,7 +786,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [distance, price, pickupTime]
+            enum: [distance, price, pickupTime, rating]
         - $ref: '#/components/parameters/limit'
         - $ref: '#/components/parameters/offset'
       responses:
@@ -875,9 +895,6 @@ paths:
                 offerId:
                   type: string
                   format: uuid
-                quantity:
-                  type: integer
-                  default: 1
       responses:
         '201':
           description: Заказ создан
