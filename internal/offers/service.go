@@ -35,7 +35,10 @@ func (s *OfferService) CreateOffer(ctx context.Context, partnerID uuid.UUID, req
 
 	imgUrl := req.ImageURL
 
-	catID, _ := uuid.Parse(req.CategoryID)
+	catID, err := uuid.Parse(req.CategoryID)
+	if err != nil {
+		return nil, fmt.Errorf("INVALID_CATEGORY_ID")
+	}
 	offer := &domain.Offer{
 		RestaurantID:      restaurant.ID,
 		Title:             req.Title,
@@ -207,7 +210,10 @@ func (s *OfferService) mapToPreviewDTO(o *domain.Offer, userLat, userLng *float6
 		PickupStart:       o.PickupStart,
 		PickupEnd:         o.PickupEnd,
 		QuantityAvailable: o.QuantityAvailable,
-		Category:          CategoryDTO{ID: o.CategoryID.String(), Name: "General"},
+		Category: CategoryDTO{
+			ID:   o.CategoryID.String(),
+			Name: o.Category.Name,
+		},
 	}
 }
 

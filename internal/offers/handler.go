@@ -44,12 +44,12 @@ func (h *OfferHandler) CreateOffer(c *gin.Context) {
 	}
 	offer, err := h.service.CreateOffer(c.Request.Context(), partnerID, req)
 	if err != nil {
-		if err.Error() == "RESTAURANT_NOT_FOUND" {
-			c.JSON(403, gin.H{
-				"error":   "PARTNER_NOT_APPROVED",
-				"message": "Partner has no active restaurant",
-			})
-		} else {
+		switch err.Error() {
+		case "RESTAURANT_NOT_FOUND":
+			c.JSON(403, gin.H{"error": "PARTNER_NOT_APPROVED", "message": "Partner has no active restaurant"})
+		case "INVALID_CATEGORY_ID":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_CATEGORY_ID", "message": "The provided category ID is not a valid UUID"})
+		default:
 			c.JSON(400, gin.H{"error": "CREATION_FAILED", "message": err.Error()})
 		}
 		return
