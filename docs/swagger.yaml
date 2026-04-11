@@ -626,8 +626,12 @@ paths:
             additionalProperties:
               type: string
             type: object
-      security:
-      - ApiKeyAuth: []
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
       summary: Выход (инвалидация refresh token)
       tags:
       - Auth
