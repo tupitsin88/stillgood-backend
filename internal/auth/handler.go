@@ -432,12 +432,12 @@ func (h *Handler) Refresh(c *gin.Context) {
 
 // Logout godoc
 // @Summary Выход (инвалидация refresh token)
-// @Security ApiKeyAuth
 // @Tags Auth
 // @Accept json
 // @Param input body RefreshRequest true "Refresh token"
 // @Success 204
 // @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
 // @Router /auth/logout [post]
 func (h *Handler) Logout(c *gin.Context) {
 	var input RefreshRequest
@@ -450,7 +450,11 @@ func (h *Handler) Logout(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.Logout(); err != nil {
+	if err := h.service.Logout(input.RefreshToken); err != nil {
+		if errors.Is(err, ErrInvalidRefreshToken) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to logout"})
 		return
 	}
