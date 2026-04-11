@@ -80,6 +80,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to init token manager: %v", err)
 	}
+
+	accessTTL, err := durationFromEnv("ACCESS_TOKEN_TTL", 30*time.Minute)
+	if err != nil {
+		log.Fatalf("invalid ACCESS_TOKEN_TTL: %v", err)
+	}
+	refreshTTL, err := durationFromEnv("REFRESH_TOKEN_TTL", 14*24*time.Hour)
+	if err != nil {
+		log.Fatalf("invalid REFRESH_TOKEN_TTL: %v", err)
+	}
 	// --- Orders ---
 	orderRepo := orders.NewOrderRepository(db)
 	orderService := orders.NewOrderService(orderRepo, &orders.LogNotificationProvider{})
@@ -92,7 +101,7 @@ func main() {
 
 	// --- Auth ---
 	authRepo := auth.NewRepository(db)
-	authService := auth.NewService(authRepo, tokenManager, 30*time.Minute, 14*24*time.Hour)
+	authService := auth.NewService(authRepo, tokenManager, accessTTL, refreshTTL)
 	authHandler := auth.NewHandler(authService)
 
 	// File Storage
@@ -159,4 +168,16 @@ func main() {
 	if err := router.Run(":" + appPort); err != nil {
 		log.Fatal("Server start failed:", err)
 	}
+}
+
+func durationFromEnv(key string, fallback time.Duration) (time.Duration, error) {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback, nil
+	}
+	parsed, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, err
+	}
+	return parsed, nil
 }
