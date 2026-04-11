@@ -26,6 +26,7 @@ var ErrInvalidOAuthToken = errors.New("invalid oauth token")
 var ErrInvalidOAuthProvider = errors.New("invalid oauth provider")
 var ErrActiveOrdersExist = errors.New("active orders exist")
 var ErrPasswordRequired = errors.New("password required")
+var ErrInvalidRefreshToken = errors.New("invalid refresh token")
 
 const (
 	passwordResetCodeTTL  = 10 * time.Minute
@@ -49,7 +50,7 @@ type Service interface {
 	VerifyResetCode(email, code string) (string, error)
 	ResetPassword(resetToken, newPassword string) error
 	DeleteAccount(userID, password string) error
-	Logout() error
+	Logout(refreshToken string) error
 	GetUserByID(id string) (*domain.User, error)
 }
 
@@ -72,6 +73,7 @@ type service struct {
 	mu          sync.Mutex
 	resetCodes  map[string]resetCodeEntry
 	resetTokens map[string]resetTokenEntry
+	revokedRT   map[string]int64
 }
 
 func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshTTL time.Duration) Service {
@@ -82,6 +84,7 @@ func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshT
 		refreshTTL:   refreshTTL,
 		resetCodes:   make(map[string]resetCodeEntry),
 		resetTokens:  make(map[string]resetTokenEntry),
+		revokedRT:    make(map[string]int64),
 	}
 }
 
@@ -271,14 +274,22 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 }
 
 func (s *service) RefreshTokens(refreshToken string) (Tokens, error) {
+	if strings.TrimSpace(refreshToken) == "" {
+		return Tokens{}, ErrInvalidRefreshToken
+	}
+
+	if s.isRefreshTokenRevoked(refreshToken) {
+		return Tokens{}, ErrInvalidRefreshToken
+	}
+
 	claims, err := s.tokenManager.Parse(refreshToken)
 	if err != nil {
-		return Tokens{}, err
+		return Tokens{}, ErrInvalidRefreshToken
 	}
 
 	sub, ok := claims["sub"].(string)
 	if !ok {
-		return Tokens{}, errors.New("invalid sub claim")
+		return Tokens{}, ErrInvalidRefreshToken
 	}
 
 	// Security check: Verify user exists and is active in DB
@@ -439,9 +450,27 @@ func (s *service) DeleteAccount(userID, password string) error {
 	return s.repo.DeleteAccount(uid)
 }
 
-func (s *service) Logout() error {
-	// Stateless JWTs don't support true server-side logout without a blacklist/redis.
-	// We just return nil as requested.
+func (s *service) Logout(refreshToken string) error {
+	refreshToken = strings.TrimSpace(refreshToken)
+	if refreshToken == "" {
+		return ErrInvalidRefreshToken
+	}
+
+	claims, err := s.tokenManager.Parse(refreshToken)
+	if err != nil {
+		return ErrInvalidRefreshToken
+	}
+
+	expUnix, err := extractExpUnix(claims)
+	if err != nil {
+		return ErrInvalidRefreshToken
+	}
+
+	s.mu.Lock()
+	s.cleanupRevokedTokensLocked(time.Now().Unix())
+	s.revokedRT[refreshToken] = expUnix
+	s.mu.Unlock()
+
 	return nil
 }
 
@@ -478,6 +507,43 @@ func generateSixDigitCode() (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%06d", n.Int64()), nil
+}
+
+func extractExpUnix(claims map[string]interface{}) (int64, error) {
+	rawExp, ok := claims["exp"]
+	if !ok {
+		return 0, ErrInvalidRefreshToken
+	}
+
+	switch v := rawExp.(type) {
+	case float64:
+		return int64(v), nil
+	case int64:
+		return v, nil
+	case int:
+		return int64(v), nil
+	default:
+		return 0, ErrInvalidRefreshToken
+	}
+}
+
+func (s *service) isRefreshTokenRevoked(refreshToken string) bool {
+	nowUnix := time.Now().Unix()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.cleanupRevokedTokensLocked(nowUnix)
+	exp, exists := s.revokedRT[refreshToken]
+	return exists && exp > nowUnix
+}
+
+func (s *service) cleanupRevokedTokensLocked(nowUnix int64) {
+	for token, exp := range s.revokedRT {
+		if exp <= nowUnix {
+			delete(s.revokedRT, token)
+		}
+	}
 }
 
 func extractOAuthIdentity(idToken string) (string, string, error) {

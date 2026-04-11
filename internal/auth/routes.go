@@ -12,6 +12,7 @@ func RegisterRoutes(r *gin.Engine, h *Handler, middleware gin.HandlerFunc) {
 		router.POST("/register/partner", h.RegisterPartner)
 		router.POST("/login", h.Login)
 		router.POST("/oauth", h.OAuth)
+		router.POST("/logout", h.Logout)
 		router.POST("/forgot-password", h.ForgotPassword)
 		router.POST("/verify-reset-code", h.VerifyResetCode)
 		router.POST("/reset-password", h.ResetPassword)
@@ -22,7 +23,6 @@ func RegisterRoutes(r *gin.Engine, h *Handler, middleware gin.HandlerFunc) {
 	{
 		protected.GET("/me", h.Me)
 		protected.POST("/change-password", h.ChangePassword)
-		protected.POST("/logout", h.Logout)
 	}
 
 	users := r.Group("/api/v1/users", middleware)
