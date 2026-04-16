@@ -148,42 +148,67 @@ func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 	}
 
 	if latStr := c.Query("lat"); latStr != "" {
-		if val, err := strconv.ParseFloat(latStr, 64); err == nil {
-			params.Lat = &val
+		val, err := strconv.ParseFloat(latStr, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_LATITUDE", "message": "Latitude must be a number"})
+			return
 		}
+		params.Lat = &val
 	}
+
 	if lngStr := c.Query("lng"); lngStr != "" {
-		if val, err := strconv.ParseFloat(lngStr, 64); err == nil {
-			params.Lng = &val
+		val, err := strconv.ParseFloat(lngStr, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_LONGITUDE", "message": "Longitude must be a number"})
+			return
 		}
+		params.Lng = &val
 	}
+
 	if rStr := c.Query("radius"); rStr != "" {
-		if val, err := strconv.Atoi(rStr); err == nil {
-			params.Radius = &val
+		val, err := strconv.Atoi(rStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_RADIUS", "message": "Radius must be an integer"})
+			return
 		}
+		params.Radius = &val
 	}
 
 	if restID := c.Query("restaurantId"); restID != "" {
-		if val, err := uuid.Parse(restID); err == nil {
-			params.RestaurantID = &val
+		val, err := uuid.Parse(restID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_RESTAURANT_ID", "message": "restaurantId must be a valid UUID"})
+			return
 		}
+		params.RestaurantID = &val
+
 	}
 
 	if catID := c.Query("categoryId"); catID != "" {
-		if val, err := uuid.Parse(catID); err == nil {
-			params.CategoryID = &val
+		val, err := uuid.Parse(catID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_CATEGORY_ID", "message": "categoryId must be a valid UUID"})
+			return
 		}
+		params.CategoryID = &val
 	}
 
 	if minP := c.Query("minPrice"); minP != "" {
-		if val, err := strconv.ParseFloat(minP, 64); err == nil {
-			params.MinPrice = &val
+		val, err := strconv.ParseFloat(minP, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_MIN_PRICE", "message": "minPrice must be a number"})
+			return
 		}
+		params.MinPrice = &val
 	}
+
 	if maxP := c.Query("maxPrice"); maxP != "" {
-		if val, err := strconv.ParseFloat(maxP, 64); err == nil {
-			params.MaxPrice = &val
+		val, err := strconv.ParseFloat(maxP, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_MAX_PRICE", "message": "maxPrice must be a number"})
+			return
 		}
+		params.MaxPrice = &val
 	}
 
 	offers, total, err := h.service.GetPublicOffers(c.Request.Context(), params)

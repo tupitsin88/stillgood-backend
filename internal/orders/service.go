@@ -263,7 +263,7 @@ func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID, res
 	netPayout := grossRevenue - serviceFee
 	order.ServiceFee = order.Amount * 0.15
 	order.NetPayout = order.Amount - order.ServiceFee
-	fmt.Printf("Order %s completed. Gross: %.2f, Fee: %.2f, Net: %.2f\n", order.ID, grossRevenue, serviceFee, netPayout)
+	log.Printf("[OrderService] Order %s COMPLETED. Gross: %.2f, Fee: %.2f, Net: %.2f", order.ID, grossRevenue, serviceFee, netPayout)
 
 	err = s.repo.Transaction(func(txRepo *OrderRepository) error {
 		if err := txRepo.Update(ctx, order); err != nil {
