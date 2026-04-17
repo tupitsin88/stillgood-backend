@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type OrderRepository struct {
@@ -102,11 +103,15 @@ func (r *OrderRepository) Update(ctx context.Context, order *domain.Order) error
 	return r.db.WithContext(ctx).Save(order).Error
 }
 
-func (r *OrderRepository) GetOfferByID(ctx context.Context, offerID uuid.UUID) (*domain.Offer, error) {
+func (r *OrderRepository) GetOfferByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Offer, error) {
 	var offer domain.Offer
 	err := r.db.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Preload("Restaurant").
-		First(&offer, "id = ?", offerID).Error
+		First(&offer, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
 	return &offer, err
 }
 

@@ -87,38 +87,42 @@ func (s *OrderService) cancelExpiredOrders(ctx context.Context) {
 }
 
 func (s *OrderService) CreateOrder(ctx context.Context, userID uuid.UUID, req CreateOrderRequest) (*domain.Order, error) {
-	offerUUID, err := uuid.Parse(req.OfferID)
+	offerID, err := uuid.Parse(req.OfferID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid offer id")
+		return nil, fmt.Errorf("INVALID_OFFER_ID")
 	}
-	offer, err := s.repo.GetOfferByID(ctx, offerUUID)
-	if err != nil {
-		return nil, fmt.Errorf("offer not found")
-	}
-	if offer.QuantityAvailable <= 0 {
-		return nil, fmt.Errorf("INSUFFICIENT_QUANTITY")
-	}
-	if time.Now().After(offer.PickupEnd) {
-		return nil, fmt.Errorf("PICKUP_PERIOD_EXPIRED")
-	}
-	amount := offer.Price
-	expiresAt := time.Now().Add(15 * time.Minute)
-
-	order := &domain.Order{
-		UserID:    userID,
-		OfferID:   offerUUID,
-		Status:    domain.OrderCreated,
-		Amount:    amount,
-		CreatedAt: time.Now(),
-		ExpiresAt: &expiresAt,
-	}
+	var finalOrder *domain.Order
 	err = s.repo.Transaction(func(txRepo *OrderRepository) error {
+		offer, err := txRepo.GetOfferByIDForUpdate(ctx, offerID)
+		if err != nil {
+			return fmt.Errorf("OFFER_NOT_FOUND")
+		}
+		if offer.QuantityAvailable <= 0 {
+			return fmt.Errorf("OFFER_OUT_OF_STOCK")
+		}
+		if !offer.IsActive {
+			return fmt.Errorf("OFFER_NOT_ACTIVE")
+		}
+		if time.Now().After(offer.PickupEnd) {
+			return fmt.Errorf("PICKUP_PERIOD_EXPIRED")
+		}
 		if err := txRepo.UpdateOfferQuantity(ctx, offer.ID, -1); err != nil {
 			return err
 		}
 		if offer.QuantityAvailable-1 == 0 {
-
 			txRepo.db.Model(&domain.Offer{}).Where("id = ?", offer.ID).Update("is_active", false)
+		}
+		amount := offer.Price
+		now := time.Now()
+		expiresAt := now.Add(15 * time.Minute)
+		order := &domain.Order{
+			ID:        uuid.New(),
+			UserID:    userID,
+			OfferID:   offer.ID,
+			Status:    domain.OrderCreated,
+			Amount:    amount,
+			CreatedAt: now,
+			ExpiresAt: &expiresAt,
 		}
 		if err := txRepo.CreateOrder(ctx, order); err != nil {
 			return err
@@ -127,16 +131,15 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID uuid.UUID, req Cr
 			ID:        uuid.New(),
 			OrderID:   order.ID,
 			Status:    domain.OrderCreated,
-			ChangedAt: time.Now(),
+			ChangedAt: now,
 		}
-		return txRepo.SaveHistory(ctx, history)
+		if err := txRepo.SaveHistory(ctx, history); err != nil {
+			return err
+		}
+		finalOrder = order
+		return nil
 	})
-
-	if err != nil {
-		return nil, err
-	}
-	order.Offer = *offer
-	return order, nil
+	return finalOrder, nil
 }
 
 func (s *OrderService) PayOrder(ctx context.Context, orderID, userID uuid.UUID) (*domain.Order, error) {
@@ -178,10 +181,8 @@ func (s *OrderService) PayOrder(ctx context.Context, orderID, userID uuid.UUID) 
 	if err != nil {
 		return nil, err
 	}
-	if err == nil {
-		msg := fmt.Sprintf("Ваш заказ №%s успешно оплачен!", *order.OrderNumber)
-		s.notifier.Send(ctx, order.UserID, msg)
-	}
+	msg := fmt.Sprintf("Ваш заказ №%s успешно оплачен!", *order.OrderNumber)
+	s.notifier.Send(ctx, order.UserID, msg)
 	return order, nil
 }
 
@@ -235,9 +236,7 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID, actorID uuid.UU
 	if err != nil {
 		return nil, 0, err
 	}
-	if err == nil {
-		s.notifier.Send(ctx, order.UserID, "Ваш заказ был отменен. Средства будут возвращены.") //
-	}
+	s.notifier.Send(ctx, order.UserID, "Ваш заказ был отменен. Средства будут возвращены.")
 	return order, refundAmount, nil
 }
 
@@ -281,9 +280,7 @@ func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID, res
 	if err != nil {
 		return nil, err
 	}
-	if err == nil {
-		s.notifier.Send(ctx, order.UserID, "Заказ выдан! Приятного аппетита.")
-	}
+	s.notifier.Send(ctx, order.UserID, "Заказ выдан! Приятного аппетита.")
 	return order, nil
 }
 
