@@ -147,7 +147,10 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 		actorID = userID
 	}
 	var req CancelOrderRequest
-	c.ShouldBindJSON(&req)
+	err = c.ShouldBindJSON(&req)
+	if err != nil {
+		return
+	}
 	order, refund, err := h.service.CancelOrder(c.Request.Context(), orderID, actorID, role, req.Reason)
 	if err != nil {
 		switch err.Error() {
@@ -298,7 +301,7 @@ func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 	if statusStr != "" {
 		statuses = strings.Split(statusStr, ",")
 	}
-	orders, err := h.service.repo.GetPartnerOrders(c.Request.Context(), restaurantID, limit, offset, statuses)
+	orders, total, err := h.service.repo.GetPartnerOrdersWithTotal(c.Request.Context(), restaurantID, limit, offset, statuses)
 	if err != nil {
 		errorResponse(c, 500, "INTERNAL_ERROR", err.Error())
 		return
@@ -325,7 +328,14 @@ func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 		}
 	}
 
-	c.JSON(200, gin.H{"data": data})
+	c.JSON(200, gin.H{
+		"data": orders,
+		"pagination": gin.H{
+			"total":  total,
+			"limit":  limit,
+			"offset": offset,
+		},
+	})
 }
 
 // GetOrderById @Summary Детали заказа

@@ -79,24 +79,28 @@ func (r *OrderRepository) GetUserOrders(ctx context.Context, userID uuid.UUID, l
 	return orders, total, err
 }
 
-func (r *OrderRepository) GetPartnerOrders(ctx context.Context, restaurantID uuid.UUID, limit, offset int, statuses []string) ([]domain.Order, error) {
+func (r *OrderRepository) GetPartnerOrdersWithTotal(ctx context.Context, restaurantID uuid.UUID, limit, offset int, statuses []string) ([]domain.Order, int64, error) {
 	var orders []domain.Order
+	var total int64
 	query := r.db.WithContext(ctx).
 		Model(&domain.Order{}).
-		Preload("User").
-		Preload("Offer").
 		Joins("JOIN offers ON orders.offer_id = offers.id").
 		Where("offers.restaurant_id = ?", restaurantID)
 	if len(statuses) > 0 {
 		query = query.Where("orders.status IN ?", statuses)
 	}
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	err := query.
+		Preload("User").
+		Preload("Offer").
 		Order("orders.created_at DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&orders).Error
 
-	return orders, err
+	return orders, total, err
 }
 
 func (r *OrderRepository) Update(ctx context.Context, order *domain.Order) error {
