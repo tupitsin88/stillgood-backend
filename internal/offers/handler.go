@@ -165,6 +165,15 @@ func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 		params.Lng = &val
 	}
 
+	if activeStr := c.Query("isActive"); activeStr != "" {
+		val, err := strconv.ParseBool(activeStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_BOOLEAN", "message": "isActive must be true or false"})
+			return
+		}
+		params.IsActive = &val
+	}
+
 	if rStr := c.Query("radius"); rStr != "" {
 		val, err := strconv.Atoi(rStr)
 		if err != nil {
