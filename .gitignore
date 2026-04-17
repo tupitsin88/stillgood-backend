@@ -12,6 +12,8 @@ server
 .LSOverride
 .codex/
 scripts/
+.agents/
+AGENTS.md
 
 .idea/
 .vscode/
