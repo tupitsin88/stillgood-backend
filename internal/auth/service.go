@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -26,6 +28,7 @@ var ErrInvalidOAuthToken = errors.New("invalid oauth token")
 var ErrInvalidOAuthProvider = errors.New("invalid oauth provider")
 var ErrActiveOrdersExist = errors.New("active orders exist")
 var ErrPasswordRequired = errors.New("password required")
+var ErrWeakPassword = errors.New("password must be at least 8 characters and include a digit and a special character")
 var ErrInvalidRefreshToken = errors.New("invalid refresh token")
 
 const (
@@ -98,6 +101,9 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, *
 	if exists {
 		return Tokens{}, nil, ErrEmailAlreadyExists
 	}
+	if err := validatePasswordComplexity(password); err != nil {
+		return Tokens{}, nil, err
+	}
 
 	hashedPass, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -141,6 +147,9 @@ func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain
 	}
 	if exists {
 		return Tokens{}, nil, ErrEmailAlreadyExists
+	}
+	if err := validatePasswordComplexity(input.Password); err != nil {
+		return Tokens{}, nil, err
 	}
 
 	hashedPass, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
@@ -319,6 +328,9 @@ func (s *service) ChangePassword(userID, currentPassword, newPassword string) er
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); err != nil {
 		return ErrInvalidCurrentPassword
 	}
+	if err := validatePasswordComplexity(newPassword); err != nil {
+		return err
+	}
 
 	hashedPass, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
@@ -408,6 +420,9 @@ func (s *service) ResetPassword(resetToken, newPassword string) error {
 	user, err := s.repo.GetUserByEmail(entry.Email)
 	if err != nil {
 		return ErrInvalidResetToken
+	}
+	if err := validatePasswordComplexity(newPassword); err != nil {
+		return err
 	}
 
 	hashedPass, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
@@ -586,4 +601,29 @@ func extractOAuthIdentity(idToken string) (string, string, error) {
 	}
 
 	return email, name, nil
+}
+
+func validatePasswordComplexity(password string) error {
+	if utf8.RuneCountInString(password) < 8 {
+		return ErrWeakPassword
+	}
+
+	hasDigit := false
+	hasSpecial := false
+
+	for _, r := range password {
+		if unicode.IsDigit(r) {
+			hasDigit = true
+			continue
+		}
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			hasSpecial = true
+		}
+	}
+
+	if !hasDigit || !hasSpecial {
+		return ErrWeakPassword
+	}
+
+	return nil
 }

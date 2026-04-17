@@ -15,6 +15,10 @@ __debug_bin
 docker-compose.yml
 Dockerfile
 .dockerignore
+.codex/
+scripts/
+.agents/
+AGENTS.md
 
 README.md
 tmp/
