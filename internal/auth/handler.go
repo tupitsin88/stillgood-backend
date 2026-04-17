@@ -53,6 +53,10 @@ func (h *Handler) Register(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Email already exists"})
 			return
 		}
+		if errors.Is(err, ErrWeakPassword) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be at least 8 characters and include a digit and a special character"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register"})
 		return
 	}
@@ -88,6 +92,10 @@ func (h *Handler) RegisterPartner(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, ErrEmailAlreadyExists) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Email already exists"})
+			return
+		}
+		if errors.Is(err, ErrWeakPassword) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be at least 8 characters and include a digit and a special character"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register partner"})
@@ -304,6 +312,10 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid current password"})
 			return
 		}
+		if errors.Is(err, ErrWeakPassword) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be at least 8 characters and include a digit and a special character"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to change password"})
 		return
 	}
@@ -387,6 +399,10 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, ErrInvalidResetToken) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reset token"})
+			return
+		}
+		if errors.Is(err, ErrWeakPassword) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be at least 8 characters and include a digit and a special character"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reset password"})
