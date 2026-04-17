@@ -38,7 +38,7 @@ type OfferDetailDTO struct {
 	QuantityTotal     int                `json:"quantityTotal"`
 	PickupStart       time.Time          `json:"pickupStart"`
 	PickupEnd         time.Time          `json:"pickupEnd"`
-	IsActive          bool               `json:"isActive"`
+	IsActive          *bool              `json:"isActive"`
 	Category          CategoryDTO        `json:"category"`
 	Restaurant        RestaurantShortDTO `json:"restaurant"`
 }
@@ -81,6 +81,7 @@ type FilterParams struct {
 	CategoryID   *uuid.UUID
 	MinPrice     *float64
 	MaxPrice     *float64
+	IsActive     *bool
 	SortBy       string
 	Limit        int
 	Offset       int

@@ -84,14 +84,24 @@ func (s *OfferService) UpdateOffer(ctx context.Context, id, partnerID uuid.UUID,
 		offer.Description = *req.Description
 	}
 	if req.Price != nil {
+		if *req.Price < 0 {
+			return nil, fmt.Errorf("PRICE_MUST_BE_POSITIVE")
+		}
 		if *req.Price >= offer.OriginalPrice {
-			return nil, fmt.Errorf("INVALID_PRICE")
+			return nil, fmt.Errorf("PRICE_TOO_HIGH: must be lower than original")
 		}
 		offer.Price = *req.Price
 	}
 	if req.Quantity != nil {
-		offer.QuantityAvailable = *req.Quantity
+		if *req.Quantity < 0 {
+			return nil, fmt.Errorf("QUANTITY_MUST_BE_POSITIVE")
+		}
+		diff := *req.Quantity - offer.QuantityTotal
+		offer.QuantityAvailable += diff
 		offer.QuantityTotal = *req.Quantity
+		if offer.QuantityAvailable < 0 {
+			offer.QuantityAvailable = 0
+		}
 	}
 	if req.IsActive != nil {
 		offer.IsActive = *req.IsActive
