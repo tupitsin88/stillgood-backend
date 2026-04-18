@@ -38,7 +38,7 @@ type OfferDetailDTO struct {
 	QuantityTotal     int                `json:"quantityTotal"`
 	PickupStart       time.Time          `json:"pickupStart"`
 	PickupEnd         time.Time          `json:"pickupEnd"`
-	IsActive          *bool              `json:"isActive"`
+	IsActive          bool               `json:"isActive"`
 	Category          CategoryDTO        `json:"category"`
 	Restaurant        RestaurantShortDTO `json:"restaurant"`
 }

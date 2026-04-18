@@ -79,6 +79,20 @@ func (r *OrderRepository) GetUserOrders(ctx context.Context, userID uuid.UUID, l
 	return orders, total, err
 }
 
+func (r *OrderRepository) GetUserStats(ctx context.Context, userID uuid.UUID) (int, float64, error) {
+	var stats struct {
+		TotalBoxes int
+		TotalSaved float64
+	}
+	err := r.db.WithContext(ctx).
+		Table("orders o").
+		Select("COUNT(o.id) as total_boxes, SUM(off.original_price - o.amount) as total_saved").
+		Joins("JOIN offers off ON o.offer_id = off.id").
+		Where("o.user_id = ? AND o.status = ?", userID, "COMPLETED").
+		Scan(&stats).Error
+	return stats.TotalBoxes, stats.TotalSaved, err
+}
+
 func (r *OrderRepository) GetPartnerOrdersWithTotal(ctx context.Context, restaurantID uuid.UUID, limit, offset int, statuses []string) ([]domain.Order, int64, error) {
 	var orders []domain.Order
 	var total int64
@@ -124,4 +138,23 @@ func (r *OrderRepository) UpdateOfferQuantity(ctx context.Context, offerID uuid.
 		Model(&domain.Offer{}).
 		Where("id = ?", offerID).
 		Update("quantity_available", gorm.Expr("quantity_available + ?", delta)).Error
+}
+
+func (r *OrderRepository) CreateNotification(ctx context.Context, notification *domain.Notification) error {
+	return r.db.WithContext(ctx).Create(notification).Error
+}
+
+func (r *OrderRepository) CleanupOldNotifications(ctx context.Context, olderThan time.Time) error {
+	return r.db.WithContext(ctx).Where("created_at < ?", olderThan).Delete(&domain.Notification{}).Error
+}
+
+func (r *OrderRepository) GetNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]domain.Notification, error) {
+	var notifications []domain.Notification
+	err := r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&notifications).Error
+	return notifications, err
 }
