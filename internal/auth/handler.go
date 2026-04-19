@@ -136,6 +136,7 @@ func (h *Handler) RegisterPartner(c *gin.Context) {
 // @Produce json
 // @Param input body LoginRequest true "Данные для входа"
 // @Success 200 {object} AuthResponse
+// @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Router /auth/login [post]
 func (h *Handler) Login(c *gin.Context) {
@@ -150,6 +151,10 @@ func (h *Handler) Login(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, ErrInvalidEmail) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format (RFC 5322 expected)"})
+			return
+		}
+		if errors.Is(err, ErrDeviceTokenRequired) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "deviceToken is required"})
 			return
 		}
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
