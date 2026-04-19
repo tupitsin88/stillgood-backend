@@ -3,14 +3,14 @@ package auth
 import "time"
 
 type RegisterRequest struct {
-	Email       string `json:"email" binding:"required,email"`
+	Email       string `json:"email" binding:"required"`
 	Password    string `json:"password" binding:"required,min=8"`
 	Name        string `json:"name" binding:"required"`
 	DeviceToken string `json:"deviceToken"`
 }
 
 type PartnerRegisterRequest struct {
-	Email                string `json:"email" binding:"required,email"`
+	Email                string `json:"email" binding:"required"`
 	Password             string `json:"password" binding:"required,min=8"`
 	Name                 string `json:"name" binding:"required"`
 	Phone                string `json:"phone" binding:"required"`
@@ -23,7 +23,7 @@ type PartnerRegisterRequest struct {
 }
 
 type LoginRequest struct {
-	Email       string `json:"email" binding:"required,email"`
+	Email       string `json:"email" binding:"required"`
 	Password    string `json:"password" binding:"required,min=8"`
 	DeviceToken string `json:"deviceToken"`
 }
@@ -59,7 +59,7 @@ type ChangePasswordRequest struct {
 }
 
 type ForgotPasswordRequest struct {
-	Email string `json:"email" binding:"required,email"`
+	Email string `json:"email" binding:"required"`
 }
 
 type ForgotPasswordResponse struct {
@@ -68,7 +68,7 @@ type ForgotPasswordResponse struct {
 }
 
 type VerifyResetCodeRequest struct {
-	Email string `json:"email" binding:"required,email"`
+	Email string `json:"email" binding:"required"`
 	Code  string `json:"code" binding:"required,len=6,numeric"`
 }
 
