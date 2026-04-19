@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +29,14 @@ func toUserResponse(userID, email, name, role, authProvider, partnerStatus strin
 		PartnerStatus: partnerStatus,
 		CreatedAt:     createdAt,
 	}
+}
+
+func (h *Handler) requireAdmin(c *gin.Context) bool {
+	if c.GetString("role") != "ADMIN" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "FORBIDDEN", "message": "Admin role required"})
+		return false
+	}
+	return true
 }
 
 // Register godoc
@@ -496,4 +505,139 @@ func (h *Handler) Logout(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// GetPendingPartners godoc
+// @Summary Список заявок партнёров со статусом PENDING
+// @Tags Auth
+// @Security ApiKeyAuth
+// @Produce json
+// @Param limit query int false "Limit"
+// @Param offset query int false "Offset"
+// @Success 200 {object} map[string]interface{}
+// @Failure 403 {object} map[string]string
+// @Router /admin/partners/pending [get]
+func (h *Handler) GetPendingPartners(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if err != nil || limit <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit"})
+		return
+	}
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil || offset < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset"})
+		return
+	}
+
+	partners, total, err := h.service.ListPendingPartners(limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch pending partners"})
+		return
+	}
+
+	response := make([]UserResponse, 0, len(partners))
+	for _, user := range partners {
+		response = append(response, toUserResponse(
+			user.ID.String(),
+			user.Email,
+			user.Name,
+			user.Role,
+			user.AuthProvider,
+			user.PartnerStatus,
+			user.CreatedAt,
+		))
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": response,
+		"pagination": gin.H{
+			"total":  total,
+			"limit":  limit,
+			"offset": offset,
+		},
+	})
+}
+
+// ApprovePartner godoc
+// @Summary Одобрить партнёрскую заявку (PENDING -> APPROVED)
+// @Tags Auth
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path string true "Partner user ID"
+// @Success 200 {object} UserResponse
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /admin/partners/{id}/approve [post]
+func (h *Handler) ApprovePartner(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+
+	user, err := h.service.ApprovePartner(c.Param("id"))
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrPartnerNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "Partner not found"})
+		case errors.Is(err, ErrInvalidPartnerStatusTransition):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Only PENDING partner can be approved or rejected"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to approve partner"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, toUserResponse(
+		user.ID.String(),
+		user.Email,
+		user.Name,
+		user.Role,
+		user.AuthProvider,
+		user.PartnerStatus,
+		user.CreatedAt,
+	))
+}
+
+// RejectPartner godoc
+// @Summary Отклонить партнёрскую заявку (PENDING -> REJECTED)
+// @Tags Auth
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path string true "Partner user ID"
+// @Success 200 {object} UserResponse
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /admin/partners/{id}/reject [post]
+func (h *Handler) RejectPartner(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+
+	user, err := h.service.RejectPartner(c.Param("id"))
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrPartnerNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "Partner not found"})
+		case errors.Is(err, ErrInvalidPartnerStatusTransition):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Only PENDING partner can be approved or rejected"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reject partner"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, toUserResponse(
+		user.ID.String(),
+		user.Email,
+		user.Name,
+		user.Role,
+		user.AuthProvider,
+		user.PartnerStatus,
+		user.CreatedAt,
+	))
 }
