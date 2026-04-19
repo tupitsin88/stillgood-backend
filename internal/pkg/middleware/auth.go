@@ -62,13 +62,32 @@ func AuthMiddleware(signingKey string) gin.HandlerFunc {
 			role = fmt.Sprintf("%v", r)
 			c.Set("role", role)
 		}
+		fullPath := c.FullPath()
+		isPartnerRoute := strings.HasPrefix(fullPath, "/api/v1/partner/")
+
 		if role == "PARTNER" {
-			restID, ok := claims["restaurant_id"]
-			if !ok || fmt.Sprintf("%v", restID) == "<nil>" {
-				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "RESTAURANT_ID_REQUIRED_FOR_PARTNER"})
+			partnerStatus := ""
+			if status, ok := claims["partner_status"]; ok {
+				partnerStatus = fmt.Sprintf("%v", status)
+			}
+			c.Set("partner_status", partnerStatus)
+
+			if isPartnerRoute && partnerStatus != "APPROVED" {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+					"error":   "PARTNER_NOT_APPROVED",
+					"message": "Partner is not approved",
+				})
 				return
 			}
-			c.Set("restaurant_id", fmt.Sprintf("%v", restID))
+
+			if isPartnerRoute {
+				restID, ok := claims["restaurant_id"]
+				if !ok || fmt.Sprintf("%v", restID) == "<nil>" {
+					c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "RESTAURANT_ID_REQUIRED_FOR_PARTNER"})
+					return
+				}
+				c.Set("restaurant_id", fmt.Sprintf("%v", restID))
+			}
 		}
 		c.Next()
 	}
