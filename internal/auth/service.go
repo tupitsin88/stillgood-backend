@@ -145,7 +145,7 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, *
 		restID = user.RestaurantID.String()
 	}
 
-	tokens, err := s.generateTokens(user.ID.String(), user.Role, restID)
+	tokens, err := s.generateTokens(user.ID.String(), user.Role, restID, user.PartnerStatus)
 	if err != nil {
 		return Tokens{}, nil, err
 	}
@@ -196,7 +196,7 @@ func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain
 		restID = user.RestaurantID.String()
 	}
 
-	tokens, err := s.generateTokens(user.ID.String(), user.Role, restID)
+	tokens, err := s.generateTokens(user.ID.String(), user.Role, restID, user.PartnerStatus)
 	if err != nil {
 		return Tokens{}, nil, err
 	}
@@ -232,7 +232,7 @@ func (s *service) Login(email, password, deviceToken string) (Tokens, *domain.Us
 		restID = user.RestaurantID.String()
 	}
 
-	tokens, err := s.generateTokens(user.ID.String(), user.Role, restID)
+	tokens, err := s.generateTokens(user.ID.String(), user.Role, restID, user.PartnerStatus)
 	if err != nil {
 		return Tokens{}, nil, err
 	}
@@ -276,7 +276,7 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 			restID = user.RestaurantID.String()
 		}
 
-		tokens, err := s.generateTokens(user.ID.String(), user.Role, restID)
+		tokens, err := s.generateTokens(user.ID.String(), user.Role, restID, user.PartnerStatus)
 		return tokens, user, false, err
 	}
 
@@ -299,7 +299,7 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 		restID = user.RestaurantID.String()
 	}
 
-	tokens, err := s.generateTokens(user.ID.String(), user.Role, restID)
+	tokens, err := s.generateTokens(user.ID.String(), user.Role, restID, user.PartnerStatus)
 	return tokens, user, true, err
 }
 
@@ -332,7 +332,7 @@ func (s *service) RefreshTokens(refreshToken string) (Tokens, error) {
 		restID = user.RestaurantID.String()
 	}
 
-	return s.generateTokens(user.ID.String(), user.Role, restID)
+	return s.generateTokens(user.ID.String(), user.Role, restID, user.PartnerStatus)
 }
 
 func (s *service) ChangePassword(userID, currentPassword, newPassword string) error {
@@ -558,8 +558,8 @@ func (s *service) GetUserByID(id string) (*domain.User, error) {
 	return s.repo.GetByID(uuidID)
 }
 
-func (s *service) generateTokens(userID, role, restaurantID string) (Tokens, error) {
-	accessToken, err := s.tokenManager.NewAccessToken(userID, role, restaurantID, s.accessTTL)
+func (s *service) generateTokens(userID, role, restaurantID, partnerStatus string) (Tokens, error) {
+	accessToken, err := s.tokenManager.NewAccessToken(userID, role, restaurantID, partnerStatus, s.accessTTL)
 	if err != nil {
 		return Tokens{}, err
 	}
