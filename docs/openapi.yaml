@@ -520,6 +520,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RestaurantDetailDto'
+        '403':
+          description: Партнер не одобрен (PARTNER_NOT_APPROVED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     patch:
       tags: [Partner]
       summary: Обновление профиля заведения
@@ -545,6 +551,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RestaurantDetailDto'
+        '403':
+          description: Партнер не одобрен (PARTNER_NOT_APPROVED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /partner/orders:
     get:
@@ -575,6 +587,12 @@ paths:
                       $ref: '#/components/schemas/PartnerOrderDto'
                   pagination:
                     $ref: '#/components/schemas/Pagination'
+        '403':
+          description: Партнер не одобрен (PARTNER_NOT_APPROVED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /partner/orders/{id}/complete:
     post:
@@ -613,6 +631,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Партнер не одобрен (PARTNER_NOT_APPROVED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /partner/offers:
     get:
@@ -638,6 +662,12 @@ paths:
                       $ref: '#/components/schemas/OfferDetailDto'
                   pagination:
                     $ref: '#/components/schemas/Pagination'
+        '403':
+          description: Партнер не одобрен (PARTNER_NOT_APPROVED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags: [Partner]
       summary: Создание предложения
@@ -657,6 +687,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OfferDetailDto'
+        '403':
+          description: Партнер не одобрен (PARTNER_NOT_APPROVED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /partner/offers/{id}:
     patch:
@@ -685,7 +721,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/OfferDetailDto'
         '403':
-          description: Не ваше предложение
+          description: Не ваше предложение или партнер не одобрен (PARTNER_NOT_APPROVED)
           content:
             application/json:
               schema:
@@ -707,7 +743,11 @@ paths:
         '204':
           description: Предложение успешно удалено
         '403':
-          description: Попытка удаления чужого предложения
+          description: Попытка удаления чужого предложения или партнер не одобрен (PARTNER_NOT_APPROVED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Предложение не найдено
 
@@ -744,6 +784,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AnalyticsResponse'
+        '403':
+          description: Партнер не одобрен (PARTNER_NOT_APPROVED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   # ==================== RESTAURANTS ====================
   /restaurants:

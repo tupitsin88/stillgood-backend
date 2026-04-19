@@ -26,14 +26,21 @@ func (h *Handler) requirePartner(c *gin.Context) (string, bool) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "UNAUTHORIZED"})
 		return "", false
 	}
+	if c.GetString("role") != "PARTNER" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "FORBIDDEN", "message": "Partner role required"})
+		return "", false
+	}
 
-	isPartner, err := h.service.IsPartner(userID)
+	isApprovedPartner, err := h.service.IsApprovedPartner(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify user role"})
 		return "", false
 	}
-	if !isPartner {
-		c.JSON(http.StatusForbidden, gin.H{"error": "FORBIDDEN", "message": "Partner role required"})
+	if !isApprovedPartner {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error":   "PARTNER_NOT_APPROVED",
+			"message": "Partner is not approved",
+		})
 		return "", false
 	}
 
