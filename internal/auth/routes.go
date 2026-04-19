@@ -29,4 +29,11 @@ func RegisterRoutes(r *gin.Engine, h *Handler, middleware gin.HandlerFunc) {
 	{
 		users.DELETE("/me", h.DeleteAccount)
 	}
+
+	admin := r.Group("/api/v1/admin", middleware)
+	{
+		admin.GET("/partners/pending", h.GetPendingPartners)
+		admin.POST("/partners/:id/approve", h.ApprovePartner)
+		admin.POST("/partners/:id/reject", h.RejectPartner)
+	}
 }

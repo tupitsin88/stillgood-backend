@@ -28,6 +28,8 @@ var ErrAuthProviderConflict = errors.New("email is linked to another auth provid
 var ErrInvalidOAuthToken = errors.New("invalid oauth token")
 var ErrInvalidOAuthProvider = errors.New("invalid oauth provider")
 var ErrInvalidEmail = errors.New("invalid email")
+var ErrPartnerNotFound = errors.New("partner not found")
+var ErrInvalidPartnerStatusTransition = errors.New("invalid partner status transition")
 var ErrActiveOrdersExist = errors.New("active orders exist")
 var ErrPasswordRequired = errors.New("password required")
 var ErrWeakPassword = errors.New("password must be at least 8 characters and include a digit and a special character")
@@ -36,6 +38,9 @@ var ErrInvalidRefreshToken = errors.New("invalid refresh token")
 const (
 	passwordResetCodeTTL  = 10 * time.Minute
 	passwordResetTokenTTL = 15 * time.Minute
+	partnerStatusPending  = "PENDING"
+	partnerStatusApproved = "APPROVED"
+	partnerStatusRejected = "REJECTED"
 )
 
 type Tokens struct {
@@ -51,6 +56,9 @@ type Service interface {
 	OAuthLogin(provider, idToken, deviceToken string) (Tokens, *domain.User, bool, error)
 	RefreshTokens(refreshToken string) (Tokens, error)
 	ChangePassword(userID, currentPassword, newPassword string) error
+	ListPendingPartners(limit, offset int) ([]*domain.User, int64, error)
+	ApprovePartner(partnerID string) (*domain.User, error)
+	RejectPartner(partnerID string) (*domain.User, error)
 	ForgotPassword(email string) (int, error)
 	VerifyResetCode(email, code string) (string, error)
 	ResetPassword(resetToken, newPassword string) error
@@ -171,7 +179,7 @@ func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain
 		PasswordHash:  string(hashedPass),
 		Name:          input.Name,
 		Role:          "PARTNER",
-		PartnerStatus: "PENDING",
+		PartnerStatus: partnerStatusPending,
 		AuthProvider:  "email",
 	}
 
@@ -351,6 +359,37 @@ func (s *service) ChangePassword(userID, currentPassword, newPassword string) er
 	}
 
 	return s.repo.UpdatePasswordHash(uuidID, string(hashedPass))
+}
+
+func (s *service) ListPendingPartners(limit, offset int) ([]*domain.User, int64, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	users, total, err := s.repo.ListPartnersByStatus(partnerStatusPending, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	result := make([]*domain.User, 0, len(users))
+	for i := range users {
+		result = append(result, &users[i])
+	}
+	return result, total, nil
+}
+
+func (s *service) ApprovePartner(partnerID string) (*domain.User, error) {
+	return s.setPartnerStatus(partnerID, partnerStatusApproved)
+}
+
+func (s *service) RejectPartner(partnerID string) (*domain.User, error) {
+	return s.setPartnerStatus(partnerID, partnerStatusRejected)
 }
 
 func (s *service) ForgotPassword(email string) (int, error) {
@@ -671,4 +710,25 @@ func normalizeAndValidateEmail(email string) (string, error) {
 	}
 
 	return strings.ToLower(trimmed), nil
+}
+
+func (s *service) setPartnerStatus(partnerID, nextStatus string) (*domain.User, error) {
+	uid, err := uuid.Parse(strings.TrimSpace(partnerID))
+	if err != nil {
+		return nil, ErrPartnerNotFound
+	}
+
+	user, err := s.repo.GetByID(uid)
+	if err != nil || user.Role != "PARTNER" {
+		return nil, ErrPartnerNotFound
+	}
+	if user.PartnerStatus != partnerStatusPending {
+		return nil, ErrInvalidPartnerStatusTransition
+	}
+
+	if err := s.repo.UpdatePartnerStatus(uid, nextStatus); err != nil {
+		return nil, err
+	}
+
+	return s.repo.GetByID(uid)
 }

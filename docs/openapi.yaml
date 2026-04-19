@@ -41,6 +41,8 @@ tags:
     description: Аналитика для партнёра
   - name: Categories
     description: Категории предложений
+  - name: Admin
+    description: Модерация и администрирование
 
 paths:
   # ==================== AUTH ====================
@@ -393,6 +395,111 @@ paths:
           description: Аккаунт удалён
         '400':
           description: Есть активные заказы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== ADMIN ====================
+  /admin/partners/pending:
+    get:
+      tags: [Admin]
+      summary: Список заявок партнёров со статусом PENDING
+      operationId: getPendingPartners
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Список заявок
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingPartnersResponse'
+        '403':
+          description: Недостаточно прав (только ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/partners/{id}/approve:
+    post:
+      tags: [Admin]
+      summary: Одобрить партнёра (PENDING -> APPROVED)
+      operationId: approvePartner
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Партнёр одобрен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+        '400':
+          description: Недопустимый переход статуса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Недостаточно прав (только ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Партнёр не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/partners/{id}/reject:
+    post:
+      tags: [Admin]
+      summary: Отклонить партнёра (PENDING -> REJECTED)
+      operationId: rejectPartner
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Партнёр отклонён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+        '400':
+          description: Недопустимый переход статуса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Недостаточно прав (только ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Партнёр не найден
           content:
             application/json:
               schema:
@@ -1171,6 +1278,16 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    PendingPartnersResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserDto'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
 
     # ==================== RESTAURANTS ====================
     RestaurantDto:
