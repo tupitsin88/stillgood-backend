@@ -9,6 +9,7 @@ import (
 	"kursach_backend/internal/domain"
 	"log"
 	"math/big"
+	"net/mail"
 	"strings"
 	"sync"
 	"time"
@@ -26,6 +27,7 @@ var ErrInvalidResetToken = errors.New("invalid reset token")
 var ErrAuthProviderConflict = errors.New("email is linked to another auth provider")
 var ErrInvalidOAuthToken = errors.New("invalid oauth token")
 var ErrInvalidOAuthProvider = errors.New("invalid oauth provider")
+var ErrInvalidEmail = errors.New("invalid email")
 var ErrActiveOrdersExist = errors.New("active orders exist")
 var ErrPasswordRequired = errors.New("password required")
 var ErrWeakPassword = errors.New("password must be at least 8 characters and include a digit and a special character")
@@ -92,7 +94,11 @@ func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshT
 }
 
 func (s *service) Register(email, password, name, deviceToken string) (Tokens, *domain.User, error) {
-	email = strings.ToLower(strings.TrimSpace(email))
+	var err error
+	email, err = normalizeAndValidateEmail(email)
+	if err != nil {
+		return Tokens{}, nil, err
+	}
 
 	exists, err := s.repo.ExistsByEmail(email)
 	if err != nil {
@@ -139,7 +145,10 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, *
 }
 
 func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain.User, error) {
-	email := strings.ToLower(strings.TrimSpace(input.Email))
+	email, err := normalizeAndValidateEmail(input.Email)
+	if err != nil {
+		return Tokens{}, nil, err
+	}
 
 	exists, err := s.repo.ExistsByEmail(email)
 	if err != nil {
@@ -187,7 +196,11 @@ func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain
 }
 
 func (s *service) Login(email, password, deviceToken string) (Tokens, *domain.User, error) {
-	email = strings.ToLower(strings.TrimSpace(email))
+	var err error
+	email, err = normalizeAndValidateEmail(email)
+	if err != nil {
+		return Tokens{}, nil, err
+	}
 
 	user, err := s.repo.GetUserByEmail(email)
 	if err != nil {
@@ -341,7 +354,11 @@ func (s *service) ChangePassword(userID, currentPassword, newPassword string) er
 }
 
 func (s *service) ForgotPassword(email string) (int, error) {
-	email = strings.ToLower(strings.TrimSpace(email))
+	var err error
+	email, err = normalizeAndValidateEmail(email)
+	if err != nil {
+		return 0, err
+	}
 
 	exists, err := s.repo.ExistsByEmail(email)
 	if err != nil {
@@ -372,7 +389,11 @@ func (s *service) ForgotPassword(email string) (int, error) {
 }
 
 func (s *service) VerifyResetCode(email, code string) (string, error) {
-	email = strings.ToLower(strings.TrimSpace(email))
+	var err error
+	email, err = normalizeAndValidateEmail(email)
+	if err != nil {
+		return "", err
+	}
 	code = strings.TrimSpace(code)
 
 	s.mu.Lock()
@@ -569,7 +590,10 @@ func extractOAuthIdentity(idToken string) (string, string, error) {
 
 	// MVP-режим: для локальных тестов разрешаем передавать email напрямую в idToken.
 	if strings.Contains(idToken, "@") && !strings.Contains(idToken, " ") {
-		email := strings.ToLower(strings.TrimSpace(idToken))
+		email, err := normalizeAndValidateEmail(idToken)
+		if err != nil {
+			return "", "", ErrInvalidOAuthToken
+		}
 		name := strings.Split(email, "@")[0]
 		return email, name, nil
 	}
@@ -593,7 +617,10 @@ func extractOAuthIdentity(idToken string) (string, string, error) {
 	if !ok || strings.TrimSpace(emailRaw) == "" {
 		return "", "", ErrInvalidOAuthToken
 	}
-	email := strings.ToLower(strings.TrimSpace(emailRaw))
+	email, err := normalizeAndValidateEmail(emailRaw)
+	if err != nil {
+		return "", "", ErrInvalidOAuthToken
+	}
 
 	name := strings.Split(email, "@")[0]
 	if claimName, ok := claims["name"].(string); ok && strings.TrimSpace(claimName) != "" {
@@ -626,4 +653,22 @@ func validatePasswordComplexity(password string) error {
 	}
 
 	return nil
+}
+
+func normalizeAndValidateEmail(email string) (string, error) {
+	trimmed := strings.TrimSpace(email)
+	if trimmed == "" {
+		return "", ErrInvalidEmail
+	}
+	// We accept plain mailbox only, without display name wrappers.
+	if strings.ContainsAny(trimmed, "<>") {
+		return "", ErrInvalidEmail
+	}
+
+	parsed, err := mail.ParseAddress(trimmed)
+	if err != nil || parsed == nil || parsed.Address == "" || parsed.Name != "" {
+		return "", ErrInvalidEmail
+	}
+
+	return strings.ToLower(trimmed), nil
 }
