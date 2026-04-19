@@ -96,6 +96,8 @@ type UserResponse struct {
 	Email         string    `json:"email"`
 	Name          string    `json:"name"`
 	Role          string    `json:"role"`
+	IsBlocked     bool      `json:"isBlocked"`
+	AccountStatus string    `json:"accountStatus"`
 	AuthProvider  string    `json:"authProvider"`
 	PartnerStatus string    `json:"partnerStatus,omitempty"`
 	CreatedAt     time.Time `json:"createdAt"`
