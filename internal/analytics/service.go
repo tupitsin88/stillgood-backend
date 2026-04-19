@@ -60,6 +60,7 @@ type AnalyticsSummary struct {
 	TotalBookings     int            `json:"totalBookings"`
 	CompletedOrders   int            `json:"completedOrders"`
 	CancelledOrders   int            `json:"cancelledOrders"`
+	ExpiredOrders     int            `json:"expiredOrders"`
 	GrossRevenue      float64        `json:"grossRevenue"`
 	ServiceFee        float64        `json:"serviceFee"`
 	NetPayout         float64        `json:"netPayout"`
@@ -85,6 +86,7 @@ func (s *AnalyticsService) GetPartnerAnalytics(ctx context.Context, restaurantID
 		summary.TotalBookings += day.TotalBookings
 		summary.CompletedOrders += day.CompletedOrders
 		summary.CancelledOrders += day.CancelledOrders
+		summary.ExpiredOrders += day.ExpiredOrders
 		summary.GrossRevenue += day.GrossRevenue
 		summary.ServiceFee += day.ServiceFee
 		summary.NetPayout += day.NetPayout

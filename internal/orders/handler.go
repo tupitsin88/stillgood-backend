@@ -372,7 +372,7 @@ func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{
-		"data": orders,
+		"data": data,
 		"pagination": gin.H{
 			"total":  total,
 			"limit":  limit,

@@ -14,6 +14,7 @@ type DailyAnalytics struct {
 	TotalBookings   int       `json:"total_bookings"`
 	CompletedOrders int       `json:"completed_orders"`
 	CancelledOrders int       `json:"cancelled_orders"`
+	ExpiredOrders   int       `json:"expired_orders"`
 	GrossRevenue    float64   `gorm:"type:decimal(10,2)" json:"gross_revenue"`
 	ServiceFee      float64   `gorm:"type:decimal(10,2)" json:"service_fee"`
 	NetPayout       float64   `gorm:"type:decimal(10,2)" json:"net_payout"`
