@@ -14,6 +14,8 @@ definitions:
         type: integer
       conversionRate:
         type: number
+      expiredOrders:
+        type: integer
       grossRevenue:
         type: number
       netPayout:
@@ -218,6 +220,24 @@ definitions:
   auth.VerifyResetCodeResponse:
     properties:
       resetToken:
+        type: string
+    type: object
+  categories.CreateCategoryRequest:
+    properties:
+      icon_url:
+        type: string
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  domain.Category:
+    properties:
+      icon_url:
+        type: string
+      id:
+        type: string
+      name:
         type: string
     type: object
   domain.Notification:
@@ -845,9 +865,71 @@ paths:
           schema:
             additionalProperties: true
             type: object
-      summary: Список категорий
       tags:
       - Categories
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные новой категории
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/categories.CreateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Category'
+      security:
+      - ApiKeyAuth: []
+      tags:
+      - Admin
+  /categories/{id}:
+    delete:
+      description: Нельзя удалить категорию, если в ней есть офферы
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Успешное удаление без тела ответа
+      security:
+      - ApiKeyAuth: []
+      tags:
+      - Admin
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Новые данные
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/categories.CreateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Category'
+      security:
+      - ApiKeyAuth: []
+      tags:
+      - Admin
   /offers:
     get:
       parameters:
