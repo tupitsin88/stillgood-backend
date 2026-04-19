@@ -220,6 +220,17 @@ definitions:
       resetToken:
         type: string
     type: object
+  domain.Notification:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      message:
+        type: string
+      user_id:
+        type: string
+    type: object
   offers.CategoryDTO:
     properties:
       id:
@@ -453,6 +464,13 @@ definitions:
         type: string
       name:
         type: string
+    type: object
+  orders.UserStatsResponse:
+    properties:
+      savedBoxes:
+        type: integer
+      savedMoney:
+        type: number
     type: object
   restaurants.Pagination:
     properties:
@@ -1041,6 +1059,47 @@ paths:
       - ApiKeyAuth: []
       tags:
       - Orders
+  /orders/me/notifications:
+    get:
+      description: Получение списка уведомлений пользователя с пагинацией
+      parameters:
+      - default: 20
+        description: Лимит
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.Notification'
+            type: array
+      security:
+      - ApiKeyAuth: []
+      tags:
+      - Profile
+  /orders/me/stats:
+    get:
+      description: Получение количества спасенных боксов и сэкономленных денег
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orders.UserStatsResponse'
+      security:
+      - ApiKeyAuth: []
+      tags:
+      - Profile
   /partner/analytics:
     get:
       description: Получение статистики продаж, выручки и процента отмен за период

@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type OrderRepository struct {
@@ -78,35 +79,57 @@ func (r *OrderRepository) GetUserOrders(ctx context.Context, userID uuid.UUID, l
 	return orders, total, err
 }
 
-func (r *OrderRepository) GetPartnerOrders(ctx context.Context, restaurantID uuid.UUID, limit, offset int, statuses []string) ([]domain.Order, error) {
+func (r *OrderRepository) GetUserStats(ctx context.Context, userID uuid.UUID) (int, float64, error) {
+	var stats struct {
+		TotalBoxes int
+		TotalSaved float64
+	}
+	err := r.db.WithContext(ctx).
+		Table("orders o").
+		Select("COUNT(o.id) as total_boxes, SUM(off.original_price - o.amount) as total_saved").
+		Joins("JOIN offers off ON o.offer_id = off.id").
+		Where("o.user_id = ? AND o.status = ?", userID, "COMPLETED").
+		Scan(&stats).Error
+	return stats.TotalBoxes, stats.TotalSaved, err
+}
+
+func (r *OrderRepository) GetPartnerOrdersWithTotal(ctx context.Context, restaurantID uuid.UUID, limit, offset int, statuses []string) ([]domain.Order, int64, error) {
 	var orders []domain.Order
+	var total int64
 	query := r.db.WithContext(ctx).
 		Model(&domain.Order{}).
-		Preload("User").
-		Preload("Offer").
 		Joins("JOIN offers ON orders.offer_id = offers.id").
 		Where("offers.restaurant_id = ?", restaurantID)
 	if len(statuses) > 0 {
 		query = query.Where("orders.status IN ?", statuses)
 	}
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	err := query.
+		Preload("User").
+		Preload("Offer").
 		Order("orders.created_at DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&orders).Error
 
-	return orders, err
+	return orders, total, err
 }
 
 func (r *OrderRepository) Update(ctx context.Context, order *domain.Order) error {
 	return r.db.WithContext(ctx).Save(order).Error
 }
 
-func (r *OrderRepository) GetOfferByID(ctx context.Context, offerID uuid.UUID) (*domain.Offer, error) {
+func (r *OrderRepository) GetOfferByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Offer, error) {
 	var offer domain.Offer
 	err := r.db.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Preload("Restaurant").
-		First(&offer, "id = ?", offerID).Error
+		First(&offer, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
 	return &offer, err
 }
 
@@ -115,4 +138,23 @@ func (r *OrderRepository) UpdateOfferQuantity(ctx context.Context, offerID uuid.
 		Model(&domain.Offer{}).
 		Where("id = ?", offerID).
 		Update("quantity_available", gorm.Expr("quantity_available + ?", delta)).Error
+}
+
+func (r *OrderRepository) CreateNotification(ctx context.Context, notification *domain.Notification) error {
+	return r.db.WithContext(ctx).Create(notification).Error
+}
+
+func (r *OrderRepository) CleanupOldNotifications(ctx context.Context, olderThan time.Time) error {
+	return r.db.WithContext(ctx).Where("created_at < ?", olderThan).Delete(&domain.Notification{}).Error
+}
+
+func (r *OrderRepository) GetNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]domain.Notification, error) {
+	var notifications []domain.Notification
+	err := r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&notifications).Error
+	return notifications, err
 }

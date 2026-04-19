@@ -21,20 +21,40 @@ func NewAnalyticsRepository(db *gorm.DB) *AnalyticsRepository {
 func (r *AnalyticsRepository) AggregateDailyStats(ctx context.Context, date time.Time) ([]domain.DailyAnalytics, error) {
 	var results []domain.DailyAnalytics
 	dateStr := date.Format("2006-01-02")
+
 	query := `
+		WITH daily_orders AS (
+			SELECT off.restaurant_id, off.category_id, COUNT(o.id) as bookings
+			FROM orders o
+			JOIN offers off ON o.offer_id = off.id
+			WHERE o.created_at::date = ?::date
+			GROUP BY 1, 2
+		),
+		status_changes AS (
+			SELECT 
+				off.restaurant_id, 
+				off.category_id,
+				COUNT(h.id) FILTER (WHERE h.status = 'COMPLETED') as completed,
+				COUNT(h.id) FILTER (WHERE h.status = 'CANCELLED') as cancelled,
+				COUNT(h.id) FILTER (WHERE h.status = 'CANCELLED' AND o.cancellation_reason = 'expired') as expired,
+				COALESCE(SUM(o.amount) FILTER (WHERE h.status = 'COMPLETED'), 0) as revenue
+			FROM order_status_histories h
+			JOIN orders o ON h.order_id = o.id
+			JOIN offers off ON o.offer_id = off.id
+			WHERE h.changed_at::date = ?::date
+			GROUP BY 1, 2
+		)	
 		SELECT 
-			off.restaurant_id,
+			COALESCE(d.restaurant_id, s.restaurant_id) as restaurant_id,
 			c.name as category_name,
-			COUNT(o.id) as total_bookings,
-			COUNT(o.id) FILTER (WHERE o.status != 'CREATED') as total_bookings,
-			COUNT(o.id) FILTER (WHERE o.status = 'COMPLETED') as completed_orders,
-			COUNT(o.id) FILTER (WHERE o.status = 'CANCELLED') as cancelled_orders,
-			COALESCE(SUM(o.amount) FILTER (WHERE o.status = 'COMPLETED'), 0) as gross_revenue
-		FROM orders o
-		JOIN offers off ON o.offer_id = off.id
-		JOIN categories c ON off.category_id = c.id
-		WHERE o.created_at::date = ?::date
-		GROUP BY off.restaurant_id, c.name
+			COALESCE(d.bookings, 0) as total_bookings,
+			COALESCE(s.completed, 0) as completed_orders,
+			COALESCE(s.cancelled, 0) as cancelled_orders,
+			COALESCE(s.expired, 0) as expired_orders,
+			COALESCE(s.revenue, 0) as gross_revenue
+		FROM daily_orders d
+		FULL OUTER JOIN status_changes s ON d.restaurant_id = s.restaurant_id AND d.category_id = s.category_id
+		JOIN categories c ON c.id = COALESCE(d.category_id, s.category_id)
 	`
 	type aggResult struct {
 		RestaurantID    uuid.UUID
@@ -42,13 +62,15 @@ func (r *AnalyticsRepository) AggregateDailyStats(ctx context.Context, date time
 		TotalBookings   int
 		CompletedOrders int
 		CancelledOrders int
+		ExpiredOrders   int
 		GrossRevenue    float64
 	}
 	var rawStats []aggResult
-	err := r.db.WithContext(ctx).Raw(query, dateStr).Scan(&rawStats).Error
+	err := r.db.WithContext(ctx).Raw(query, dateStr, dateStr).Scan(&rawStats).Error
 	if err != nil {
 		return nil, err
 	}
+
 	for _, s := range rawStats {
 		fee := s.GrossRevenue * 0.15
 		results = append(results, domain.DailyAnalytics{
@@ -59,6 +81,7 @@ func (r *AnalyticsRepository) AggregateDailyStats(ctx context.Context, date time
 			TotalBookings:   s.TotalBookings,
 			CompletedOrders: s.CompletedOrders,
 			CancelledOrders: s.CancelledOrders,
+			ExpiredOrders:   s.ExpiredOrders,
 			GrossRevenue:    s.GrossRevenue,
 			ServiceFee:      fee,
 			NetPayout:       s.GrossRevenue - fee,
@@ -73,7 +96,7 @@ func (r *AnalyticsRepository) SaveStats(ctx context.Context, stats []domain.Dail
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "restaurant_id"}, {Name: "date"}, {Name: "category_name"}},
 		DoUpdates: clause.AssignmentColumns([]string{
-			"total_bookings", "completed_orders", "cancelled_orders",
+			"total_bookings", "completed_orders", "cancelled_orders", "expired_orders",
 			"gross_revenue", "service_fee", "net_payout",
 		}),
 	}).Create(&stats).Error

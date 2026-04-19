@@ -125,6 +125,7 @@ type RestaurantShortDTO struct {
 	Phone     *string `json:"phone,omitempty"`
 }
 
+// чё-то no usages
 type GetUserOrdersResponse struct {
 	Data       []OrderPreviewDTO `json:"data"`
 	Pagination Pagination        `json:"pagination"`
@@ -136,6 +137,7 @@ type Pagination struct {
 	Offset int   `json:"offset"`
 }
 
+// чё-то no usages
 type GetPartnerOrdersResponse struct {
 	Data []PartnerOrderDTO `json:"data"`
 }
@@ -144,4 +146,14 @@ type CompleteOrderResponse struct {
 	ID          uuid.UUID  `json:"id"`
 	Status      string     `json:"status"`
 	CompletedAt *time.Time `json:"completedAt"`
+}
+
+type UserStatsResponse struct {
+	SavedBoxes int     `json:"savedBoxes"`
+	SavedMoney float64 `json:"savedMoney"`
+}
+type NotificationDTO struct {
+	ID        string    `json:"id"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"createdAt"`
 }

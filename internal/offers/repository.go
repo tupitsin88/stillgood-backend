@@ -68,11 +68,16 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 		Model(&domain.Offer{}).
 		Joins("JOIN restaurants ON restaurants.id = offers.restaurant_id").
 		Preload("Restaurant").
-		Preload("Category").
-		Where("offers.is_active = ?", true).
+		Preload("Category")
+	query = query.
 		Where("offers.quantity_available > 0").
 		Where("offers.pickup_time_end > ?", time.Now())
 
+	if params.IsActive != nil {
+		query = query.Where("offers.is_active = ?", *params.IsActive)
+	} else {
+		query = query.Where("offers.is_active = ?", true)
+	}
 	if params.RestaurantID != nil {
 		query = query.Where("offers.restaurant_id = ?", *params.RestaurantID)
 	}
@@ -89,7 +94,7 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 	if params.Lat != nil && params.Lng != nil && params.Radius != nil {
 		radiusKm := float64(*params.Radius) / 1000.0
 		distanceSQL := fmt.Sprintf(
-			"(6371 * acos(cos(radians(%f)) * cos(radians(restaurants.latitude)) * cos(radians(restaurants.longitude) - radians(%f)) + sin(radians(%f)) * sin(radians(restaurants.latitude))))",
+			"(6371 * acos(cos(radians(%f)) * cos(radians(restaurants.latitude) - radiade)) * cos(radians(restaurants.longituns(%f)) + sin(radians(%f)) * sin(radians(restaurants.latitude))))",
 			*params.Lat, *params.Lng, *params.Lat,
 		)
 		query = query.Where(distanceSQL+" <= ?", radiusKm)
