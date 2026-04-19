@@ -53,6 +53,10 @@ func (h *Handler) Register(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Email already exists"})
 			return
 		}
+		if errors.Is(err, ErrInvalidEmail) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format (RFC 5322 expected)"})
+			return
+		}
 		if errors.Is(err, ErrWeakPassword) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be at least 8 characters and include a digit and a special character"})
 			return
@@ -94,6 +98,10 @@ func (h *Handler) RegisterPartner(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Email already exists"})
 			return
 		}
+		if errors.Is(err, ErrInvalidEmail) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format (RFC 5322 expected)"})
+			return
+		}
 		if errors.Is(err, ErrWeakPassword) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be at least 8 characters and include a digit and a special character"})
 			return
@@ -131,6 +139,10 @@ func (h *Handler) Login(c *gin.Context) {
 
 	tokens, user, err := h.service.Login(input.Email, input.Password, input.DeviceToken)
 	if err != nil {
+		if errors.Is(err, ErrInvalidEmail) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format (RFC 5322 expected)"})
+			return
+		}
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
@@ -340,6 +352,10 @@ func (h *Handler) ForgotPassword(c *gin.Context) {
 
 	expiresIn, err := h.service.ForgotPassword(input.Email)
 	if err != nil {
+		if errors.Is(err, ErrInvalidEmail) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format (RFC 5322 expected)"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process forgot password"})
 		return
 	}
@@ -368,6 +384,10 @@ func (h *Handler) VerifyResetCode(c *gin.Context) {
 
 	resetToken, err := h.service.VerifyResetCode(input.Email, input.Code)
 	if err != nil {
+		if errors.Is(err, ErrInvalidEmail) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format (RFC 5322 expected)"})
+			return
+		}
 		if errors.Is(err, ErrInvalidResetCode) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reset code"})
 			return
