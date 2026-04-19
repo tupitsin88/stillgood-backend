@@ -282,6 +282,49 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 	})
 }
 
+// GetUserStats @Summary Статистика пользователя
+// @Description Получение количества спасенных боксов и сэкономленных денег
+// @Tags Profile
+// @Security ApiKeyAuth
+// @Produce json
+// @Success 200 {object} UserStatsResponse
+// @Router /orders/me/stats [get]
+func (h *OrderHandler) GetUserStats(c *gin.Context) {
+	uidStr := c.GetString("user_id")
+	userID, _ := uuid.Parse(uidStr)
+	boxes, money, err := h.service.repo.GetUserStats(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, UserStatsResponse{
+		SavedBoxes: boxes,
+		SavedMoney: money,
+	})
+}
+
+// GetNotifications @Summary История уведомлений
+// @Description Получение списка уведомлений пользователя с пагинацией
+// @Tags Profile
+// @Security ApiKeyAuth
+// @Produce json
+// @Param limit query int false "Лимит" default(20)
+// @Param offset query int false "Смещение" default(0)
+// @Success 200 {object} []domain.Notification
+// @Router /orders/me/notifications [get]
+func (h *OrderHandler) GetNotifications(c *gin.Context) {
+	uidStr := c.GetString("user_id")
+	userID, _ := uuid.Parse(uidStr)
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	notifications, err := h.service.repo.GetNotifications(c.Request.Context(), userID, limit, offset)
+	if err != nil {
+		errorResponse(c, 500, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	c.JSON(200, notifications)
+}
+
 // GetPartnerOrders @Summary Заказы партнёра
 // @Tags Partner
 // @Security ApiKeyAuth

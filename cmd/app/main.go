@@ -69,6 +69,7 @@ func main() {
 		&domain.OrderStatusHistory{},
 		&domain.Category{},
 		&domain.DailyAnalytics{},
+		&domain.Notification{},
 	)
 	if err != nil {
 		log.Fatal("Migration failed:", err)
@@ -153,6 +154,7 @@ func main() {
 	// Cron-worker
 	go analyticsService.StartAnalyticsWorker(context.Background())
 	go orderService.StartExpirationWorker(context.Background())
+	go orderService.StartNotificationWorker(context.Background())
 
 	// 4. Роутер
 	router := gin.Default()

@@ -281,6 +281,13 @@ func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID, res
 		return nil, err
 	}
 	s.notifier.Send(ctx, order.UserID, "Заказ выдан! Приятного аппетита.")
+
+	msg := fmt.Sprintf("Заказ №%s успешно выдан! Спасибо, что спасаете еду.", *order.OrderNumber)
+	s.repo.CreateNotification(ctx, &domain.Notification{
+		UserID:    order.UserID,
+		Message:   msg,
+		CreatedAt: time.Now(),
+	})
 	return order, nil
 }
 
@@ -293,4 +300,17 @@ func (s *OrderService) GetOrderById(ctx context.Context, orderID, userID uuid.UU
 		return nil, fmt.Errorf("unauthorized")
 	}
 	return order, nil
+}
+
+func (s *OrderService) StartNotificationWorker(ctx context.Context) {
+	ticker := time.NewTicker(24 * time.Hour)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			limit := time.Now().AddDate(0, 0, -30)
+			s.repo.CleanupOldNotifications(ctx, limit)
+		}
+	}
 }
