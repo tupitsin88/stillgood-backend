@@ -25,7 +25,7 @@ type PartnerRegisterRequest struct {
 type LoginRequest struct {
 	Email       string `json:"email" binding:"required"`
 	Password    string `json:"password" binding:"required,min=8"`
-	DeviceToken string `json:"deviceToken"`
+	DeviceToken string `json:"deviceToken" binding:"required"`
 }
 
 type OAuthRequest struct {
