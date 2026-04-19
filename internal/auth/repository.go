@@ -12,7 +12,9 @@ type Repository interface {
 	GetUserByEmail(email string) (*domain.User, error)
 	GetByID(id uuid.UUID) (*domain.User, error)
 	ListPartnersByStatus(status string, limit, offset int) ([]domain.User, int64, error)
+	ListUsersByRoles(roles []string, limit, offset int) ([]domain.User, int64, error)
 	UpdatePartnerStatus(userID uuid.UUID, status string) error
+	UpdateBlockedStatus(userID uuid.UUID, isBlocked bool) error
 	UpdateDeviceToken(userID uuid.UUID, token string) error
 	UpdatePasswordHash(userID uuid.UUID, passwordHash string) error
 	CountActiveOrdersByUserID(userID uuid.UUID) (int64, error)
@@ -61,6 +63,23 @@ func (r *repository) ListPartnersByStatus(status string, limit, offset int) ([]d
 	return users, total, nil
 }
 
+func (r *repository) ListUsersByRoles(roles []string, limit, offset int) ([]domain.User, int64, error) {
+	var (
+		users []domain.User
+		total int64
+	)
+
+	query := r.db.Model(&domain.User{}).Where("role IN ?", roles)
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := query.Order("created_at ASC").Limit(limit).Offset(offset).Find(&users).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
+}
+
 func (r *repository) UpdatePartnerStatus(userID uuid.UUID, status string) error {
 	result := r.db.Model(&domain.User{}).
 		Where("id = ? AND role = ?", userID, "PARTNER").
@@ -72,6 +91,17 @@ func (r *repository) UpdatePartnerStatus(userID uuid.UUID, status string) error 
 		return gorm.ErrRecordNotFound
 	}
 
+	return nil
+}
+
+func (r *repository) UpdateBlockedStatus(userID uuid.UUID, isBlocked bool) error {
+	result := r.db.Model(&domain.User{}).Where("id = ?", userID).Update("is_blocked", isBlocked)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
 	return nil
 }
 
