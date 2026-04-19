@@ -10,7 +10,9 @@ import (
 	"github.com/google/uuid"
 )
 
-func AuthMiddleware(signingKey string) gin.HandlerFunc {
+type UserBlockedChecker func(userID string) (bool, error)
+
+func AuthMiddleware(signingKey string, userBlockedChecker UserBlockedChecker) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -51,6 +53,19 @@ func AuthMiddleware(signingKey string) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "USER_ID_NOT_FOUND_IN_TOKEN"})
 			return
 		}
+
+		if userBlockedChecker != nil {
+			isBlocked, err := userBlockedChecker(userIDStr)
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User is invalid"})
+				return
+			}
+			if isBlocked {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Account is blocked"})
+				return
+			}
+		}
+
 		userUUID, _ := uuid.Parse(userIDStr)
 		c.Set("user_id", userIDStr)
 		c.Set("userId", userIDStr)

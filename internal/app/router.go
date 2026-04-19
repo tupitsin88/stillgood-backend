@@ -16,18 +16,26 @@ import (
 	"kursach_backend/internal/restaurants"
 )
 
-func NewRouter(handler *gin.Engine, authHandler *auth.Handler, restaurantsHandler *restaurants.Handler, categoriesHandler *categories.Handler, orderHandler *orders.OrderHandler, offerHandler *offers.OfferHandler, analyticsHandler *analytics.AnalyticsHandler, jwtSecret string) {
+func NewRouter(handler *gin.Engine, authService auth.Service, authHandler *auth.Handler, restaurantsHandler *restaurants.Handler, categoriesHandler *categories.Handler, orderHandler *orders.OrderHandler, offerHandler *offers.OfferHandler, analyticsHandler *analytics.AnalyticsHandler, jwtSecret string) {
 	// Options
 	handler.Use(gin.Recovery())
 
 	// Swagger UI
 	handler.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+	authMiddleware := middleware.AuthMiddleware(jwtSecret, func(userID string) (bool, error) {
+		user, err := authService.GetUserByID(userID)
+		if err != nil {
+			return false, err
+		}
+		return user.IsBlocked, nil
+	})
+
 	// Init Routes
-	auth.RegisterRoutes(handler, authHandler, middleware.AuthMiddleware(jwtSecret))
-	restaurants.RegisterRoutes(handler, restaurantsHandler, middleware.AuthMiddleware(jwtSecret))
-	categories.RegisterRoutes(handler, categoriesHandler, middleware.AuthMiddleware(jwtSecret))
-	orders.RegisterRoutes(handler, orderHandler, middleware.AuthMiddleware(jwtSecret))
-	offers.RegisterRoutes(handler, offerHandler, middleware.AuthMiddleware(jwtSecret))
-	analytics.RegisterRoutes(handler, analyticsHandler, middleware.AuthMiddleware(jwtSecret))
+	auth.RegisterRoutes(handler, authHandler, authMiddleware)
+	restaurants.RegisterRoutes(handler, restaurantsHandler, authMiddleware)
+	categories.RegisterRoutes(handler, categoriesHandler, authMiddleware)
+	orders.RegisterRoutes(handler, orderHandler, authMiddleware)
+	offers.RegisterRoutes(handler, offerHandler, authMiddleware)
+	analytics.RegisterRoutes(handler, analyticsHandler, authMiddleware)
 }

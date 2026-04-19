@@ -18,6 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 var ErrEmailAlreadyExists = errors.New("email already exists")
@@ -819,6 +820,9 @@ func (s *service) setUserBlocked(userID string, isBlocked bool) (*domain.User, e
 	}
 
 	if err := s.repo.UpdateBlockedStatus(uid, isBlocked); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
 		return nil, err
 	}
 
