@@ -34,6 +34,7 @@ var ErrActiveOrdersExist = errors.New("active orders exist")
 var ErrPasswordRequired = errors.New("password required")
 var ErrWeakPassword = errors.New("password must be at least 8 characters and include a digit and a special character")
 var ErrInvalidRefreshToken = errors.New("invalid refresh token")
+var ErrDeviceTokenRequired = errors.New("device token is required")
 
 const (
 	passwordResetCodeTTL  = 10 * time.Minute
@@ -219,14 +220,15 @@ func (s *service) Login(email, password, deviceToken string) (Tokens, *domain.Us
 		return Tokens{}, nil, err
 	}
 
-	// Update Device Token if provided
-	if deviceToken != "" {
-		if err := s.repo.UpdateDeviceToken(user.ID, deviceToken); err != nil {
-			// Log error but don't fail login? Or fail? Usually, we just log it.
-			// For simplicity nicely, we can ignore it or return error. Let's return error for now to be safe.
-			return Tokens{}, nil, err
-		}
+	deviceToken = strings.TrimSpace(deviceToken)
+	if deviceToken == "" {
+		return Tokens{}, nil, ErrDeviceTokenRequired
 	}
+
+	if err := s.repo.UpdateDeviceToken(user.ID, deviceToken); err != nil {
+		return Tokens{}, nil, err
+	}
+
 	restID := ""
 	if user.RestaurantID != nil {
 		restID = user.RestaurantID.String()
