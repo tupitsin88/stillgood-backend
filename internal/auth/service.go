@@ -35,6 +35,10 @@ var ErrPasswordRequired = errors.New("password required")
 var ErrWeakPassword = errors.New("password must be at least 8 characters and include a digit and a special character")
 var ErrInvalidRefreshToken = errors.New("invalid refresh token")
 var ErrDeviceTokenRequired = errors.New("device token is required")
+var ErrUserNotFound = errors.New("user not found")
+var ErrInvalidUserRoleFilter = errors.New("invalid user role filter")
+var ErrCannotBlockAdmin = errors.New("cannot block admin user")
+var ErrUserBlocked = errors.New("user is blocked")
 
 const (
 	passwordResetCodeTTL  = 10 * time.Minute
@@ -57,6 +61,9 @@ type Service interface {
 	OAuthLogin(provider, idToken, deviceToken string) (Tokens, *domain.User, bool, error)
 	RefreshTokens(refreshToken string) (Tokens, error)
 	ChangePassword(userID, currentPassword, newPassword string) error
+	ListUsers(limit, offset int, roleFilter string) ([]*domain.User, int64, error)
+	BlockUser(userID string) (*domain.User, error)
+	UnblockUser(userID string) (*domain.User, error)
 	ListPendingPartners(limit, offset int) ([]*domain.User, int64, error)
 	ApprovePartner(partnerID string) (*domain.User, error)
 	RejectPartner(partnerID string) (*domain.User, error)
@@ -219,6 +226,9 @@ func (s *service) Login(email, password, deviceToken string) (Tokens, *domain.Us
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
 		return Tokens{}, nil, err
 	}
+	if user.IsBlocked {
+		return Tokens{}, nil, ErrUserBlocked
+	}
 
 	deviceToken = strings.TrimSpace(deviceToken)
 	if deviceToken == "" {
@@ -265,6 +275,9 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 
 		if user.AuthProvider != provider || user.Role != "USER" {
 			return Tokens{}, nil, false, ErrAuthProviderConflict
+		}
+		if user.IsBlocked {
+			return Tokens{}, nil, false, ErrUserBlocked
 		}
 
 		if deviceToken != "" {
@@ -329,6 +342,9 @@ func (s *service) RefreshTokens(refreshToken string) (Tokens, error) {
 	if err != nil {
 		return Tokens{}, err // User probably deleted or ID changed
 	}
+	if user.IsBlocked {
+		return Tokens{}, ErrUserBlocked
+	}
 	restID := ""
 	if user.RestaurantID != nil {
 		restID = user.RestaurantID.String()
@@ -384,6 +400,43 @@ func (s *service) ListPendingPartners(limit, offset int) ([]*domain.User, int64,
 		result = append(result, &users[i])
 	}
 	return result, total, nil
+}
+
+func (s *service) ListUsers(limit, offset int, roleFilter string) ([]*domain.User, int64, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	roles, err := resolveUserRoleFilter(roleFilter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	users, total, err := s.repo.ListUsersByRoles(roles, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	result := make([]*domain.User, 0, len(users))
+	for i := range users {
+		result = append(result, &users[i])
+	}
+
+	return result, total, nil
+}
+
+func (s *service) BlockUser(userID string) (*domain.User, error) {
+	return s.setUserBlocked(userID, true)
+}
+
+func (s *service) UnblockUser(userID string) (*domain.User, error) {
+	return s.setUserBlocked(userID, false)
 }
 
 func (s *service) ApprovePartner(partnerID string) (*domain.User, error) {
@@ -729,6 +782,43 @@ func (s *service) setPartnerStatus(partnerID, nextStatus string) (*domain.User, 
 	}
 
 	if err := s.repo.UpdatePartnerStatus(uid, nextStatus); err != nil {
+		return nil, err
+	}
+
+	return s.repo.GetByID(uid)
+}
+
+func resolveUserRoleFilter(roleFilter string) ([]string, error) {
+	role := strings.ToUpper(strings.TrimSpace(roleFilter))
+	switch role {
+	case "":
+		return []string{"USER", "PARTNER"}, nil
+	case "USER", "PARTNER":
+		return []string{role}, nil
+	default:
+		return nil, ErrInvalidUserRoleFilter
+	}
+}
+
+func (s *service) setUserBlocked(userID string, isBlocked bool) (*domain.User, error) {
+	uid, err := uuid.Parse(strings.TrimSpace(userID))
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	user, err := s.repo.GetByID(uid)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	if user.Role == "ADMIN" {
+		return nil, ErrCannotBlockAdmin
+	}
+	if user.Role != "USER" && user.Role != "PARTNER" {
+		return nil, ErrUserNotFound
+	}
+
+	if err := s.repo.UpdateBlockedStatus(uid, isBlocked); err != nil {
 		return nil, err
 	}
 
