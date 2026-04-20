@@ -57,7 +57,7 @@ func AuthMiddleware(signingKey string, userBlockedChecker UserBlockedChecker) gi
 		if userBlockedChecker != nil {
 			isBlocked, err := userBlockedChecker(userIDStr)
 			if err != nil {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User is invalid"})
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user status"})
 				return
 			}
 			if isBlocked {
