@@ -95,7 +95,9 @@ type UserResponse struct {
 	ID            string    `json:"id"`
 	Email         string    `json:"email"`
 	Name          string    `json:"name"`
+	Phone         *string   `json:"phone,omitempty"`
 	Role          string    `json:"role"`
+	IsVerified    bool      `json:"isVerified"`
 	IsBlocked     bool      `json:"isBlocked"`
 	AccountStatus string    `json:"accountStatus"`
 	AuthProvider  string    `json:"authProvider"`
