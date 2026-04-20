@@ -100,7 +100,13 @@ func (r *repository) UpdateBlockedStatus(userID uuid.UUID, isBlocked bool) error
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
+		var count int64
+		if err := r.db.Model(&domain.User{}).Where("id = ?", userID).Count(&count).Error; err != nil {
+			return err
+		}
+		if count == 0 {
+			return gorm.ErrRecordNotFound
+		}
 	}
 	return nil
 }
