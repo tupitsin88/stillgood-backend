@@ -12,6 +12,7 @@ type User struct {
 	Role          string     `json:"role"`
 	RestaurantID  *uuid.UUID `gorm:"type:uuid" json:"restaurant_id,omitempty"`
 	PartnerStatus string     `json:"partner_status"`
+	IsBlocked     bool       `gorm:"not null;default:false" json:"is_blocked"`
 	DeviceToken   *string    `json:"device_token"`
 	AuthProvider  string     `json:"auth_provider"`
 	PasswordHash  string     `json:"-"`

@@ -159,7 +159,7 @@ func main() {
 	// 4. Роутер
 	router := gin.Default()
 	router.HandleMethodNotAllowed = true
-	app.NewRouter(router, authHandler, restaurantsHandler, categoriesHandler, orderHandler, offerHandler, analyticsHandler, jwtSecret)
+	app.NewRouter(router, authService, authHandler, restaurantsHandler, categoriesHandler, orderHandler, offerHandler, analyticsHandler, jwtSecret)
 
 	appPort := os.Getenv("APP_PORT")
 	if appPort == "" {

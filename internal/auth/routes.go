@@ -32,6 +32,9 @@ func RegisterRoutes(r *gin.Engine, h *Handler, middleware gin.HandlerFunc) {
 
 	admin := r.Group("/api/v1/admin", middleware)
 	{
+		admin.GET("/users", h.GetUsers)
+		admin.POST("/users/:id/block", h.BlockUser)
+		admin.POST("/users/:id/unblock", h.UnblockUser)
 		admin.GET("/partners/pending", h.GetPendingPartners)
 		admin.POST("/partners/:id/approve", h.ApprovePartner)
 		admin.POST("/partners/:id/reject", h.RejectPartner)

@@ -19,12 +19,21 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
-func toUserResponse(userID, email, name, role, authProvider, partnerStatus string, createdAt time.Time) UserResponse {
+func accountStatusFromBlocked(isBlocked bool) string {
+	if isBlocked {
+		return "blocked"
+	}
+	return "active"
+}
+
+func toUserResponse(userID, email, name, role, authProvider, partnerStatus string, isBlocked bool, createdAt time.Time) UserResponse {
 	return UserResponse{
 		ID:            userID,
 		Email:         email,
 		Name:          name,
 		Role:          role,
+		IsBlocked:     isBlocked,
+		AccountStatus: accountStatusFromBlocked(isBlocked),
 		AuthProvider:  authProvider,
 		PartnerStatus: partnerStatus,
 		CreatedAt:     createdAt,
@@ -74,7 +83,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.CreatedAt)
+	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.IsBlocked, user.CreatedAt)
 
 	c.JSON(http.StatusCreated, AuthResponse{
 		AccessToken:  tokens.AccessToken,
@@ -119,7 +128,7 @@ func (h *Handler) RegisterPartner(c *gin.Context) {
 		return
 	}
 
-	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.CreatedAt)
+	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.IsBlocked, user.CreatedAt)
 
 	c.JSON(http.StatusCreated, AuthResponse{
 		AccessToken:  tokens.AccessToken,
@@ -138,6 +147,7 @@ func (h *Handler) RegisterPartner(c *gin.Context) {
 // @Success 200 {object} AuthResponse
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
 // @Router /auth/login [post]
 func (h *Handler) Login(c *gin.Context) {
 	var input LoginRequest
@@ -157,11 +167,15 @@ func (h *Handler) Login(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "deviceToken is required"})
 			return
 		}
+		if errors.Is(err, ErrUserBlocked) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Account is blocked"})
+			return
+		}
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
-	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.CreatedAt)
+	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.IsBlocked, user.CreatedAt)
 
 	c.JSON(http.StatusOK, AuthResponse{
 		AccessToken:  tokens.AccessToken,
@@ -179,6 +193,7 @@ func (h *Handler) Login(c *gin.Context) {
 // @Param input body OAuthRequest true "OAuth provider и idToken"
 // @Success 200 {object} OAuthResponse
 // @Success 201 {object} OAuthResponse
+// @Failure 403 {object} map[string]string
 // @Failure 409 {object} map[string]string
 // @Router /auth/oauth [post]
 func (h *Handler) OAuth(c *gin.Context) {
@@ -197,6 +212,8 @@ func (h *Handler) OAuth(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid OAuth provider"})
 		case errors.Is(err, ErrInvalidOAuthToken):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid OAuth token"})
+		case errors.Is(err, ErrUserBlocked):
+			c.JSON(http.StatusForbidden, gin.H{"error": "Account is blocked"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to login via OAuth"})
 		}
@@ -208,7 +225,7 @@ func (h *Handler) OAuth(c *gin.Context) {
 		status = http.StatusCreated
 	}
 
-	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.CreatedAt)
+	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.IsBlocked, user.CreatedAt)
 
 	c.JSON(status, OAuthResponse{
 		AccessToken:  tokens.AccessToken,
@@ -252,6 +269,7 @@ func (h *Handler) Me(c *gin.Context) {
 		user.Role,
 		user.AuthProvider,
 		user.PartnerStatus,
+		user.IsBlocked,
 		user.CreatedAt,
 	))
 }
@@ -454,6 +472,7 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 // @Param input body RefreshRequest true "Refresh token"
 // @Success 200 {object} TokenResponse
 // @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
 // @Router /auth/refresh [post]
 func (h *Handler) Refresh(c *gin.Context) {
 	var input RefreshRequest
@@ -469,6 +488,10 @@ func (h *Handler) Refresh(c *gin.Context) {
 
 	tokens, err := h.service.RefreshTokens(input.RefreshToken)
 	if err != nil {
+		if errors.Is(err, ErrUserBlocked) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Account is blocked"})
+			return
+		}
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
 		return
 	}
@@ -477,6 +500,71 @@ func (h *Handler) Refresh(c *gin.Context) {
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
 		ExpiresIn:    tokens.ExpiresIn,
+	})
+}
+
+// GetUsers godoc
+// @Summary Список пользователей/партнёров
+// @Tags Auth
+// @Security ApiKeyAuth
+// @Produce json
+// @Param role query string false "Фильтр роли: USER или PARTNER"
+// @Param limit query int false "Limit"
+// @Param offset query int false "Offset"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /admin/users [get]
+func (h *Handler) GetUsers(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if err != nil || limit <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit"})
+		return
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil || offset < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset"})
+		return
+	}
+
+	users, total, err := h.service.ListUsers(limit, offset, c.Query("role"))
+	if err != nil {
+		if errors.Is(err, ErrInvalidUserRoleFilter) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role filter. Use USER or PARTNER"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+		return
+	}
+
+	response := make([]UserResponse, 0, len(users))
+	for _, user := range users {
+		response = append(response, toUserResponse(
+			user.ID.String(),
+			user.Email,
+			user.Name,
+			user.Role,
+			user.AuthProvider,
+			user.PartnerStatus,
+			user.IsBlocked,
+			user.CreatedAt,
+		))
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": response,
+		"pagination": gin.H{
+			"total":  total,
+			"limit":  limit,
+			"offset": offset,
+		},
 	})
 }
 
@@ -553,6 +641,7 @@ func (h *Handler) GetPendingPartners(c *gin.Context) {
 			user.Role,
 			user.AuthProvider,
 			user.PartnerStatus,
+			user.IsBlocked,
 			user.CreatedAt,
 		))
 	}
@@ -603,6 +692,7 @@ func (h *Handler) ApprovePartner(c *gin.Context) {
 		user.Role,
 		user.AuthProvider,
 		user.PartnerStatus,
+		user.IsBlocked,
 		user.CreatedAt,
 	))
 }
@@ -643,6 +733,89 @@ func (h *Handler) RejectPartner(c *gin.Context) {
 		user.Role,
 		user.AuthProvider,
 		user.PartnerStatus,
+		user.IsBlocked,
+		user.CreatedAt,
+	))
+}
+
+// BlockUser godoc
+// @Summary Заблокировать пользователя/партнёра
+// @Tags Auth
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path string true "User ID"
+// @Success 200 {object} UserResponse
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /admin/users/{id}/block [post]
+func (h *Handler) BlockUser(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+
+	user, err := h.service.BlockUser(c.Param("id"))
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrUserNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		case errors.Is(err, ErrCannotBlockAdmin):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ADMIN users cannot be blocked"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to block user"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, toUserResponse(
+		user.ID.String(),
+		user.Email,
+		user.Name,
+		user.Role,
+		user.AuthProvider,
+		user.PartnerStatus,
+		user.IsBlocked,
+		user.CreatedAt,
+	))
+}
+
+// UnblockUser godoc
+// @Summary Разблокировать пользователя/партнёра
+// @Tags Auth
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path string true "User ID"
+// @Success 200 {object} UserResponse
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /admin/users/{id}/unblock [post]
+func (h *Handler) UnblockUser(c *gin.Context) {
+	if !h.requireAdmin(c) {
+		return
+	}
+
+	user, err := h.service.UnblockUser(c.Param("id"))
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrUserNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		case errors.Is(err, ErrCannotBlockAdmin):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ADMIN users cannot be unblocked"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unblock user"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, toUserResponse(
+		user.ID.String(),
+		user.Email,
+		user.Name,
+		user.Role,
+		user.AuthProvider,
+		user.PartnerStatus,
+		user.IsBlocked,
 		user.CreatedAt,
 	))
 }
