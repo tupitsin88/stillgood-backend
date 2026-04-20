@@ -48,12 +48,13 @@ func (r *repository) GetByID(id uuid.UUID) (*domain.User, error) {
 }
 
 func (r *repository) IsUserBlocked(id uuid.UUID) (bool, error) {
-	var isBlocked bool
-	err := r.db.Model(&domain.User{}).Select("is_blocked").Where("id = ?", id).Scan(&isBlocked).Error
-	if err != nil {
+	var result struct {
+		IsBlocked bool
+	}
+	if err := r.db.Model(&domain.User{}).Select("is_blocked").Where("id = ?", id).First(&result).Error; err != nil {
 		return false, err
 	}
-	return isBlocked, nil
+	return result.IsBlocked, nil
 }
 
 func (r *repository) ListPartnersByStatus(status string, limit, offset int) ([]domain.User, int64, error) {
