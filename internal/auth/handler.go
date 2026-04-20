@@ -26,12 +26,14 @@ func accountStatusFromBlocked(isBlocked bool) string {
 	return "active"
 }
 
-func toUserResponse(userID, email, name, role, authProvider, partnerStatus string, isBlocked bool, createdAt time.Time) UserResponse {
+func toUserResponse(userID, email, name, role, authProvider, partnerStatus string, phone *string, isVerified, isBlocked bool, createdAt time.Time) UserResponse {
 	return UserResponse{
 		ID:            userID,
 		Email:         email,
 		Name:          name,
+		Phone:         phone,
 		Role:          role,
+		IsVerified:    isVerified,
 		IsBlocked:     isBlocked,
 		AccountStatus: accountStatusFromBlocked(isBlocked),
 		AuthProvider:  authProvider,
@@ -83,7 +85,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.IsBlocked, user.CreatedAt)
+	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.Phone, user.IsVerified, user.IsBlocked, user.CreatedAt)
 
 	c.JSON(http.StatusCreated, AuthResponse{
 		AccessToken:  tokens.AccessToken,
@@ -128,7 +130,7 @@ func (h *Handler) RegisterPartner(c *gin.Context) {
 		return
 	}
 
-	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.IsBlocked, user.CreatedAt)
+	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.Phone, user.IsVerified, user.IsBlocked, user.CreatedAt)
 
 	c.JSON(http.StatusCreated, AuthResponse{
 		AccessToken:  tokens.AccessToken,
@@ -175,7 +177,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.IsBlocked, user.CreatedAt)
+	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.Phone, user.IsVerified, user.IsBlocked, user.CreatedAt)
 
 	c.JSON(http.StatusOK, AuthResponse{
 		AccessToken:  tokens.AccessToken,
@@ -225,7 +227,7 @@ func (h *Handler) OAuth(c *gin.Context) {
 		status = http.StatusCreated
 	}
 
-	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.IsBlocked, user.CreatedAt)
+	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.Phone, user.IsVerified, user.IsBlocked, user.CreatedAt)
 
 	c.JSON(status, OAuthResponse{
 		AccessToken:  tokens.AccessToken,
@@ -269,6 +271,8 @@ func (h *Handler) Me(c *gin.Context) {
 		user.Role,
 		user.AuthProvider,
 		user.PartnerStatus,
+		user.Phone,
+		user.IsVerified,
 		user.IsBlocked,
 		user.CreatedAt,
 	))
@@ -553,6 +557,8 @@ func (h *Handler) GetUsers(c *gin.Context) {
 			user.Role,
 			user.AuthProvider,
 			user.PartnerStatus,
+			user.Phone,
+			user.IsVerified,
 			user.IsBlocked,
 			user.CreatedAt,
 		))
@@ -641,6 +647,8 @@ func (h *Handler) GetPendingPartners(c *gin.Context) {
 			user.Role,
 			user.AuthProvider,
 			user.PartnerStatus,
+			user.Phone,
+			user.IsVerified,
 			user.IsBlocked,
 			user.CreatedAt,
 		))
@@ -692,6 +700,8 @@ func (h *Handler) ApprovePartner(c *gin.Context) {
 		user.Role,
 		user.AuthProvider,
 		user.PartnerStatus,
+		user.Phone,
+		user.IsVerified,
 		user.IsBlocked,
 		user.CreatedAt,
 	))
@@ -733,6 +743,8 @@ func (h *Handler) RejectPartner(c *gin.Context) {
 		user.Role,
 		user.AuthProvider,
 		user.PartnerStatus,
+		user.Phone,
+		user.IsVerified,
 		user.IsBlocked,
 		user.CreatedAt,
 	))
@@ -774,6 +786,8 @@ func (h *Handler) BlockUser(c *gin.Context) {
 		user.Role,
 		user.AuthProvider,
 		user.PartnerStatus,
+		user.Phone,
+		user.IsVerified,
 		user.IsBlocked,
 		user.CreatedAt,
 	))
@@ -815,6 +829,8 @@ func (h *Handler) UnblockUser(c *gin.Context) {
 		user.Role,
 		user.AuthProvider,
 		user.PartnerStatus,
+		user.Phone,
+		user.IsVerified,
 		user.IsBlocked,
 		user.CreatedAt,
 	))
