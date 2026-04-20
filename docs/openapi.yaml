@@ -1312,9 +1312,13 @@ components:
           type: string
         name:
           type: string
+        phone:
+          type: string
         role:
           type: string
           enum: [USER, PARTNER, ADMIN]
+        isVerified:
+          type: boolean
         authProvider:
           type: string
           enum: [email, google, apple]

@@ -2289,10 +2289,16 @@ const docTemplate = `{
                 "isBlocked": {
                     "type": "boolean"
                 },
+                "isVerified": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
                 "partnerStatus": {
+                    "type": "string"
+                },
+                "phone": {
                     "type": "string"
                 },
                 "role": {
