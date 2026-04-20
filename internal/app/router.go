@@ -24,11 +24,7 @@ func NewRouter(handler *gin.Engine, authService auth.Service, authHandler *auth.
 	handler.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	authMiddleware := middleware.AuthMiddleware(jwtSecret, func(userID string) (bool, error) {
-		user, err := authService.GetUserByID(userID)
-		if err != nil {
-			return false, err
-		}
-		return user.IsBlocked, nil
+		return authService.IsUserBlocked(userID)
 	})
 
 	// Init Routes

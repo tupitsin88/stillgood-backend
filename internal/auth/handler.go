@@ -760,7 +760,7 @@ func (h *Handler) BlockUser(c *gin.Context) {
 		case errors.Is(err, ErrUserNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		case errors.Is(err, ErrCannotBlockAdmin):
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Only USER/PARTNER can be blocked"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ADMIN users cannot be blocked"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to block user"})
 		}

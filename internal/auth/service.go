@@ -74,6 +74,7 @@ type Service interface {
 	DeleteAccount(userID, password string) error
 	Logout(refreshToken string) error
 	GetUserByID(id string) (*domain.User, error)
+	IsUserBlocked(id string) (bool, error)
 }
 
 type resetCodeEntry struct {
@@ -612,6 +613,15 @@ func (s *service) GetUserByID(id string) (*domain.User, error) {
 	}
 
 	return s.repo.GetByID(uuidID)
+}
+
+func (s *service) IsUserBlocked(id string) (bool, error) {
+	uuidID, err := uuid.Parse(id)
+	if err != nil {
+		return false, ErrUserNotFound
+	}
+
+	return s.repo.IsUserBlocked(uuidID)
 }
 
 func (s *service) generateTokens(userID, role, restaurantID, partnerStatus string) (Tokens, error) {
