@@ -14,6 +14,8 @@ func RegisterRoutes(r *gin.Engine, h *Handler, middleware gin.HandlerFunc) {
 		router.POST("/oauth", h.OAuth)
 		router.POST("/logout", h.Logout)
 		router.POST("/forgot-password", h.ForgotPassword)
+		router.POST("/verify-email/request", h.RequestEmailVerification)
+		router.POST("/verify-email/confirm", h.VerifyEmail)
 		router.POST("/verify-reset-code", h.VerifyResetCode)
 		router.POST("/reset-password", h.ResetPassword)
 		router.POST("/refresh", h.Refresh)
