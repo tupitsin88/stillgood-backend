@@ -371,6 +371,69 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
 }
 
+// RequestEmailVerification godoc
+// @Summary Запрос OTP для верификации email
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param input body RequestEmailVerificationRequest true "Email для верификации"
+// @Success 200 {object} RequestEmailVerificationResponse
+// @Router /auth/verify-email/request [post]
+func (h *Handler) RequestEmailVerification(c *gin.Context) {
+	var input RequestEmailVerificationRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	expiresIn, err := h.service.RequestEmailVerification(input.Email)
+	if err != nil {
+		if errors.Is(err, ErrInvalidEmail) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format (RFC 5322 expected)"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to request email verification"})
+		return
+	}
+
+	c.JSON(http.StatusOK, RequestEmailVerificationResponse{
+		Message:   "Verification code sent if email exists",
+		ExpiresIn: expiresIn,
+	})
+}
+
+// VerifyEmail godoc
+// @Summary Подтверждение email по OTP-коду
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param input body VerifyEmailRequest true "Email и OTP-код"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Router /auth/verify-email/confirm [post]
+func (h *Handler) VerifyEmail(c *gin.Context) {
+	var input VerifyEmailRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.VerifyEmail(input.Email, input.Code); err != nil {
+		if errors.Is(err, ErrInvalidEmail) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format (RFC 5322 expected)"})
+			return
+		}
+		if errors.Is(err, ErrInvalidVerificationCode) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid verification code"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify email"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully"})
+}
+
 // ForgotPassword godoc
 // @Summary Запрос OTP для сброса пароля
 // @Tags Auth
