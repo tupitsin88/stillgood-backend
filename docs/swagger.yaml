@@ -205,9 +205,13 @@ definitions:
         type: string
       isBlocked:
         type: boolean
+      isVerified:
+        type: boolean
       name:
         type: string
       partnerStatus:
+        type: string
+      phone:
         type: string
       role:
         type: string

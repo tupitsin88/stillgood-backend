@@ -9,9 +9,11 @@ import (
 type User struct {
 	ID            uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	Email         string     `json:"email"`
+	Phone         *string    `json:"phone,omitempty"`
 	Role          string     `json:"role"`
 	RestaurantID  *uuid.UUID `gorm:"type:uuid" json:"restaurant_id,omitempty"`
 	PartnerStatus string     `json:"partner_status"`
+	IsVerified    bool       `gorm:"not null;default:false" json:"is_verified"`
 	IsBlocked     bool       `gorm:"not null;default:false" json:"is_blocked"`
 	DeviceToken   *string    `json:"device_token"`
 	AuthProvider  string     `json:"auth_provider"`

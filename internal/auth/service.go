@@ -193,6 +193,11 @@ func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain
 		AuthProvider:  "email",
 	}
 
+	phone := strings.TrimSpace(input.Phone)
+	if phone != "" {
+		user.Phone = &phone
+	}
+
 	if input.DeviceToken != "" {
 		user.DeviceToken = &input.DeviceToken
 	}
