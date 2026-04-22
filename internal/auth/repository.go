@@ -19,6 +19,7 @@ type Repository interface {
 	UpdateDeviceToken(userID uuid.UUID, token string) error
 	UpdatePasswordHash(userID uuid.UUID, passwordHash string) error
 	UpdateVerifiedStatusByEmail(email string, isVerified bool) error
+	UpdateEmailAndResetVerification(userID uuid.UUID, email string) error
 	CountActiveOrdersByUserID(userID uuid.UUID) (int64, error)
 	DeleteAccount(userID uuid.UUID) error
 	ExistsByEmail(email string) (bool, error)
@@ -135,6 +136,22 @@ func (r *repository) UpdateVerifiedStatusByEmail(email string, isVerified bool) 
 	result := r.db.Model(&domain.User{}).
 		Where("LOWER(email) = LOWER(?)", email).
 		Update("is_verified", isVerified)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (r *repository) UpdateEmailAndResetVerification(userID uuid.UUID, email string) error {
+	result := r.db.Model(&domain.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]interface{}{
+			"email":       email,
+			"is_verified": false,
+		})
 	if result.Error != nil {
 		return result.Error
 	}

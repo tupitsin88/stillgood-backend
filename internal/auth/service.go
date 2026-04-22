@@ -41,6 +41,7 @@ var ErrInvalidUserRoleFilter = errors.New("invalid user role filter")
 var ErrCannotBlockAdmin = errors.New("cannot block admin user")
 var ErrUserBlocked = errors.New("user is blocked")
 var ErrInvalidVerificationCode = errors.New("invalid verification code")
+var ErrEmailChangeNotAllowed = errors.New("email change is allowed only for email auth provider")
 
 const (
 	emailVerificationCodeTTL = 10 * time.Minute
@@ -64,6 +65,7 @@ type Service interface {
 	OAuthLogin(provider, idToken, deviceToken string) (Tokens, *domain.User, bool, error)
 	RefreshTokens(refreshToken string) (Tokens, error)
 	ChangePassword(userID, currentPassword, newPassword string) error
+	ChangeEmail(userID, newEmail string) (*domain.User, error)
 	ListUsers(limit, offset int, roleFilter string) ([]*domain.User, int64, error)
 	BlockUser(userID string) (*domain.User, error)
 	UnblockUser(userID string) (*domain.User, error)
@@ -403,6 +405,52 @@ func (s *service) ChangePassword(userID, currentPassword, newPassword string) er
 	return s.repo.UpdatePasswordHash(uuidID, string(hashedPass))
 }
 
+func (s *service) ChangeEmail(userID, newEmail string) (*domain.User, error) {
+	uuidID, err := uuid.Parse(strings.TrimSpace(userID))
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	normalizedEmail, err := normalizeAndValidateEmail(newEmail)
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := s.repo.GetByID(uuidID)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	if user.AuthProvider != "email" {
+		return nil, ErrEmailChangeNotAllowed
+	}
+
+	if strings.EqualFold(user.Email, normalizedEmail) {
+		return nil, ErrEmailAlreadyExists
+	}
+
+	exists, err := s.repo.ExistsByEmail(normalizedEmail)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrEmailAlreadyExists
+	}
+
+	if err := s.repo.UpdateEmailAndResetVerification(uuidID, normalizedEmail); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	if _, err := s.RequestEmailVerification(normalizedEmail); err != nil {
+		log.Printf("failed to issue email verification code for %s: %v", normalizedEmail, err)
+	}
+
+	return s.repo.GetByID(uuidID)
+}
+
 func (s *service) ListPendingPartners(limit, offset int) ([]*domain.User, int64, error) {
 	if limit <= 0 {
 		limit = 20
@@ -483,6 +531,13 @@ func (s *service) RequestEmailVerification(email string) (int, error) {
 	}
 
 	if !exists {
+		return int(emailVerificationCodeTTL.Seconds()), nil
+	}
+	user, err := s.repo.GetUserByEmail(normalizedEmail)
+	if err != nil {
+		return 0, err
+	}
+	if user.IsVerified {
 		return int(emailVerificationCodeTTL.Seconds()), nil
 	}
 
