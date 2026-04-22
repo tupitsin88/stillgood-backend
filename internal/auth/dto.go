@@ -67,6 +67,20 @@ type ForgotPasswordResponse struct {
 	ExpiresIn int    `json:"expiresIn"`
 }
 
+type RequestEmailVerificationRequest struct {
+	Email string `json:"email" binding:"required"`
+}
+
+type RequestEmailVerificationResponse struct {
+	Message   string `json:"message"`
+	ExpiresIn int    `json:"expiresIn"`
+}
+
+type VerifyEmailRequest struct {
+	Email string `json:"email" binding:"required"`
+	Code  string `json:"code" binding:"required,len=6,numeric"`
+}
+
 type VerifyResetCodeRequest struct {
 	Email string `json:"email" binding:"required"`
 	Code  string `json:"code" binding:"required,len=6,numeric"`
