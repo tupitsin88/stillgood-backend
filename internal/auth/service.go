@@ -40,13 +40,15 @@ var ErrUserNotFound = errors.New("user not found")
 var ErrInvalidUserRoleFilter = errors.New("invalid user role filter")
 var ErrCannotBlockAdmin = errors.New("cannot block admin user")
 var ErrUserBlocked = errors.New("user is blocked")
+var ErrInvalidVerificationCode = errors.New("invalid verification code")
 
 const (
-	passwordResetCodeTTL  = 10 * time.Minute
-	passwordResetTokenTTL = 15 * time.Minute
-	partnerStatusPending  = "PENDING"
-	partnerStatusApproved = "APPROVED"
-	partnerStatusRejected = "REJECTED"
+	emailVerificationCodeTTL = 10 * time.Minute
+	passwordResetCodeTTL     = 10 * time.Minute
+	passwordResetTokenTTL    = 15 * time.Minute
+	partnerStatusPending     = "PENDING"
+	partnerStatusApproved    = "APPROVED"
+	partnerStatusRejected    = "REJECTED"
 )
 
 type Tokens struct {
@@ -69,6 +71,8 @@ type Service interface {
 	ApprovePartner(partnerID string) (*domain.User, error)
 	RejectPartner(partnerID string) (*domain.User, error)
 	ForgotPassword(email string) (int, error)
+	RequestEmailVerification(email string) (int, error)
+	VerifyEmail(email, code string) error
 	VerifyResetCode(email, code string) (string, error)
 	ResetPassword(resetToken, newPassword string) error
 	DeleteAccount(userID, password string) error
@@ -87,27 +91,34 @@ type resetTokenEntry struct {
 	ExpiresAt time.Time
 }
 
+type emailVerificationCodeEntry struct {
+	Code      string
+	ExpiresAt time.Time
+}
+
 type service struct {
 	repo         Repository
 	tokenManager *TokenManager
 	accessTTL    time.Duration
 	refreshTTL   time.Duration
 
-	mu          sync.Mutex
-	resetCodes  map[string]resetCodeEntry
-	resetTokens map[string]resetTokenEntry
-	revokedRT   map[string]int64
+	mu                     sync.Mutex
+	resetCodes             map[string]resetCodeEntry
+	emailVerificationCodes map[string]emailVerificationCodeEntry
+	resetTokens            map[string]resetTokenEntry
+	revokedRT              map[string]int64
 }
 
 func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshTTL time.Duration) Service {
 	return &service{
-		repo:         repo,
-		tokenManager: tokenManager,
-		accessTTL:    accessTTL,
-		refreshTTL:   refreshTTL,
-		resetCodes:   make(map[string]resetCodeEntry),
-		resetTokens:  make(map[string]resetTokenEntry),
-		revokedRT:    make(map[string]int64),
+		repo:                   repo,
+		tokenManager:           tokenManager,
+		accessTTL:              accessTTL,
+		refreshTTL:             refreshTTL,
+		resetCodes:             make(map[string]resetCodeEntry),
+		emailVerificationCodes: make(map[string]emailVerificationCodeEntry),
+		resetTokens:            make(map[string]resetTokenEntry),
+		revokedRT:              make(map[string]int64),
 	}
 }
 
@@ -148,6 +159,9 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, *
 
 	if err = s.repo.CreateUser(user); err != nil {
 		return Tokens{}, nil, err
+	}
+	if _, err := s.RequestEmailVerification(email); err != nil {
+		log.Printf("failed to issue email verification code for %s: %v", email, err)
 	}
 
 	restID := ""
@@ -204,6 +218,9 @@ func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain
 
 	if err = s.repo.CreateUser(user); err != nil {
 		return Tokens{}, nil, err
+	}
+	if _, err := s.RequestEmailVerification(email); err != nil {
+		log.Printf("failed to issue email verification code for %s: %v", email, err)
 	}
 
 	restID := ""
@@ -454,6 +471,73 @@ func (s *service) RejectPartner(partnerID string) (*domain.User, error) {
 	return s.setPartnerStatus(partnerID, partnerStatusRejected)
 }
 
+func (s *service) RequestEmailVerification(email string) (int, error) {
+	normalizedEmail, err := normalizeAndValidateEmail(email)
+	if err != nil {
+		return 0, err
+	}
+
+	exists, err := s.repo.ExistsByEmail(normalizedEmail)
+	if err != nil {
+		return 0, err
+	}
+
+	if !exists {
+		return int(emailVerificationCodeTTL.Seconds()), nil
+	}
+
+	code, err := generateSixDigitCode()
+	if err != nil {
+		return 0, err
+	}
+
+	s.mu.Lock()
+	s.emailVerificationCodes[normalizedEmail] = emailVerificationCodeEntry{
+		Code:      code,
+		ExpiresAt: time.Now().Add(emailVerificationCodeTTL),
+	}
+	s.mu.Unlock()
+
+	log.Printf("Email verification code for %s: %s", normalizedEmail, code)
+
+	return int(emailVerificationCodeTTL.Seconds()), nil
+}
+
+func (s *service) VerifyEmail(email, code string) error {
+	normalizedEmail, err := normalizeAndValidateEmail(email)
+	if err != nil {
+		return err
+	}
+	code = strings.TrimSpace(code)
+
+	s.mu.Lock()
+	entry, ok := s.emailVerificationCodes[normalizedEmail]
+	if !ok {
+		s.mu.Unlock()
+		return ErrInvalidVerificationCode
+	}
+	if time.Now().After(entry.ExpiresAt) {
+		delete(s.emailVerificationCodes, normalizedEmail)
+		s.mu.Unlock()
+		return ErrInvalidVerificationCode
+	}
+	if entry.Code != code {
+		s.mu.Unlock()
+		return ErrInvalidVerificationCode
+	}
+	delete(s.emailVerificationCodes, normalizedEmail)
+	s.mu.Unlock()
+
+	if err := s.repo.UpdateVerifiedStatusByEmail(normalizedEmail, true); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrInvalidVerificationCode
+		}
+		return err
+	}
+
+	return nil
+}
+
 func (s *service) ForgotPassword(email string) (int, error) {
 	var err error
 	email, err = normalizeAndValidateEmail(email)
@@ -466,7 +550,6 @@ func (s *service) ForgotPassword(email string) (int, error) {
 		return 0, err
 	}
 
-	// Всегда возвращаем одинаковый ответ, чтобы не раскрывать наличие email.
 	if !exists {
 		return int(passwordResetCodeTTL.Seconds()), nil
 	}
