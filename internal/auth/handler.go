@@ -278,6 +278,72 @@ func (h *Handler) Me(c *gin.Context) {
 	))
 }
 
+// UpdateProfile godoc
+// @Summary Редактирование профиля (name, phone, email)
+// @Tags Users
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param input body UpdateProfileRequest true "Поля профиля для обновления"
+// @Success 200 {object} UserResponse
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /users/me [patch]
+func (h *Handler) UpdateProfile(c *gin.Context) {
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
+		return
+	}
+
+	userIDStr, ok := userID.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	var input UpdateProfileRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := h.service.UpdateProfile(userIDStr, input.Name, input.Phone, input.Email)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrEmptyProfileUpdate):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "At least one of name, phone, email must be provided"})
+		case errors.Is(err, ErrInvalidName):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Name must not be empty"})
+		case errors.Is(err, ErrInvalidEmail):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format (RFC 5322 expected)"})
+		case errors.Is(err, ErrEmailAlreadyExists):
+			c.JSON(http.StatusConflict, gin.H{"error": "Email already exists"})
+		case errors.Is(err, ErrEmailChangeNotAllowed):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Email change is allowed only for email auth provider"})
+		case errors.Is(err, ErrUserNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, toUserResponse(
+		user.ID.String(),
+		user.Email,
+		user.Name,
+		user.Role,
+		user.AuthProvider,
+		user.PartnerStatus,
+		user.Phone,
+		user.IsVerified,
+		user.IsBlocked,
+		user.CreatedAt,
+	))
+}
+
 // DeleteAccount godoc
 // @Summary Удаление аккаунта (GDPR)
 // @Tags Users

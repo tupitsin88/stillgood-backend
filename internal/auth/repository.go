@@ -18,6 +18,8 @@ type Repository interface {
 	UpdateBlockedStatus(userID uuid.UUID, isBlocked bool) error
 	UpdateDeviceToken(userID uuid.UUID, token string) error
 	UpdatePasswordHash(userID uuid.UUID, passwordHash string) error
+	UpdateName(userID uuid.UUID, name string) error
+	UpdatePhone(userID uuid.UUID, phone *string) error
 	UpdateVerifiedStatusByEmail(email string, isVerified bool) error
 	UpdateEmailAndResetVerification(userID uuid.UUID, email string) error
 	CountActiveOrdersByUserID(userID uuid.UUID) (int64, error)
@@ -130,6 +132,28 @@ func (r *repository) UpdateDeviceToken(userID uuid.UUID, token string) error {
 
 func (r *repository) UpdatePasswordHash(userID uuid.UUID, passwordHash string) error {
 	return r.db.Model(&domain.User{}).Where("id = ?", userID).Update("password_hash", passwordHash).Error
+}
+
+func (r *repository) UpdateName(userID uuid.UUID, name string) error {
+	result := r.db.Model(&domain.User{}).Where("id = ?", userID).Update("name", name)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (r *repository) UpdatePhone(userID uuid.UUID, phone *string) error {
+	result := r.db.Model(&domain.User{}).Where("id = ?", userID).Update("phone", phone)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *repository) UpdateVerifiedStatusByEmail(email string, isVerified bool) error {

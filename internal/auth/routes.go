@@ -29,6 +29,7 @@ func RegisterRoutes(r *gin.Engine, h *Handler, middleware gin.HandlerFunc) {
 
 	users := r.Group("/api/v1/users", middleware)
 	{
+		users.PATCH("/me", h.UpdateProfile)
 		users.DELETE("/me", h.DeleteAccount)
 	}
 

@@ -42,6 +42,8 @@ var ErrCannotBlockAdmin = errors.New("cannot block admin user")
 var ErrUserBlocked = errors.New("user is blocked")
 var ErrInvalidVerificationCode = errors.New("invalid verification code")
 var ErrEmailChangeNotAllowed = errors.New("email change is allowed only for email auth provider")
+var ErrInvalidName = errors.New("invalid name")
+var ErrEmptyProfileUpdate = errors.New("at least one profile field must be provided")
 
 const (
 	emailVerificationCodeTTL = 10 * time.Minute
@@ -65,6 +67,7 @@ type Service interface {
 	OAuthLogin(provider, idToken, deviceToken string) (Tokens, *domain.User, bool, error)
 	RefreshTokens(refreshToken string) (Tokens, error)
 	ChangePassword(userID, currentPassword, newPassword string) error
+	UpdateProfile(userID string, name, phone, email *string) (*domain.User, error)
 	ChangeEmail(userID, newEmail string) (*domain.User, error)
 	ListUsers(limit, offset int, roleFilter string) ([]*domain.User, int64, error)
 	BlockUser(userID string) (*domain.User, error)
@@ -403,6 +406,67 @@ func (s *service) ChangePassword(userID, currentPassword, newPassword string) er
 	}
 
 	return s.repo.UpdatePasswordHash(uuidID, string(hashedPass))
+}
+
+func (s *service) UpdateProfile(userID string, name, phone, email *string) (*domain.User, error) {
+	uid, err := uuid.Parse(strings.TrimSpace(userID))
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	user, err := s.repo.GetByID(uid)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	if name == nil && phone == nil && email == nil {
+		return nil, ErrEmptyProfileUpdate
+	}
+
+	if email != nil {
+		trimmedEmail := strings.TrimSpace(*email)
+		if trimmedEmail == "" {
+			return nil, ErrInvalidEmail
+		}
+		if !strings.EqualFold(user.Email, trimmedEmail) {
+			if _, err := s.ChangeEmail(userID, trimmedEmail); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if name != nil {
+		trimmedName := strings.TrimSpace(*name)
+		if trimmedName == "" {
+			return nil, ErrInvalidName
+		}
+		if user.Name != trimmedName {
+			if err := s.repo.UpdateName(uid, trimmedName); err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, ErrUserNotFound
+				}
+				return nil, err
+			}
+		}
+	}
+
+	if phone != nil {
+		trimmedPhone := strings.TrimSpace(*phone)
+		var phoneValue *string
+		if trimmedPhone != "" {
+			phoneValue = &trimmedPhone
+		}
+		if !sameOptionalString(user.Phone, phoneValue) {
+			if err := s.repo.UpdatePhone(uid, phoneValue); err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, ErrUserNotFound
+				}
+				return nil, err
+			}
+		}
+	}
+
+	return s.repo.GetByID(uid)
 }
 
 func (s *service) ChangeEmail(userID, newEmail string) (*domain.User, error) {
@@ -919,6 +983,16 @@ func normalizeAndValidateEmail(email string) (string, error) {
 	}
 
 	return strings.ToLower(trimmed), nil
+}
+
+func sameOptionalString(a, b *string) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
 }
 
 func (s *service) setPartnerStatus(partnerID, nextStatus string) (*domain.User, error) {
