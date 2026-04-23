@@ -205,6 +205,15 @@ definitions:
       refreshToken:
         type: string
     type: object
+  auth.UpdateProfileRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      phone:
+        type: string
+    type: object
   auth.UserResponse:
     properties:
       accountStatus:
@@ -1881,6 +1890,46 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Удаление аккаунта (GDPR)
+      tags:
+      - Users
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Поля профиля для обновления
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Редактирование профиля (name, phone, email)
       tags:
       - Users
 securityDefinitions:
