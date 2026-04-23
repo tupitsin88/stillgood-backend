@@ -94,7 +94,7 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 	if params.Lat != nil && params.Lng != nil && params.Radius != nil {
 		radiusKm := float64(*params.Radius) / 1000.0
 		distanceSQL := fmt.Sprintf(
-			"(6371 * acos(cos(radians(%f)) * cos(radians(restaurants.latitude) - radiade)) * cos(radians(restaurants.longituns(%f)) + sin(radians(%f)) * sin(radians(restaurants.latitude))))",
+			"(6371 * acos(cos(radians(%f)) * cos(radians(restaurants.latitude)) * cos(radians(restaurants.longitude) - radians(%f)) + sin(radians(%f)) * sin(radians(restaurants.latitude))))",
 			*params.Lat, *params.Lng, *params.Lat,
 		)
 		query = query.Where(distanceSQL+" <= ?", radiusKm)

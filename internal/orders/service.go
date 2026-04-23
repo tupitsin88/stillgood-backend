@@ -139,7 +139,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID uuid.UUID, req Cr
 		finalOrder = order
 		return nil
 	})
-	return finalOrder, nil
+	return finalOrder, err
 }
 
 func (s *OrderService) PayOrder(ctx context.Context, orderID, userID uuid.UUID) (*domain.Order, error) {
