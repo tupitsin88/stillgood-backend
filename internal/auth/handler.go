@@ -47,7 +47,7 @@ func toUserResponse(user *domain.User) UserResponse {
 }
 
 func (h *Handler) requireAdmin(c *gin.Context) bool {
-	if c.GetString("role") != "ADMIN" {
+	if c.GetString("role") != RoleAdmin {
 		c.JSON(http.StatusForbidden, gin.H{"error": "FORBIDDEN", "message": "Admin role required"})
 		return false
 	}

@@ -50,9 +50,6 @@ const (
 	emailVerificationCodeTTL = 10 * time.Minute
 	passwordResetCodeTTL     = 10 * time.Minute
 	passwordResetTokenTTL    = 15 * time.Minute
-	partnerStatusPending     = "PENDING"
-	partnerStatusApproved    = "APPROVED"
-	partnerStatusRejected    = "REJECTED"
 )
 
 type Tokens struct {
@@ -155,7 +152,7 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, *
 		Email:        email,
 		PasswordHash: string(hashedPass),
 		Name:         name,
-		Role:         "USER",
+		Role:         RoleUser,
 		AuthProvider: "email",
 	}
 
@@ -208,8 +205,8 @@ func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain
 		Email:         email,
 		PasswordHash:  string(hashedPass),
 		Name:          input.Name,
-		Role:          "PARTNER",
-		PartnerStatus: partnerStatusPending,
+		Role:          RolePartner,
+		PartnerStatus: PartnerStatusPending,
 		AuthProvider:  "email",
 	}
 
@@ -303,7 +300,7 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 			return Tokens{}, nil, false, err
 		}
 
-		if user.AuthProvider != provider || user.Role != "USER" {
+		if user.AuthProvider != provider || user.Role != RoleUser {
 			return Tokens{}, nil, false, ErrAuthProviderConflict
 		}
 		if user.IsBlocked {
@@ -328,7 +325,7 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 	user := &domain.User{
 		Email:        email,
 		Name:         name,
-		Role:         "USER",
+		Role:         RoleUser,
 		AuthProvider: provider,
 	}
 	if deviceToken != "" {
@@ -527,7 +524,7 @@ func (s *service) ListPendingPartners(limit, offset int) ([]*domain.User, int64,
 		offset = 0
 	}
 
-	users, total, err := s.repo.ListPartnersByStatus(partnerStatusPending, limit, offset)
+	users, total, err := s.repo.ListPartnersByStatus(PartnerStatusPending, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -577,11 +574,11 @@ func (s *service) UnblockUser(userID string) (*domain.User, error) {
 }
 
 func (s *service) ApprovePartner(partnerID string) (*domain.User, error) {
-	return s.setPartnerStatus(partnerID, partnerStatusApproved)
+	return s.setPartnerStatus(partnerID, PartnerStatusApproved)
 }
 
 func (s *service) RejectPartner(partnerID string) (*domain.User, error) {
-	return s.setPartnerStatus(partnerID, partnerStatusRejected)
+	return s.setPartnerStatus(partnerID, PartnerStatusRejected)
 }
 
 func (s *service) RequestEmailVerification(email string) (int, error) {
@@ -1004,13 +1001,13 @@ func (s *service) setPartnerStatus(partnerID, nextStatus string) (*domain.User, 
 	}
 
 	user, err := s.repo.GetByID(uid)
-	if err != nil || user.Role != "PARTNER" {
+	if err != nil || user.Role != RolePartner {
 		return nil, ErrPartnerNotFound
 	}
 	if user.DeletedAt != nil {
 		return nil, ErrPartnerNotFound
 	}
-	if user.PartnerStatus != partnerStatusPending {
+	if user.PartnerStatus != PartnerStatusPending {
 		return nil, ErrInvalidPartnerStatusTransition
 	}
 
@@ -1025,8 +1022,8 @@ func resolveUserRoleFilter(roleFilter string) ([]string, error) {
 	role := strings.ToUpper(strings.TrimSpace(roleFilter))
 	switch role {
 	case "":
-		return []string{"USER", "PARTNER"}, nil
-	case "USER", "PARTNER":
+		return []string{RoleUser, RolePartner}, nil
+	case RoleUser, RolePartner:
 		return []string{role}, nil
 	default:
 		return nil, ErrInvalidUserRoleFilter
@@ -1044,10 +1041,10 @@ func (s *service) setUserBlocked(userID string, isBlocked bool) (*domain.User, e
 		return nil, ErrUserNotFound
 	}
 
-	if user.Role == "ADMIN" {
+	if user.Role == RoleAdmin {
 		return nil, ErrCannotBlockAdmin
 	}
-	if user.Role != "USER" && user.Role != "PARTNER" {
+	if user.Role != RoleUser && user.Role != RolePartner {
 		return nil, ErrUserNotFound
 	}
 	if user.DeletedAt != nil {

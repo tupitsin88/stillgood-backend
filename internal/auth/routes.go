@@ -1,11 +1,13 @@
 package auth
 
 import (
+	"kursach_backend/internal/pkg/middleware"
+
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterRoutes реализует маршрутизацию модуля Auth
-func RegisterRoutes(r *gin.Engine, h *Handler, middleware gin.HandlerFunc) {
+func RegisterRoutes(r *gin.Engine, h *Handler, authMiddleware gin.HandlerFunc) {
 	router := r.Group("/api/v1/auth")
 	{
 		router.POST("/register", h.Register)
@@ -21,19 +23,21 @@ func RegisterRoutes(r *gin.Engine, h *Handler, middleware gin.HandlerFunc) {
 		router.POST("/refresh", h.Refresh)
 	}
 
-	protected := r.Group("/api/v1/auth", middleware)
+	protected := r.Group("/api/v1/auth", authMiddleware)
 	{
 		protected.GET("/me", h.Me)
 		protected.POST("/change-password", h.ChangePassword)
 	}
 
-	users := r.Group("/api/v1/users", middleware)
+	users := r.Group("/api/v1/users", authMiddleware)
 	{
 		users.PATCH("/me", h.UpdateProfile)
 		users.DELETE("/me", h.DeleteAccount)
 	}
 
-	admin := r.Group("/api/v1/admin", middleware)
+	admin := r.Group("/api/v1/admin")
+	admin.Use(authMiddleware)
+	admin.Use(middleware.RoleMiddleware(RoleAdmin))
 	{
 		admin.GET("/users", h.GetUsers)
 		admin.POST("/users/:id/block", h.BlockUser)

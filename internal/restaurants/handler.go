@@ -2,6 +2,7 @@ package restaurants
 
 import (
 	"errors"
+	"kursach_backend/internal/auth"
 	"math"
 	"net/http"
 	"strconv"
@@ -26,7 +27,7 @@ func (h *Handler) requirePartner(c *gin.Context) (string, bool) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "UNAUTHORIZED"})
 		return "", false
 	}
-	if c.GetString("role") != "PARTNER" {
+	if c.GetString("role") != auth.RolePartner {
 		c.JSON(http.StatusForbidden, gin.H{"error": "FORBIDDEN", "message": "Partner role required"})
 		return "", false
 	}
