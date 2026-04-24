@@ -39,6 +39,7 @@ var ErrDeviceTokenRequired = errors.New("device token is required")
 var ErrUserNotFound = errors.New("user not found")
 var ErrInvalidUserRoleFilter = errors.New("invalid user role filter")
 var ErrCannotBlockAdmin = errors.New("cannot block admin user")
+var ErrDeletedAccount = errors.New("account is deleted")
 var ErrUserBlocked = errors.New("user is blocked")
 var ErrInvalidVerificationCode = errors.New("invalid verification code")
 var ErrEmailChangeNotAllowed = errors.New("email change is allowed only for email auth provider")
@@ -786,7 +787,8 @@ func (s *service) DeleteAccount(userID, password string) error {
 		return ErrActiveOrdersExist
 	}
 
-	return s.repo.DeleteAccount(uid)
+	s.forgetAccountSecrets(user.Email)
+	return s.repo.AnonymizeAccount(uid)
 }
 
 func (s *service) Logout(refreshToken string) error {
@@ -1005,6 +1007,9 @@ func (s *service) setPartnerStatus(partnerID, nextStatus string) (*domain.User, 
 	if err != nil || user.Role != "PARTNER" {
 		return nil, ErrPartnerNotFound
 	}
+	if user.DeletedAt != nil {
+		return nil, ErrPartnerNotFound
+	}
 	if user.PartnerStatus != partnerStatusPending {
 		return nil, ErrInvalidPartnerStatusTransition
 	}
@@ -1045,6 +1050,9 @@ func (s *service) setUserBlocked(userID string, isBlocked bool) (*domain.User, e
 	if user.Role != "USER" && user.Role != "PARTNER" {
 		return nil, ErrUserNotFound
 	}
+	if user.DeletedAt != nil {
+		return nil, ErrDeletedAccount
+	}
 
 	if err := s.repo.UpdateBlockedStatus(uid, isBlocked); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -1054,4 +1062,22 @@ func (s *service) setUserBlocked(userID string, isBlocked bool) (*domain.User, e
 	}
 
 	return s.repo.GetByID(uid)
+}
+
+func (s *service) forgetAccountSecrets(email string) {
+	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+	if normalizedEmail == "" {
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.emailVerificationCodes, normalizedEmail)
+	delete(s.resetCodes, normalizedEmail)
+	for token, entry := range s.resetTokens {
+		if entry.Email == normalizedEmail {
+			delete(s.resetTokens, token)
+		}
+	}
 }

@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
+
+	"kursach_backend/internal/domain"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,26 +20,29 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
-func accountStatusFromBlocked(isBlocked bool) string {
-	if isBlocked {
+func accountStatusFromUser(user *domain.User) string {
+	if user.DeletedAt != nil {
+		return "deleted"
+	}
+	if user.IsBlocked {
 		return "blocked"
 	}
 	return "active"
 }
 
-func toUserResponse(userID, email, name, role, authProvider, partnerStatus string, phone *string, isVerified, isBlocked bool, createdAt time.Time) UserResponse {
+func toUserResponse(user *domain.User) UserResponse {
 	return UserResponse{
-		ID:            userID,
-		Email:         email,
-		Name:          name,
-		Phone:         phone,
-		Role:          role,
-		IsVerified:    isVerified,
-		IsBlocked:     isBlocked,
-		AccountStatus: accountStatusFromBlocked(isBlocked),
-		AuthProvider:  authProvider,
-		PartnerStatus: partnerStatus,
-		CreatedAt:     createdAt,
+		ID:            user.ID.String(),
+		Email:         user.Email,
+		Name:          user.Name,
+		Phone:         user.Phone,
+		Role:          user.Role,
+		IsVerified:    user.IsVerified,
+		IsBlocked:     user.IsBlocked,
+		AccountStatus: accountStatusFromUser(user),
+		AuthProvider:  user.AuthProvider,
+		PartnerStatus: user.PartnerStatus,
+		CreatedAt:     user.CreatedAt,
 	}
 }
 
@@ -85,7 +89,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.Phone, user.IsVerified, user.IsBlocked, user.CreatedAt)
+	responseUser := toUserResponse(user)
 
 	c.JSON(http.StatusCreated, AuthResponse{
 		AccessToken:  tokens.AccessToken,
@@ -130,7 +134,7 @@ func (h *Handler) RegisterPartner(c *gin.Context) {
 		return
 	}
 
-	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.Phone, user.IsVerified, user.IsBlocked, user.CreatedAt)
+	responseUser := toUserResponse(user)
 
 	c.JSON(http.StatusCreated, AuthResponse{
 		AccessToken:  tokens.AccessToken,
@@ -177,7 +181,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.Phone, user.IsVerified, user.IsBlocked, user.CreatedAt)
+	responseUser := toUserResponse(user)
 
 	c.JSON(http.StatusOK, AuthResponse{
 		AccessToken:  tokens.AccessToken,
@@ -227,7 +231,7 @@ func (h *Handler) OAuth(c *gin.Context) {
 		status = http.StatusCreated
 	}
 
-	responseUser := toUserResponse(user.ID.String(), user.Email, user.Name, user.Role, user.AuthProvider, user.PartnerStatus, user.Phone, user.IsVerified, user.IsBlocked, user.CreatedAt)
+	responseUser := toUserResponse(user)
 
 	c.JSON(status, OAuthResponse{
 		AccessToken:  tokens.AccessToken,
@@ -264,18 +268,7 @@ func (h *Handler) Me(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, toUserResponse(
-		user.ID.String(),
-		user.Email,
-		user.Name,
-		user.Role,
-		user.AuthProvider,
-		user.PartnerStatus,
-		user.Phone,
-		user.IsVerified,
-		user.IsBlocked,
-		user.CreatedAt,
-	))
+	c.JSON(http.StatusOK, toUserResponse(user))
 }
 
 // UpdateProfile godoc
@@ -330,18 +323,7 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, toUserResponse(
-		user.ID.String(),
-		user.Email,
-		user.Name,
-		user.Role,
-		user.AuthProvider,
-		user.PartnerStatus,
-		user.Phone,
-		user.IsVerified,
-		user.IsBlocked,
-		user.CreatedAt,
-	))
+	c.JSON(http.StatusOK, toUserResponse(user))
 }
 
 // DeleteAccount godoc
@@ -679,18 +661,7 @@ func (h *Handler) GetUsers(c *gin.Context) {
 
 	response := make([]UserResponse, 0, len(users))
 	for _, user := range users {
-		response = append(response, toUserResponse(
-			user.ID.String(),
-			user.Email,
-			user.Name,
-			user.Role,
-			user.AuthProvider,
-			user.PartnerStatus,
-			user.Phone,
-			user.IsVerified,
-			user.IsBlocked,
-			user.CreatedAt,
-		))
+		response = append(response, toUserResponse(user))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -769,18 +740,7 @@ func (h *Handler) GetPendingPartners(c *gin.Context) {
 
 	response := make([]UserResponse, 0, len(partners))
 	for _, user := range partners {
-		response = append(response, toUserResponse(
-			user.ID.String(),
-			user.Email,
-			user.Name,
-			user.Role,
-			user.AuthProvider,
-			user.PartnerStatus,
-			user.Phone,
-			user.IsVerified,
-			user.IsBlocked,
-			user.CreatedAt,
-		))
+		response = append(response, toUserResponse(user))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -822,18 +782,7 @@ func (h *Handler) ApprovePartner(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, toUserResponse(
-		user.ID.String(),
-		user.Email,
-		user.Name,
-		user.Role,
-		user.AuthProvider,
-		user.PartnerStatus,
-		user.Phone,
-		user.IsVerified,
-		user.IsBlocked,
-		user.CreatedAt,
-	))
+	c.JSON(http.StatusOK, toUserResponse(user))
 }
 
 // RejectPartner godoc
@@ -865,18 +814,7 @@ func (h *Handler) RejectPartner(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, toUserResponse(
-		user.ID.String(),
-		user.Email,
-		user.Name,
-		user.Role,
-		user.AuthProvider,
-		user.PartnerStatus,
-		user.Phone,
-		user.IsVerified,
-		user.IsBlocked,
-		user.CreatedAt,
-	))
+	c.JSON(http.StatusOK, toUserResponse(user))
 }
 
 // BlockUser godoc
@@ -902,24 +840,15 @@ func (h *Handler) BlockUser(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		case errors.Is(err, ErrCannotBlockAdmin):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "ADMIN users cannot be blocked"})
+		case errors.Is(err, ErrDeletedAccount):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Deleted accounts cannot be blocked"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to block user"})
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, toUserResponse(
-		user.ID.String(),
-		user.Email,
-		user.Name,
-		user.Role,
-		user.AuthProvider,
-		user.PartnerStatus,
-		user.Phone,
-		user.IsVerified,
-		user.IsBlocked,
-		user.CreatedAt,
-	))
+	c.JSON(http.StatusOK, toUserResponse(user))
 }
 
 // UnblockUser godoc
@@ -945,22 +874,13 @@ func (h *Handler) UnblockUser(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		case errors.Is(err, ErrCannotBlockAdmin):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "ADMIN users cannot be unblocked"})
+		case errors.Is(err, ErrDeletedAccount):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Deleted accounts cannot be unblocked"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unblock user"})
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, toUserResponse(
-		user.ID.String(),
-		user.Email,
-		user.Name,
-		user.Role,
-		user.AuthProvider,
-		user.PartnerStatus,
-		user.Phone,
-		user.IsVerified,
-		user.IsBlocked,
-		user.CreatedAt,
-	))
+	c.JSON(http.StatusOK, toUserResponse(user))
 }
