@@ -726,6 +726,9 @@ func (h *Handler) GetPendingPartners(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit"})
 		return
 	}
+	if limit > 100 {
+		limit = 100
+	}
 	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	if err != nil || offset < 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset"})
