@@ -58,6 +58,12 @@ type ChangePasswordRequest struct {
 	NewPassword     string `json:"newPassword" binding:"required,min=8"`
 }
 
+type UpdateProfileRequest struct {
+	Name  *string `json:"name"`
+	Phone *string `json:"phone"`
+	Email *string `json:"email"`
+}
+
 type ForgotPasswordRequest struct {
 	Email string `json:"email" binding:"required"`
 }
@@ -65,6 +71,20 @@ type ForgotPasswordRequest struct {
 type ForgotPasswordResponse struct {
 	Message   string `json:"message"`
 	ExpiresIn int    `json:"expiresIn"`
+}
+
+type RequestEmailVerificationRequest struct {
+	Email string `json:"email" binding:"required"`
+}
+
+type RequestEmailVerificationResponse struct {
+	Message   string `json:"message"`
+	ExpiresIn int    `json:"expiresIn"`
+}
+
+type VerifyEmailRequest struct {
+	Email string `json:"email" binding:"required"`
+	Code  string `json:"code" binding:"required,len=6,numeric"`
 }
 
 type VerifyResetCodeRequest struct {

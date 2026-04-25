@@ -39,14 +39,17 @@ var ErrDeviceTokenRequired = errors.New("device token is required")
 var ErrUserNotFound = errors.New("user not found")
 var ErrInvalidUserRoleFilter = errors.New("invalid user role filter")
 var ErrCannotBlockAdmin = errors.New("cannot block admin user")
+var ErrDeletedAccount = errors.New("account is deleted")
 var ErrUserBlocked = errors.New("user is blocked")
+var ErrInvalidVerificationCode = errors.New("invalid verification code")
+var ErrEmailChangeNotAllowed = errors.New("email change is allowed only for email auth provider")
+var ErrInvalidName = errors.New("invalid name")
+var ErrEmptyProfileUpdate = errors.New("at least one profile field must be provided")
 
 const (
-	passwordResetCodeTTL  = 10 * time.Minute
-	passwordResetTokenTTL = 15 * time.Minute
-	partnerStatusPending  = "PENDING"
-	partnerStatusApproved = "APPROVED"
-	partnerStatusRejected = "REJECTED"
+	emailVerificationCodeTTL = 10 * time.Minute
+	passwordResetCodeTTL     = 10 * time.Minute
+	passwordResetTokenTTL    = 15 * time.Minute
 )
 
 type Tokens struct {
@@ -62,6 +65,8 @@ type Service interface {
 	OAuthLogin(provider, idToken, deviceToken string) (Tokens, *domain.User, bool, error)
 	RefreshTokens(refreshToken string) (Tokens, error)
 	ChangePassword(userID, currentPassword, newPassword string) error
+	UpdateProfile(userID string, name, phone, email *string) (*domain.User, error)
+	ChangeEmail(userID, newEmail string) (*domain.User, error)
 	ListUsers(limit, offset int, roleFilter string) ([]*domain.User, int64, error)
 	BlockUser(userID string) (*domain.User, error)
 	UnblockUser(userID string) (*domain.User, error)
@@ -69,6 +74,8 @@ type Service interface {
 	ApprovePartner(partnerID string) (*domain.User, error)
 	RejectPartner(partnerID string) (*domain.User, error)
 	ForgotPassword(email string) (int, error)
+	RequestEmailVerification(email string) (int, error)
+	VerifyEmail(email, code string) error
 	VerifyResetCode(email, code string) (string, error)
 	ResetPassword(resetToken, newPassword string) error
 	DeleteAccount(userID, password string) error
@@ -87,27 +94,34 @@ type resetTokenEntry struct {
 	ExpiresAt time.Time
 }
 
+type emailVerificationCodeEntry struct {
+	Code      string
+	ExpiresAt time.Time
+}
+
 type service struct {
 	repo         Repository
 	tokenManager *TokenManager
 	accessTTL    time.Duration
 	refreshTTL   time.Duration
 
-	mu          sync.Mutex
-	resetCodes  map[string]resetCodeEntry
-	resetTokens map[string]resetTokenEntry
-	revokedRT   map[string]int64
+	mu                     sync.Mutex
+	resetCodes             map[string]resetCodeEntry
+	emailVerificationCodes map[string]emailVerificationCodeEntry
+	resetTokens            map[string]resetTokenEntry
+	revokedRT              map[string]int64
 }
 
 func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshTTL time.Duration) Service {
 	return &service{
-		repo:         repo,
-		tokenManager: tokenManager,
-		accessTTL:    accessTTL,
-		refreshTTL:   refreshTTL,
-		resetCodes:   make(map[string]resetCodeEntry),
-		resetTokens:  make(map[string]resetTokenEntry),
-		revokedRT:    make(map[string]int64),
+		repo:                   repo,
+		tokenManager:           tokenManager,
+		accessTTL:              accessTTL,
+		refreshTTL:             refreshTTL,
+		resetCodes:             make(map[string]resetCodeEntry),
+		emailVerificationCodes: make(map[string]emailVerificationCodeEntry),
+		resetTokens:            make(map[string]resetTokenEntry),
+		revokedRT:              make(map[string]int64),
 	}
 }
 
@@ -138,7 +152,7 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, *
 		Email:        email,
 		PasswordHash: string(hashedPass),
 		Name:         name,
-		Role:         "USER",
+		Role:         RoleUser,
 		AuthProvider: "email",
 	}
 
@@ -148,6 +162,9 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, *
 
 	if err = s.repo.CreateUser(user); err != nil {
 		return Tokens{}, nil, err
+	}
+	if _, err := s.RequestEmailVerification(email); err != nil {
+		log.Printf("failed to issue email verification code for %s: %v", email, err)
 	}
 
 	restID := ""
@@ -188,8 +205,8 @@ func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain
 		Email:         email,
 		PasswordHash:  string(hashedPass),
 		Name:          input.Name,
-		Role:          "PARTNER",
-		PartnerStatus: partnerStatusPending,
+		Role:          RolePartner,
+		PartnerStatus: PartnerStatusPending,
 		AuthProvider:  "email",
 	}
 
@@ -204,6 +221,9 @@ func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain
 
 	if err = s.repo.CreateUser(user); err != nil {
 		return Tokens{}, nil, err
+	}
+	if _, err := s.RequestEmailVerification(email); err != nil {
+		log.Printf("failed to issue email verification code for %s: %v", email, err)
 	}
 
 	restID := ""
@@ -280,7 +300,7 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 			return Tokens{}, nil, false, err
 		}
 
-		if user.AuthProvider != provider || user.Role != "USER" {
+		if user.AuthProvider != provider || user.Role != RoleUser {
 			return Tokens{}, nil, false, ErrAuthProviderConflict
 		}
 		if user.IsBlocked {
@@ -305,7 +325,7 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 	user := &domain.User{
 		Email:        email,
 		Name:         name,
-		Role:         "USER",
+		Role:         RoleUser,
 		AuthProvider: provider,
 	}
 	if deviceToken != "" {
@@ -386,6 +406,113 @@ func (s *service) ChangePassword(userID, currentPassword, newPassword string) er
 	return s.repo.UpdatePasswordHash(uuidID, string(hashedPass))
 }
 
+func (s *service) UpdateProfile(userID string, name, phone, email *string) (*domain.User, error) {
+	uid, err := uuid.Parse(strings.TrimSpace(userID))
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	user, err := s.repo.GetByID(uid)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	if name == nil && phone == nil && email == nil {
+		return nil, ErrEmptyProfileUpdate
+	}
+
+	if email != nil {
+		trimmedEmail := strings.TrimSpace(*email)
+		if trimmedEmail == "" {
+			return nil, ErrInvalidEmail
+		}
+		if !strings.EqualFold(user.Email, trimmedEmail) {
+			if _, err := s.ChangeEmail(userID, trimmedEmail); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if name != nil {
+		trimmedName := strings.TrimSpace(*name)
+		if trimmedName == "" {
+			return nil, ErrInvalidName
+		}
+		if user.Name != trimmedName {
+			if err := s.repo.UpdateName(uid, trimmedName); err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, ErrUserNotFound
+				}
+				return nil, err
+			}
+		}
+	}
+
+	if phone != nil {
+		trimmedPhone := strings.TrimSpace(*phone)
+		var phoneValue *string
+		if trimmedPhone != "" {
+			phoneValue = &trimmedPhone
+		}
+		if !sameOptionalString(user.Phone, phoneValue) {
+			if err := s.repo.UpdatePhone(uid, phoneValue); err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, ErrUserNotFound
+				}
+				return nil, err
+			}
+		}
+	}
+
+	return s.repo.GetByID(uid)
+}
+
+func (s *service) ChangeEmail(userID, newEmail string) (*domain.User, error) {
+	uuidID, err := uuid.Parse(strings.TrimSpace(userID))
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	normalizedEmail, err := normalizeAndValidateEmail(newEmail)
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := s.repo.GetByID(uuidID)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	if user.AuthProvider != "email" {
+		return nil, ErrEmailChangeNotAllowed
+	}
+
+	if strings.EqualFold(user.Email, normalizedEmail) {
+		return nil, ErrEmailAlreadyExists
+	}
+
+	exists, err := s.repo.ExistsByEmail(normalizedEmail)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrEmailAlreadyExists
+	}
+
+	if err := s.repo.UpdateEmailAndResetVerification(uuidID, normalizedEmail); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	if _, err := s.RequestEmailVerification(normalizedEmail); err != nil {
+		log.Printf("failed to issue email verification code for %s: %v", normalizedEmail, err)
+	}
+
+	return s.repo.GetByID(uuidID)
+}
+
 func (s *service) ListPendingPartners(limit, offset int) ([]*domain.User, int64, error) {
 	if limit <= 0 {
 		limit = 20
@@ -397,7 +524,7 @@ func (s *service) ListPendingPartners(limit, offset int) ([]*domain.User, int64,
 		offset = 0
 	}
 
-	users, total, err := s.repo.ListPartnersByStatus(partnerStatusPending, limit, offset)
+	users, total, err := s.repo.ListPartnersByStatus(PartnerStatusPending, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -447,11 +574,85 @@ func (s *service) UnblockUser(userID string) (*domain.User, error) {
 }
 
 func (s *service) ApprovePartner(partnerID string) (*domain.User, error) {
-	return s.setPartnerStatus(partnerID, partnerStatusApproved)
+	return s.setPartnerStatus(partnerID, PartnerStatusApproved)
 }
 
 func (s *service) RejectPartner(partnerID string) (*domain.User, error) {
-	return s.setPartnerStatus(partnerID, partnerStatusRejected)
+	return s.setPartnerStatus(partnerID, PartnerStatusRejected)
+}
+
+func (s *service) RequestEmailVerification(email string) (int, error) {
+	normalizedEmail, err := normalizeAndValidateEmail(email)
+	if err != nil {
+		return 0, err
+	}
+
+	exists, err := s.repo.ExistsByEmail(normalizedEmail)
+	if err != nil {
+		return 0, err
+	}
+
+	if !exists {
+		return int(emailVerificationCodeTTL.Seconds()), nil
+	}
+	user, err := s.repo.GetUserByEmail(normalizedEmail)
+	if err != nil {
+		return 0, err
+	}
+	if user.IsVerified {
+		return int(emailVerificationCodeTTL.Seconds()), nil
+	}
+
+	code, err := generateSixDigitCode()
+	if err != nil {
+		return 0, err
+	}
+
+	s.mu.Lock()
+	s.emailVerificationCodes[normalizedEmail] = emailVerificationCodeEntry{
+		Code:      code,
+		ExpiresAt: time.Now().Add(emailVerificationCodeTTL),
+	}
+	s.mu.Unlock()
+
+	log.Printf("Email verification code for %s: %s", normalizedEmail, code)
+
+	return int(emailVerificationCodeTTL.Seconds()), nil
+}
+
+func (s *service) VerifyEmail(email, code string) error {
+	normalizedEmail, err := normalizeAndValidateEmail(email)
+	if err != nil {
+		return err
+	}
+	code = strings.TrimSpace(code)
+
+	s.mu.Lock()
+	entry, ok := s.emailVerificationCodes[normalizedEmail]
+	if !ok {
+		s.mu.Unlock()
+		return ErrInvalidVerificationCode
+	}
+	if time.Now().After(entry.ExpiresAt) {
+		delete(s.emailVerificationCodes, normalizedEmail)
+		s.mu.Unlock()
+		return ErrInvalidVerificationCode
+	}
+	if entry.Code != code {
+		s.mu.Unlock()
+		return ErrInvalidVerificationCode
+	}
+	delete(s.emailVerificationCodes, normalizedEmail)
+	s.mu.Unlock()
+
+	if err := s.repo.UpdateVerifiedStatusByEmail(normalizedEmail, true); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrInvalidVerificationCode
+		}
+		return err
+	}
+
+	return nil
 }
 
 func (s *service) ForgotPassword(email string) (int, error) {
@@ -466,7 +667,6 @@ func (s *service) ForgotPassword(email string) (int, error) {
 		return 0, err
 	}
 
-	// Всегда возвращаем одинаковый ответ, чтобы не раскрывать наличие email.
 	if !exists {
 		return int(passwordResetCodeTTL.Seconds()), nil
 	}
@@ -584,7 +784,8 @@ func (s *service) DeleteAccount(userID, password string) error {
 		return ErrActiveOrdersExist
 	}
 
-	return s.repo.DeleteAccount(uid)
+	s.forgetAccountSecrets(user.Email)
+	return s.repo.AnonymizeAccount(uid)
 }
 
 func (s *service) Logout(refreshToken string) error {
@@ -783,6 +984,16 @@ func normalizeAndValidateEmail(email string) (string, error) {
 	return strings.ToLower(trimmed), nil
 }
 
+func sameOptionalString(a, b *string) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
 func (s *service) setPartnerStatus(partnerID, nextStatus string) (*domain.User, error) {
 	uid, err := uuid.Parse(strings.TrimSpace(partnerID))
 	if err != nil {
@@ -790,10 +1001,13 @@ func (s *service) setPartnerStatus(partnerID, nextStatus string) (*domain.User, 
 	}
 
 	user, err := s.repo.GetByID(uid)
-	if err != nil || user.Role != "PARTNER" {
+	if err != nil || user.Role != RolePartner {
 		return nil, ErrPartnerNotFound
 	}
-	if user.PartnerStatus != partnerStatusPending {
+	if user.DeletedAt != nil {
+		return nil, ErrPartnerNotFound
+	}
+	if user.PartnerStatus != PartnerStatusPending {
 		return nil, ErrInvalidPartnerStatusTransition
 	}
 
@@ -808,8 +1022,8 @@ func resolveUserRoleFilter(roleFilter string) ([]string, error) {
 	role := strings.ToUpper(strings.TrimSpace(roleFilter))
 	switch role {
 	case "":
-		return []string{"USER", "PARTNER"}, nil
-	case "USER", "PARTNER":
+		return []string{RoleUser, RolePartner}, nil
+	case RoleUser, RolePartner:
 		return []string{role}, nil
 	default:
 		return nil, ErrInvalidUserRoleFilter
@@ -827,11 +1041,14 @@ func (s *service) setUserBlocked(userID string, isBlocked bool) (*domain.User, e
 		return nil, ErrUserNotFound
 	}
 
-	if user.Role == "ADMIN" {
+	if user.Role == RoleAdmin {
 		return nil, ErrCannotBlockAdmin
 	}
-	if user.Role != "USER" && user.Role != "PARTNER" {
+	if user.Role != RoleUser && user.Role != RolePartner {
 		return nil, ErrUserNotFound
+	}
+	if user.DeletedAt != nil {
+		return nil, ErrDeletedAccount
 	}
 
 	if err := s.repo.UpdateBlockedStatus(uid, isBlocked); err != nil {
@@ -842,4 +1059,22 @@ func (s *service) setUserBlocked(userID string, isBlocked bool) (*domain.User, e
 	}
 
 	return s.repo.GetByID(uid)
+}
+
+func (s *service) forgetAccountSecrets(email string) {
+	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+	if normalizedEmail == "" {
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.emailVerificationCodes, normalizedEmail)
+	delete(s.resetCodes, normalizedEmail)
+	for token, entry := range s.resetTokens {
+		if entry.Email == normalizedEmail {
+			delete(s.resetTokens, token)
+		}
+	}
 }

@@ -171,6 +171,20 @@ definitions:
     - name
     - password
     type: object
+  auth.RequestEmailVerificationRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  auth.RequestEmailVerificationResponse:
+    properties:
+      expiresIn:
+        type: integer
+      message:
+        type: string
+    type: object
   auth.ResetPasswordRequest:
     properties:
       newPassword:
@@ -189,6 +203,15 @@ definitions:
       expiresIn:
         type: integer
       refreshToken:
+        type: string
+    type: object
+  auth.UpdateProfileRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      phone:
         type: string
     type: object
   auth.UserResponse:
@@ -215,6 +238,16 @@ definitions:
         type: string
       role:
         type: string
+    type: object
+  auth.VerifyEmailRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+    required:
+    - code
+    - email
     type: object
   auth.VerifyResetCodeRequest:
     properties:
@@ -1083,6 +1116,56 @@ paths:
       summary: Установка нового пароля
       tags:
       - Auth
+  /auth/verify-email/confirm:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email и OTP-код
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.VerifyEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Подтверждение email по OTP-коду
+      tags:
+      - Auth
+  /auth/verify-email/request:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email для верификации
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RequestEmailVerificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.RequestEmailVerificationResponse'
+      summary: Запрос OTP для верификации email
+      tags:
+      - Auth
   /auth/verify-reset-code:
     post:
       consumes:
@@ -1807,6 +1890,46 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Удаление аккаунта (GDPR)
+      tags:
+      - Users
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Поля профиля для обновления
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/auth.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Редактирование профиля (name, phone, email)
       tags:
       - Users
 securityDefinitions:
