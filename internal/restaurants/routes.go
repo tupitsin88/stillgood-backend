@@ -5,12 +5,17 @@ import (
 )
 
 func RegisterRoutes(r *gin.Engine, h *Handler, authMiddleware gin.HandlerFunc) {
-	// Публичные маршруты
 	router := r.Group("/api/v1/restaurants")
 	{
 		router.GET("", h.GetList)
 		router.GET("/:id", h.GetByID)
 		router.POST("/upload", h.UploadImage)
+	}
+
+	protected := r.Group("/api/v1/restaurants")
+	protected.Use(authMiddleware)
+	{
+		protected.POST("", h.CreateRestaurant)
 	}
 
 	partner := r.Group("/api/v1/partner")

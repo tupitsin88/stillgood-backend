@@ -16,6 +16,7 @@ import (
 
 	"github.com/gen2brain/heic"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"kursach_backend/internal/domain"
 	"kursach_backend/internal/pkg/filestorage"
 )
@@ -23,6 +24,7 @@ import (
 type Service interface {
 	GetList(params ListParams) ([]domain.Restaurant, int64, error)
 	GetByID(id string) (*domain.Restaurant, error)
+	CreateRestaurant(partnerID string, req CreateRestaurantRequest) (*domain.Restaurant, error)
 	GetPartnerRestaurant(partnerID string) (*domain.Restaurant, error)
 	UpdatePartnerRestaurant(partnerID string, req PartnerRestaurantUpdateRequest) (*domain.Restaurant, error)
 	GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error)
@@ -43,6 +45,8 @@ var ErrInvalidImageFormat = errors.New("invalid image format")
 var ErrImageTooLarge = errors.New("image is too large")
 var ErrImageProcessingFailed = errors.New("image processing failed")
 var ErrStorageUnavailable = errors.New("file storage is unavailable")
+var ErrRestaurantAlreadyExists = errors.New("restaurant already exists")
+var ErrPartnerNotApproved = errors.New("partner is not approved")
 
 const (
 	maxUploadImageSizeBytes   = 10 << 20 // 10MB
@@ -68,6 +72,57 @@ func (s *service) GetList(params ListParams) ([]domain.Restaurant, int64, error)
 
 func (s *service) GetByID(id string) (*domain.Restaurant, error) {
 	return s.repo.GetByID(id)
+}
+
+func (s *service) CreateRestaurant(partnerID string, req CreateRestaurantRequest) (*domain.Restaurant, error) {
+	uid, err := uuid.Parse(strings.TrimSpace(partnerID))
+	if err != nil {
+		return nil, ErrPartnerNotApproved
+	}
+
+	isApprovedPartner, err := s.repo.IsApprovedPartner(uid)
+	if err != nil {
+		return nil, err
+	}
+	if !isApprovedPartner {
+		return nil, ErrPartnerNotApproved
+	}
+
+	if _, err := s.repo.GetByPartnerID(uid); err == nil {
+		return nil, ErrRestaurantAlreadyExists
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	name := strings.TrimSpace(req.Name)
+	companyName := strings.TrimSpace(req.CompanyName)
+	inn := strings.TrimSpace(req.Inn)
+	address := strings.TrimSpace(req.Address)
+	workingHours := ""
+	if req.WorkingHours != nil {
+		workingHours = strings.TrimSpace(*req.WorkingHours)
+	}
+
+	restaurant := &domain.Restaurant{
+		PartnerID:    uid,
+		Name:         name,
+		CompanyName:  companyName,
+		Inn:          inn,
+		Address:      address,
+		Description:  trimOptionalString(req.Description),
+		ImageURL:     trimOptionalString(req.ImageURL),
+		Phone:        trimOptionalString(req.Phone),
+		Latitude:     req.Latitude,
+		Longitude:    req.Longitude,
+		IsActive:     true,
+		WorkingHours: workingHours,
+	}
+
+	if err := s.repo.CreateForPartner(restaurant); err != nil {
+		return nil, err
+	}
+
+	return restaurant, nil
 }
 
 func (s *service) GetPartnerRestaurant(partnerID string) (*domain.Restaurant, error) {
@@ -272,4 +327,15 @@ func hasTransparency(img image.Image) bool {
 	}
 
 	return false
+}
+
+func trimOptionalString(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
 }

@@ -17,6 +17,7 @@ type OfferMeta struct {
 type Repository interface {
 	GetList(params ListParams) ([]domain.Restaurant, int64, error)
 	GetByID(id string) (*domain.Restaurant, error)
+	CreateForPartner(restaurant *domain.Restaurant) error
 	GetByPartnerID(partnerID uuid.UUID) (*domain.Restaurant, error)
 	UpdatePartnerProfile(partnerID uuid.UUID, req PartnerRestaurantUpdateRequest) (*domain.Restaurant, error)
 	GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error)
@@ -78,6 +79,26 @@ func (r *repository) GetByID(id string) (*domain.Restaurant, error) {
 		return nil, err
 	}
 	return &restaurant, nil
+}
+
+func (r *repository) CreateForPartner(restaurant *domain.Restaurant) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(restaurant).Error; err != nil {
+			return err
+		}
+
+		result := tx.Model(&domain.User{}).
+			Where("id = ? AND role = ? AND partner_status = ? AND deleted_at IS NULL", restaurant.PartnerID, "PARTNER", "APPROVED").
+			Update("restaurant_id", restaurant.ID)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+
+		return nil
+	})
 }
 
 func (r *repository) GetByPartnerID(partnerID uuid.UUID) (*domain.Restaurant, error) {

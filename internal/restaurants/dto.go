@@ -33,3 +33,17 @@ type PartnerRestaurantUpdateRequest struct {
 	WorkingHours *string `json:"workingHours"`
 	ImageURL     *string `json:"imageUrl"`
 }
+
+type CreateRestaurantRequest struct {
+	PartnerID    *string `json:"partnerId,omitempty"`
+	Name         string  `json:"name" binding:"required"`
+	CompanyName  string  `json:"companyName" binding:"required"`
+	Inn          string  `json:"inn" binding:"required"`
+	Address      string  `json:"address" binding:"required"`
+	Description  *string `json:"description,omitempty"`
+	Phone        *string `json:"phone,omitempty"`
+	ImageURL     *string `json:"imageUrl,omitempty"`
+	Latitude     float64 `json:"latitude" binding:"required"`
+	Longitude    float64 `json:"longitude" binding:"required"`
+	WorkingHours *string `json:"workingHours,omitempty"`
+}
