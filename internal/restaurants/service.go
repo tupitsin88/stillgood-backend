@@ -7,17 +7,17 @@ import (
 	"image/color"
 	"image/draw"
 	"image/jpeg"
+	"image/png"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
 	"strings"
 
+	"github.com/gen2brain/heic"
 	"github.com/google/uuid"
 	"kursach_backend/internal/domain"
 	"kursach_backend/internal/pkg/filestorage"
-
-	_ "image/png"
 )
 
 type Service interface {
@@ -126,13 +126,25 @@ func (s *service) UploadImage(file *multipart.FileHeader) (string, error) {
 	}
 
 	ext := strings.ToLower(filepath.Ext(file.Filename))
-	normalizedExt, contentType, isHEIC := normalizeImageFormat(ext, content)
+	normalizedExt, _, isHEIC := normalizeImageFormat(ext, content)
 	if normalizedExt == "" {
 		return "", ErrInvalidImageFormat
 	}
 
 	if isHEIC {
-		return s.fileStorage.UploadBytes(content, normalizedExt, contentType)
+		compressed, err := compressHEICToJPEG(content)
+		if err != nil {
+			return "", ErrImageProcessingFailed
+		}
+		return s.fileStorage.UploadBytes(compressed, ".jpg", "image/jpeg")
+	}
+
+	if normalizedExt == ".png" {
+		processed, outExt, outContentType, err := processPNG(content)
+		if err != nil {
+			return "", ErrImageProcessingFailed
+		}
+		return s.fileStorage.UploadBytes(processed, outExt, outContentType)
 	}
 
 	compressed, err := compressToJPEG(content)
@@ -196,6 +208,41 @@ func compressToJPEG(content []byte) ([]byte, error) {
 		return nil, err
 	}
 
+	return encodeToJPEG(img)
+}
+
+func compressHEICToJPEG(content []byte) ([]byte, error) {
+	img, err := heic.Decode(bytes.NewReader(content))
+	if err != nil {
+		return nil, err
+	}
+
+	return encodeToJPEG(img)
+}
+
+func processPNG(content []byte) ([]byte, string, string, error) {
+	img, _, err := image.Decode(bytes.NewReader(content))
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	if hasTransparency(img) {
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, img); err != nil {
+			return nil, "", "", err
+		}
+		return buf.Bytes(), ".png", "image/png", nil
+	}
+
+	compressed, err := encodeToJPEG(img)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	return compressed, ".jpg", "image/jpeg", nil
+}
+
+func encodeToJPEG(img image.Image) ([]byte, error) {
 	bounds := img.Bounds()
 	background := image.NewRGBA(bounds)
 	draw.Draw(background, bounds, &image.Uniform{C: color.White}, image.Point{}, draw.Src)
@@ -207,4 +254,22 @@ func compressToJPEG(content []byte) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func hasTransparency(img image.Image) bool {
+	if opaqueImg, ok := img.(interface{ Opaque() bool }); ok {
+		return !opaqueImg.Opaque()
+	}
+
+	bounds := img.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			_, _, _, a := img.At(x, y).RGBA()
+			if a != 0xffff {
+				return true
+			}
+		}
+	}
+
+	return false
 }
