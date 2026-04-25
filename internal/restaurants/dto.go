@@ -34,6 +34,18 @@ type PartnerRestaurantUpdateRequest struct {
 	ImageURL     *string `json:"imageUrl"`
 }
 
+type AdminRestaurantUpdateRequest struct {
+	Commission *float64 `json:"commission"`
+	IsActive   *bool    `json:"isActive"`
+}
+
+type AdminRestaurantResponse struct {
+	ID         string  `json:"id"`
+	Name       string  `json:"name"`
+	Commission float64 `json:"commission"`
+	IsActive   bool    `json:"isActive"`
+}
+
 type CreateRestaurantRequest struct {
 	PartnerID    *string `json:"partnerId,omitempty"`
 	Name         string  `json:"name" binding:"required"`

@@ -14,6 +14,7 @@ type Restaurant struct {
 	Inn          string    `json:"inn"`
 	Address      string    `json:"address"`
 	Description  *string   `json:"description,omitempty"`
+	Commission   float64   `gorm:"not null;default:0" json:"commission"`
 	Rating       float64   `json:"rating"`
 	ReviewCount  int       `json:"review_count"`
 	ImageURL     *string   `json:"image_url"`

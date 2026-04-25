@@ -9,6 +9,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -27,6 +28,7 @@ type Service interface {
 	CreateRestaurant(partnerID string, req CreateRestaurantRequest) (*domain.Restaurant, error)
 	GetPartnerRestaurant(partnerID string) (*domain.Restaurant, error)
 	UpdatePartnerRestaurant(partnerID string, req PartnerRestaurantUpdateRequest) (*domain.Restaurant, error)
+	UpdateAdminRestaurant(id string, req AdminRestaurantUpdateRequest) (*domain.Restaurant, error)
 	GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error)
 	IsApprovedPartner(userID string) (bool, error)
 	UploadImage(file *multipart.FileHeader) (string, error)
@@ -47,6 +49,8 @@ var ErrImageProcessingFailed = errors.New("image processing failed")
 var ErrStorageUnavailable = errors.New("file storage is unavailable")
 var ErrRestaurantAlreadyExists = errors.New("restaurant already exists")
 var ErrPartnerNotApproved = errors.New("partner is not approved")
+var ErrInvalidRestaurantID = errors.New("invalid restaurant id")
+var ErrInvalidCommission = errors.New("invalid commission")
 
 const (
 	maxUploadImageSizeBytes   = 10 << 20 // 10MB
@@ -139,6 +143,22 @@ func (s *service) UpdatePartnerRestaurant(partnerID string, req PartnerRestauran
 		return nil, err
 	}
 	return s.repo.UpdatePartnerProfile(uid, req)
+}
+
+func (s *service) UpdateAdminRestaurant(id string, req AdminRestaurantUpdateRequest) (*domain.Restaurant, error) {
+	uid, err := uuid.Parse(strings.TrimSpace(id))
+	if err != nil {
+		return nil, ErrInvalidRestaurantID
+	}
+
+	if req.Commission != nil {
+		commission := *req.Commission
+		if math.IsNaN(commission) || math.IsInf(commission, 0) || commission < 0 || commission > 100 {
+			return nil, ErrInvalidCommission
+		}
+	}
+
+	return s.repo.UpdateAdminFields(uid, req)
 }
 
 func (s *service) GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error) {

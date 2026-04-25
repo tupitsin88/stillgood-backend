@@ -441,6 +441,48 @@ func (h *Handler) UpdatePartnerRestaurant(c *gin.Context) {
 	})
 }
 
+// @Summary Обновление административных полей ресторана
+// @Tags Admin
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Restaurant ID"
+// @Param input body AdminRestaurantUpdateRequest true "Административные поля"
+// @Success 200 {object} AdminRestaurantResponse
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /admin/restaurants/{id} [patch]
+func (h *Handler) UpdateAdminRestaurant(c *gin.Context) {
+	var req AdminRestaurantUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	restaurant, err := h.service.UpdateAdminRestaurant(c.Param("id"), req)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrInvalidRestaurantID):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_RESTAURANT_ID"})
+		case errors.Is(err, ErrInvalidCommission):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_COMMISSION", "message": "commission must be between 0 and 100"})
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "Restaurant not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update restaurant"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, AdminRestaurantResponse{
+		ID:         restaurant.ID.String(),
+		Name:       restaurant.Name,
+		Commission: restaurant.Commission,
+		IsActive:   restaurant.IsActive,
+	})
+}
+
 func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
 	const R = 6371000
 	phi1 := lat1 * math.Pi / 180

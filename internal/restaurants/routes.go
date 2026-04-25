@@ -1,6 +1,9 @@
 package restaurants
 
 import (
+	"kursach_backend/internal/auth"
+	"kursach_backend/internal/pkg/middleware"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,6 +19,13 @@ func RegisterRoutes(r *gin.Engine, h *Handler, authMiddleware gin.HandlerFunc) {
 	protected.Use(authMiddleware)
 	{
 		protected.POST("", h.CreateRestaurant)
+	}
+
+	admin := r.Group("/api/v1/admin/restaurants")
+	admin.Use(authMiddleware)
+	admin.Use(middleware.RoleMiddleware(auth.RoleAdmin))
+	{
+		admin.PATCH("/:id", h.UpdateAdminRestaurant)
 	}
 
 	partner := r.Group("/api/v1/partner")
