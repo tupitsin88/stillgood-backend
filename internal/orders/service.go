@@ -139,7 +139,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID uuid.UUID, req Cr
 		finalOrder = order
 		return nil
 	})
-	return finalOrder, nil
+	return finalOrder, err
 }
 
 func (s *OrderService) PayOrder(ctx context.Context, orderID, userID uuid.UUID) (*domain.Order, error) {
@@ -191,11 +191,12 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID, actorID uuid.UU
 	if err != nil {
 		return nil, 0, fmt.Errorf("not found")
 	}
-	if role == "USER" {
+	switch role {
+	case "USER":
 		if order.UserID != actorID {
 			return nil, 0, fmt.Errorf("unauthorized")
 		}
-	} else if role == "PARTNER" {
+	case "PARTNER":
 		if order.Offer.RestaurantID != actorID {
 			return nil, 0, fmt.Errorf("unauthorized: not your restaurant's order")
 		}
@@ -206,7 +207,7 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID, actorID uuid.UU
 	refundAmount := 0.0
 
 	if order.Status == domain.OrderPaid {
-		if order.Offer.PickupStart.Sub(time.Now()) < 1*time.Hour {
+		if time.Until(order.Offer.PickupStart) < 1*time.Hour {
 			return nil, 0, fmt.Errorf("CANCELLATION_WINDOW_CLOSED")
 		}
 		refundAmount = order.Amount
