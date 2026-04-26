@@ -21,6 +21,90 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
+// @Summary Создание карточки ресторана
+// @Tags Restaurants
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param input body CreateRestaurantRequest true "Данные ресторана"
+// @Success 201 {object} RestaurantResponse
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 409 {object} map[string]string
+// @Router /restaurants [post]
+func (h *Handler) CreateRestaurant(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UNAUTHORIZED"})
+		return
+	}
+
+	var req CreateRestaurantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	req.CompanyName = strings.TrimSpace(req.CompanyName)
+	req.Inn = strings.TrimSpace(req.Inn)
+	req.Address = strings.TrimSpace(req.Address)
+	if req.Name == "" || req.CompanyName == "" || req.Inn == "" || req.Address == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name, companyName, inn and address are required"})
+		return
+	}
+
+	var partnerID string
+	switch c.GetString("role") {
+	case auth.RoleAdmin:
+		if req.PartnerID == nil || strings.TrimSpace(*req.PartnerID) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "partnerId is required for admin"})
+			return
+		}
+		partnerID = strings.TrimSpace(*req.PartnerID)
+	case auth.RolePartner:
+		if req.PartnerID != nil && strings.TrimSpace(*req.PartnerID) != "" && strings.TrimSpace(*req.PartnerID) != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "FORBIDDEN", "message": "Partner can create restaurant only for self"})
+			return
+		}
+		partnerID = userID
+	default:
+		c.JSON(http.StatusForbidden, gin.H{"error": "FORBIDDEN", "message": "Admin or approved partner role required"})
+		return
+	}
+
+	restaurant, err := h.service.CreateRestaurant(partnerID, req)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrPartnerNotApproved):
+			c.JSON(http.StatusForbidden, gin.H{"error": "PARTNER_NOT_APPROVED", "message": "Partner is not approved"})
+		case errors.Is(err, ErrRestaurantAlreadyExists):
+			c.JSON(http.StatusConflict, gin.H{"error": "RESTAURANT_ALREADY_EXISTS"})
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "Partner not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create restaurant"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusCreated, RestaurantResponse{
+		ID:              restaurant.ID.String(),
+		Name:            restaurant.Name,
+		Address:         restaurant.Address,
+		Phone:           restaurant.Phone,
+		ImageURL:        restaurant.ImageURL,
+		Description:     restaurant.Description,
+		WorkingHours:    restaurant.WorkingHours,
+		Latitude:        restaurant.Latitude,
+		Longitude:       restaurant.Longitude,
+		Rating:          restaurant.Rating,
+		ReviewCount:     restaurant.ReviewCount,
+		HasActiveOffers: false,
+		Categories:      []string{},
+	})
+}
+
 func (h *Handler) requirePartner(c *gin.Context) (string, bool) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -354,6 +438,48 @@ func (h *Handler) UpdatePartnerRestaurant(c *gin.Context) {
 		ReviewCount:     restaurant.ReviewCount,
 		Categories:      meta.Categories,
 		HasActiveOffers: meta.HasActiveOffers,
+	})
+}
+
+// @Summary Обновление административных полей ресторана
+// @Tags Admin
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Restaurant ID"
+// @Param input body AdminRestaurantUpdateRequest true "Административные поля"
+// @Success 200 {object} AdminRestaurantResponse
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /admin/restaurants/{id} [patch]
+func (h *Handler) UpdateAdminRestaurant(c *gin.Context) {
+	var req AdminRestaurantUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	restaurant, err := h.service.UpdateAdminRestaurant(c.Param("id"), req)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrInvalidRestaurantID):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_RESTAURANT_ID"})
+		case errors.Is(err, ErrInvalidCommission):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_COMMISSION", "message": "commission must be between 0 and 100"})
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "Restaurant not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update restaurant"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, AdminRestaurantResponse{
+		ID:         restaurant.ID.String(),
+		Name:       restaurant.Name,
+		Commission: restaurant.Commission,
+		IsActive:   restaurant.IsActive,
 	})
 }
 

@@ -542,6 +542,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /admin/restaurants/{id}:
+    patch:
+      tags: [Admin]
+      summary: Обновление административных полей ресторана
+      operationId: updateAdminRestaurant
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminRestaurantUpdateRequest'
+      responses:
+        '200':
+          description: Административные поля обновлены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminRestaurantDto'
+        '400':
+          description: Некорректный id ресторана или комиссия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Недостаточно прав (только ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Ресторан не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # ==================== PARTNER ====================
   /partner/restaurant:
     get:
@@ -1388,6 +1434,31 @@ components:
           $ref: '#/components/schemas/Pagination'
 
     # ==================== RESTAURANTS ====================
+    AdminRestaurantUpdateRequest:
+      type: object
+      properties:
+        commission:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+        isActive:
+          type: boolean
+
+    AdminRestaurantDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        commission:
+          type: number
+          format: double
+        isActive:
+          type: boolean
+
     RestaurantDto:
       type: object
       properties:

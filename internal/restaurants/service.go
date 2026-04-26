@@ -7,24 +7,28 @@ import (
 	"image/color"
 	"image/draw"
 	"image/jpeg"
+	"image/png"
 	"io"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
 	"strings"
 
+	"github.com/gen2brain/heic"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"kursach_backend/internal/domain"
 	"kursach_backend/internal/pkg/filestorage"
-
-	_ "image/png"
 )
 
 type Service interface {
 	GetList(params ListParams) ([]domain.Restaurant, int64, error)
 	GetByID(id string) (*domain.Restaurant, error)
+	CreateRestaurant(partnerID string, req CreateRestaurantRequest) (*domain.Restaurant, error)
 	GetPartnerRestaurant(partnerID string) (*domain.Restaurant, error)
 	UpdatePartnerRestaurant(partnerID string, req PartnerRestaurantUpdateRequest) (*domain.Restaurant, error)
+	UpdateAdminRestaurant(id string, req AdminRestaurantUpdateRequest) (*domain.Restaurant, error)
 	GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error)
 	IsApprovedPartner(userID string) (bool, error)
 	UploadImage(file *multipart.FileHeader) (string, error)
@@ -43,6 +47,10 @@ var ErrInvalidImageFormat = errors.New("invalid image format")
 var ErrImageTooLarge = errors.New("image is too large")
 var ErrImageProcessingFailed = errors.New("image processing failed")
 var ErrStorageUnavailable = errors.New("file storage is unavailable")
+var ErrRestaurantAlreadyExists = errors.New("restaurant already exists")
+var ErrPartnerNotApproved = errors.New("partner is not approved")
+var ErrInvalidRestaurantID = errors.New("invalid restaurant id")
+var ErrInvalidCommission = errors.New("invalid commission")
 
 const (
 	maxUploadImageSizeBytes   = 10 << 20 // 10MB
@@ -70,6 +78,57 @@ func (s *service) GetByID(id string) (*domain.Restaurant, error) {
 	return s.repo.GetByID(id)
 }
 
+func (s *service) CreateRestaurant(partnerID string, req CreateRestaurantRequest) (*domain.Restaurant, error) {
+	uid, err := uuid.Parse(strings.TrimSpace(partnerID))
+	if err != nil {
+		return nil, ErrPartnerNotApproved
+	}
+
+	isApprovedPartner, err := s.repo.IsApprovedPartner(uid)
+	if err != nil {
+		return nil, err
+	}
+	if !isApprovedPartner {
+		return nil, ErrPartnerNotApproved
+	}
+
+	if _, err := s.repo.GetByPartnerID(uid); err == nil {
+		return nil, ErrRestaurantAlreadyExists
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	name := strings.TrimSpace(req.Name)
+	companyName := strings.TrimSpace(req.CompanyName)
+	inn := strings.TrimSpace(req.Inn)
+	address := strings.TrimSpace(req.Address)
+	workingHours := ""
+	if req.WorkingHours != nil {
+		workingHours = strings.TrimSpace(*req.WorkingHours)
+	}
+
+	restaurant := &domain.Restaurant{
+		PartnerID:    uid,
+		Name:         name,
+		CompanyName:  companyName,
+		Inn:          inn,
+		Address:      address,
+		Description:  trimOptionalString(req.Description),
+		ImageURL:     trimOptionalString(req.ImageURL),
+		Phone:        trimOptionalString(req.Phone),
+		Latitude:     req.Latitude,
+		Longitude:    req.Longitude,
+		IsActive:     true,
+		WorkingHours: workingHours,
+	}
+
+	if err := s.repo.CreateForPartner(restaurant); err != nil {
+		return nil, err
+	}
+
+	return restaurant, nil
+}
+
 func (s *service) GetPartnerRestaurant(partnerID string) (*domain.Restaurant, error) {
 	uid, err := uuid.Parse(partnerID)
 	if err != nil {
@@ -84,6 +143,22 @@ func (s *service) UpdatePartnerRestaurant(partnerID string, req PartnerRestauran
 		return nil, err
 	}
 	return s.repo.UpdatePartnerProfile(uid, req)
+}
+
+func (s *service) UpdateAdminRestaurant(id string, req AdminRestaurantUpdateRequest) (*domain.Restaurant, error) {
+	uid, err := uuid.Parse(strings.TrimSpace(id))
+	if err != nil {
+		return nil, ErrInvalidRestaurantID
+	}
+
+	if req.Commission != nil {
+		commission := *req.Commission
+		if math.IsNaN(commission) || math.IsInf(commission, 0) || commission < 0 || commission > 100 {
+			return nil, ErrInvalidCommission
+		}
+	}
+
+	return s.repo.UpdateAdminFields(uid, req)
 }
 
 func (s *service) GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error) {
@@ -126,13 +201,25 @@ func (s *service) UploadImage(file *multipart.FileHeader) (string, error) {
 	}
 
 	ext := strings.ToLower(filepath.Ext(file.Filename))
-	normalizedExt, contentType, isHEIC := normalizeImageFormat(ext, content)
+	normalizedExt, _, isHEIC := normalizeImageFormat(ext, content)
 	if normalizedExt == "" {
 		return "", ErrInvalidImageFormat
 	}
 
 	if isHEIC {
-		return s.fileStorage.UploadBytes(content, normalizedExt, contentType)
+		compressed, err := compressHEICToJPEG(content)
+		if err != nil {
+			return "", ErrImageProcessingFailed
+		}
+		return s.fileStorage.UploadBytes(compressed, ".jpg", "image/jpeg")
+	}
+
+	if normalizedExt == ".png" {
+		processed, outExt, outContentType, err := processPNG(content)
+		if err != nil {
+			return "", ErrImageProcessingFailed
+		}
+		return s.fileStorage.UploadBytes(processed, outExt, outContentType)
 	}
 
 	compressed, err := compressToJPEG(content)
@@ -196,6 +283,41 @@ func compressToJPEG(content []byte) ([]byte, error) {
 		return nil, err
 	}
 
+	return encodeToJPEG(img)
+}
+
+func compressHEICToJPEG(content []byte) ([]byte, error) {
+	img, err := heic.Decode(bytes.NewReader(content))
+	if err != nil {
+		return nil, err
+	}
+
+	return encodeToJPEG(img)
+}
+
+func processPNG(content []byte) ([]byte, string, string, error) {
+	img, _, err := image.Decode(bytes.NewReader(content))
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	if hasTransparency(img) {
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, img); err != nil {
+			return nil, "", "", err
+		}
+		return buf.Bytes(), ".png", "image/png", nil
+	}
+
+	compressed, err := encodeToJPEG(img)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	return compressed, ".jpg", "image/jpeg", nil
+}
+
+func encodeToJPEG(img image.Image) ([]byte, error) {
 	bounds := img.Bounds()
 	background := image.NewRGBA(bounds)
 	draw.Draw(background, bounds, &image.Uniform{C: color.White}, image.Point{}, draw.Src)
@@ -207,4 +329,33 @@ func compressToJPEG(content []byte) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func hasTransparency(img image.Image) bool {
+	if opaqueImg, ok := img.(interface{ Opaque() bool }); ok {
+		return !opaqueImg.Opaque()
+	}
+
+	bounds := img.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			_, _, _, a := img.At(x, y).RGBA()
+			if a != 0xffff {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func trimOptionalString(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
 }

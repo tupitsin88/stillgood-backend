@@ -17,8 +17,10 @@ type OfferMeta struct {
 type Repository interface {
 	GetList(params ListParams) ([]domain.Restaurant, int64, error)
 	GetByID(id string) (*domain.Restaurant, error)
+	CreateForPartner(restaurant *domain.Restaurant) error
 	GetByPartnerID(partnerID uuid.UUID) (*domain.Restaurant, error)
 	UpdatePartnerProfile(partnerID uuid.UUID, req PartnerRestaurantUpdateRequest) (*domain.Restaurant, error)
+	UpdateAdminFields(id uuid.UUID, req AdminRestaurantUpdateRequest) (*domain.Restaurant, error)
 	GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error)
 	IsApprovedPartner(userID uuid.UUID) (bool, error)
 }
@@ -80,6 +82,26 @@ func (r *repository) GetByID(id string) (*domain.Restaurant, error) {
 	return &restaurant, nil
 }
 
+func (r *repository) CreateForPartner(restaurant *domain.Restaurant) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(restaurant).Error; err != nil {
+			return err
+		}
+
+		result := tx.Model(&domain.User{}).
+			Where("id = ? AND role = ? AND partner_status = ? AND deleted_at IS NULL", restaurant.PartnerID, "PARTNER", "APPROVED").
+			Update("restaurant_id", restaurant.ID)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+
+		return nil
+	})
+}
+
 func (r *repository) GetByPartnerID(partnerID uuid.UUID) (*domain.Restaurant, error) {
 	var restaurant domain.Restaurant
 	if err := r.db.Where("partner_id = ?", partnerID).First(&restaurant).Error; err != nil {
@@ -107,6 +129,32 @@ func (r *repository) UpdatePartnerProfile(partnerID uuid.UUID, req PartnerRestau
 	}
 
 	return r.GetByPartnerID(partnerID)
+}
+
+func (r *repository) UpdateAdminFields(id uuid.UUID, req AdminRestaurantUpdateRequest) (*domain.Restaurant, error) {
+	updates := map[string]interface{}{}
+	if req.Commission != nil {
+		updates["commission"] = *req.Commission
+	}
+	if req.IsActive != nil {
+		updates["is_active"] = *req.IsActive
+	}
+
+	if len(updates) > 0 {
+		result := r.db.Model(&domain.Restaurant{}).Where("id = ?", id).Updates(updates)
+		if result.Error != nil {
+			return nil, result.Error
+		}
+		if result.RowsAffected == 0 {
+			return nil, gorm.ErrRecordNotFound
+		}
+	}
+
+	var restaurant domain.Restaurant
+	if err := r.db.First(&restaurant, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &restaurant, nil
 }
 
 func (r *repository) GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error) {

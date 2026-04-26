@@ -70,6 +70,7 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 		Preload("Restaurant").
 		Preload("Category")
 	query = query.
+		Where("restaurants.is_active = ?", true).
 		Where("offers.quantity_available > 0").
 		Where("offers.pickup_time_end > ?", time.Now())
 

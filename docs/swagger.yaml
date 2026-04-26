@@ -534,6 +534,56 @@ definitions:
       savedMoney:
         type: number
     type: object
+  restaurants.AdminRestaurantResponse:
+    properties:
+      commission:
+        type: number
+      id:
+        type: string
+      isActive:
+        type: boolean
+      name:
+        type: string
+    type: object
+  restaurants.AdminRestaurantUpdateRequest:
+    properties:
+      commission:
+        type: number
+      isActive:
+        type: boolean
+    type: object
+  restaurants.CreateRestaurantRequest:
+    properties:
+      address:
+        type: string
+      companyName:
+        type: string
+      description:
+        type: string
+      imageUrl:
+        type: string
+      inn:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        type: string
+      partnerId:
+        type: string
+      phone:
+        type: string
+      workingHours:
+        type: string
+    required:
+    - address
+    - companyName
+    - inn
+    - latitude
+    - longitude
+    - name
+    type: object
   restaurants.Pagination:
     properties:
       limit:
@@ -707,6 +757,52 @@ paths:
       summary: Список заявок партнёров со статусом PENDING
       tags:
       - Auth
+  /admin/restaurants/{id}:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Restaurant ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Административные поля
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/restaurants.AdminRestaurantUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/restaurants.AdminRestaurantResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Обновление административных полей ресторана
+      tags:
+      - Admin
   /admin/users:
     get:
       parameters:
@@ -1796,6 +1892,46 @@ paths:
           schema:
             $ref: '#/definitions/restaurants.RestaurantListResponse'
       summary: Список ресторанов
+      tags:
+      - Restaurants
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные ресторана
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/restaurants.CreateRestaurantRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/restaurants.RestaurantResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Создание карточки ресторана
       tags:
       - Restaurants
   /restaurants/{id}:
