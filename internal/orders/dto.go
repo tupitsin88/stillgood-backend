@@ -157,3 +157,15 @@ type NotificationDTO struct {
 	Message   string    `json:"message"`
 	CreatedAt time.Time `json:"createdAt"`
 }
+
+type CreateReviewRequest struct {
+	Rating  int    `json:"rating" binding:"required,min=1,max=5"`
+	Comment string `json:"comment" binding:"max=500"`
+}
+
+type ReviewDTO struct {
+	ID        string    `json:"id"`
+	Rating    int       `json:"rating"`
+	Comment   string    `json:"comment"`
+	CreatedAt time.Time `json:"createdAt"`
+}

@@ -139,3 +139,23 @@ func (r *OrderRepository) UpdateOfferQuantity(ctx context.Context, offerID uuid.
 		Where("id = ?", offerID).
 		Update("quantity_available", gorm.Expr("quantity_available + ?", delta)).Error
 }
+
+func (r *OrderRepository) CreateReview(ctx context.Context, review *domain.Review) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(review).Error; err != nil {
+			return err
+		}
+		err := tx.Model(&domain.Restaurant{}).
+			Where("id = ?", review.RestaurantID).
+			Updates(map[string]interface{}{
+				"rating": tx.Model(&domain.Review{}).
+					Select("COALESCE(AVG(rating), 0)").
+					Where("restaurant_id = ?", review.RestaurantID),
+				"review_count": tx.Model(&domain.Review{}).
+					Where("restaurant_id = ?", review.RestaurantID).
+					Select("COUNT(*)"),
+			}).Error
+		return err
+	})
+}
+

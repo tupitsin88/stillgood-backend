@@ -21,7 +21,7 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
-// @Summary Создание карточки ресторана
+// CreateRestaurant @Summary Создание карточки ресторана
 // @Tags Restaurants
 // @Security ApiKeyAuth
 // @Accept json
@@ -142,7 +142,7 @@ func (h *Handler) requirePartner(c *gin.Context) (string, bool) {
 	return userID, true
 }
 
-// @Summary Загрузка изображения
+// UploadImage @Summary Загрузка изображения
 // @Tags Restaurants
 // @Accept multipart/form-data
 // @Produce json
@@ -189,7 +189,7 @@ func (h *Handler) UploadImage(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"url": url})
 }
 
-// @Summary Список ресторанов
+// GetList @Summary Список ресторанов
 // @Tags Restaurants
 // @Produce json
 // @Param lat query number false "Latitude"
@@ -300,7 +300,7 @@ func (h *Handler) GetList(c *gin.Context) {
 	})
 }
 
-// @Summary Детали ресторана
+// GetByID @Summary Детали ресторана
 // @Tags Restaurants
 // @Produce json
 // @Param id path string true "Restaurant ID"
@@ -342,7 +342,7 @@ func (h *Handler) GetByID(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// @Summary Профиль заведения партнёра
+// GetPartnerRestaurant @Summary Профиль заведения партнёра
 // @Tags Partner
 // @Security ApiKeyAuth
 // @Produce json
@@ -390,7 +390,7 @@ func (h *Handler) GetPartnerRestaurant(c *gin.Context) {
 	})
 }
 
-// @Summary Обновление профиля заведения
+// UpdatePartnerRestaurant @Summary Обновление профиля заведения
 // @Tags Partner
 // @Security ApiKeyAuth
 // @Accept json
@@ -446,7 +446,7 @@ func (h *Handler) UpdatePartnerRestaurant(c *gin.Context) {
 	})
 }
 
-// @Summary Обновление административных полей ресторана
+// UpdateAdminRestaurant @Summary Обновление административных полей ресторана
 // @Tags Admin
 // @Security ApiKeyAuth
 // @Accept json
@@ -485,5 +485,136 @@ func (h *Handler) UpdateAdminRestaurant(c *gin.Context) {
 		Name:       restaurant.Name,
 		Commission: restaurant.Commission,
 		IsActive:   restaurant.IsActive,
+	})
+}
+
+func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
+	const R = 6371000
+	phi1 := lat1 * math.Pi / 180
+	phi2 := lat2 * math.Pi / 180
+	deltaPhi := (lat2 - lat1) * math.Pi / 180
+	deltaLambda := (lon2 - lon1) * math.Pi / 180
+	a := math.Sin(deltaPhi/2)*math.Sin(deltaPhi/2) +
+		math.Cos(phi1)*math.Cos(phi2)*
+			math.Sin(deltaLambda/2)*math.Sin(deltaLambda/2)
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+	return R * c
+}
+
+// GetReviews @Summary Получить отзывы ресторана
+// @Tags Restaurants
+// @Produce json
+// @Param id path string true "Restaurant ID"
+// @Param limit query int false "Лимит" default(10)
+// @Param offset query int false "Сдвиг" default(0)
+// @Success 200 {object} RestaurantReviewsResponse
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /restaurants/{id}/reviews [get]
+func (h *Handler) GetReviews(c *gin.Context) {
+	restID := c.Param("id")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	reviews, total, err := h.service.GetReviews(restID, limit, offset)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to fetch reviews"})
+		return
+	}
+
+	data := make([]ReviewDTO, len(reviews))
+	for i, r := range reviews {
+		data[i] = ReviewDTO{
+			ID:        r.ID.String(),
+			Rating:    r.Rating,
+			Comment:   r.Comment,
+			CreatedAt: r.CreatedAt,
+		}
+	}
+
+	c.JSON(http.StatusOK, RestaurantReviewsResponse{
+		Data: data,
+		Pagination: Pagination{
+			Total:  total,
+			Limit:  limit,
+			Offset: offset,
+		},
+	})
+}
+
+// DeleteReview @Summary Удалить отзыв (Admin)
+// @Tags Admin
+// @Security ApiKeyAuth
+// @Param id path string true "Review ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /admin/reviews/{id} [delete]
+func (h *Handler) DeleteReview(c *gin.Context) {
+	reviewID := c.Param("id")
+	if err := h.service.DeleteReview(reviewID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete review"})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// GetAdminReviews @Summary Список отзывов с данными авторов (Admin)
+// @Tags Admin
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path string true "Restaurant ID"
+// @Success 200 {object} []AdminReviewDTO
+// @Router /admin/restaurants/{id}/reviews [get]
+func (h *Handler) GetAdminReviews(c *gin.Context) {
+	restID := c.Param("id")
+	reviews, _, err := h.service.GetReviews(restID, 100, 0)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to fetch reviews"})
+		return
+	}
+	var data []AdminReviewDTO
+	for _, r := range reviews {
+		data = append(data, AdminReviewDTO{
+			ID:        r.ID.String(),
+			Rating:    r.Rating,
+			Comment:   r.Comment,
+			UserName:  r.User.Name,
+			UserEmail: r.User.Email,
+			CreatedAt: r.CreatedAt,
+		})
+	}
+	c.JSON(200, data)
+}
+
+// GetPartnerReviews @Summary Отзывы моего ресторана (Partner)
+// @Tags Partner
+// @Security ApiKeyAuth
+// @Produce json
+// @Router /partner/reviews [get]
+func (h *Handler) GetPartnerReviews(c *gin.Context) {
+	userID := c.GetString("user_id")
+	rest, err := h.service.GetPartnerRestaurant(userID)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "RESTAURANT_NOT_FOUND"})
+		return
+	}
+	reviews, total, err := h.service.GetReviews(rest.ID.String(), 10, 0)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to fetch reviews"})
+		return
+	}
+	var data []ReviewDTO
+	for _, r := range reviews {
+		data = append(data, ReviewDTO{
+			ID:        r.ID.String(),
+			Rating:    r.Rating,
+			Comment:   r.Comment,
+			CreatedAt: r.CreatedAt,
+		})
+	}
+	c.JSON(200, gin.H{
+		"data":       data,
+		"pagination": gin.H{"total": total, "limit": 10, "offset": 0},
 	})
 }

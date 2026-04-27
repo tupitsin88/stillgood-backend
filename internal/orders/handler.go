@@ -448,3 +448,48 @@ func (h *OrderHandler) GetOrderById(c *gin.Context) {
 
 	c.JSON(200, resp)
 }
+
+// CreateReview @Summary Оставить отзыв
+// @Tags Orders
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Order ID"
+// @Param input body CreateReviewRequest true "Данные отзыва"
+// @Success 201 {object} ReviewDTO
+// @Router /orders/{id}/review [post]
+func (h *OrderHandler) CreateReview(c *gin.Context) {
+	orderID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		errorResponse(c, 400, "INVALID_ID", "Invalid Order ID format")
+		return
+	}
+	var req CreateReviewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, 400, "INVALID_REQUEST", err.Error())
+		return
+	}
+
+	uidStr := c.GetString("user_id")
+	userID, _ := uuid.Parse(uidStr)
+
+	review, err := h.service.CreateReview(c.Request.Context(), orderID, userID, req)
+	if err != nil {
+		switch err.Error() {
+		case "ORDER_NOT_COMPLETED":
+			errorResponse(c, 400, "ORDER_NOT_COMPLETED", "You can only review completed orders")
+		case "unauthorized":
+			errorResponse(c, 403, "FORBIDDEN", "You do not own this order")
+		default:
+			errorResponse(c, 500, "REVIEW_FAILED", err.Error())
+		}
+		return
+	}
+
+	c.JSON(201, ReviewDTO{
+		ID:        review.ID.String(),
+		Rating:    review.Rating,
+		Comment:   review.Comment,
+		CreatedAt: review.CreatedAt,
+	})
+}
