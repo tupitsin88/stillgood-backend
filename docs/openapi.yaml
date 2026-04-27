@@ -886,15 +886,20 @@ paths:
           schema:
             type: number
             format: double
+            minimum: -90
+            maximum: 90
         - name: lng
           in: query
           schema:
             type: number
             format: double
+            minimum: -180
+            maximum: 180
         - name: radius
           in: query
           schema:
             type: integer
+            minimum: 1
             description: Радиус в метрах
         - name: categoryId
           in: query
@@ -1003,15 +1008,20 @@ paths:
           schema:
             type: number
             format: double
+            minimum: -90
+            maximum: 90
         - name: lng
           in: query
           schema:
             type: number
             format: double
+            minimum: -180
+            maximum: 180
         - name: radius
           in: query
           schema:
             type: integer
+            minimum: 1
         - name: restaurantId
           in: query
           schema:
