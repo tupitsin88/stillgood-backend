@@ -95,7 +95,8 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 		query = query.Where("offers.price <= ?", *params.MaxPrice)
 	}
 
-	if params.Lat != nil && params.Lng != nil && params.Radius != nil {
+	hasGeoPoint := params.Lat != nil && params.Lng != nil
+	if hasGeoPoint && params.Radius != nil {
 		query = query.Where("ST_DWithin(restaurants.location, "+postgisPointSQL+", ?)", *params.Lng, *params.Lat, *params.Radius)
 	}
 
@@ -111,13 +112,16 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 	case "rating":
 		query = query.Order("restaurants.rating DESC")
 	case "distance":
-		if params.Lat != nil && params.Lng != nil {
+		if hasGeoPoint {
 			query = query.Order(distanceOrder(*params.Lng, *params.Lat))
 		} else {
 			query = query.Order("offers.id DESC")
 		}
 	default:
 		query = query.Order("offers.pickup_time_start ASC")
+	}
+	if hasGeoPoint {
+		query = query.Select("offers.*, ROUND("+restaurantDistanceSQL+")::int AS distance_meters", *params.Lng, *params.Lat)
 	}
 
 	err := query.

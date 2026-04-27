@@ -186,6 +186,10 @@ func TestRestaurantRepositoryGetListUsesPostGISRadiusAndDistanceOrder(t *testing
 	assert.Equal(t, int64(2), total)
 	assert.Equal(t, center.ID, restaurants[0].ID)
 	assert.Equal(t, near.ID, restaurants[1].ID)
+	require.NotNil(t, restaurants[0].DistanceMeters)
+	require.NotNil(t, restaurants[1].DistanceMeters)
+	assert.Equal(t, 0, *restaurants[0].DistanceMeters)
+	assert.Greater(t, *restaurants[1].DistanceMeters, 0)
 }
 
 func TestOfferRepositoryGetPublicOffersUsesPostGISRadiusAndDistanceOrder(t *testing.T) {
@@ -307,4 +311,8 @@ func TestOfferRepositoryGetPublicOffersUsesPostGISRadiusAndDistanceOrder(t *test
 	assert.Equal(t, int64(2), total)
 	assert.Equal(t, "Closest Offer", got[0].Title)
 	assert.Equal(t, "Farther Offer", got[1].Title)
+	require.NotNil(t, got[0].DistanceMeters)
+	require.NotNil(t, got[1].DistanceMeters)
+	assert.Equal(t, 0, *got[0].DistanceMeters)
+	assert.Greater(t, *got[1].DistanceMeters, 0)
 }

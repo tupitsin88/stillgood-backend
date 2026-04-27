@@ -139,7 +139,7 @@ func (s *OfferService) GetPublicOffers(ctx context.Context, params FilterParams)
 
 	dtos := make([]OfferPreviewDTO, len(offers))
 	for i, o := range offers {
-		dtos[i] = s.mapToPreviewDTO(&o, params.Lat, params.Lng)
+		dtos[i] = s.mapToPreviewDTO(&o)
 	}
 	return dtos, total, nil
 }
@@ -194,17 +194,10 @@ func (s *OfferService) mapToDetailDTO(o *domain.Offer) OfferDetailDTO {
 	}
 }
 
-func (s *OfferService) mapToPreviewDTO(o *domain.Offer, userLat, userLng *float64) OfferPreviewDTO {
+func (s *OfferService) mapToPreviewDTO(o *domain.Offer) OfferPreviewDTO {
 	discount := 0
 	if o.OriginalPrice > 0 {
 		discount = int(math.Round((1 - o.Price/o.OriginalPrice) * 100))
-	}
-
-	var dist *int
-	if userLat != nil && userLng != nil {
-		d := calculateDistance(*userLat, *userLng, o.Restaurant.Latitude, o.Restaurant.Longitude)
-		val := int(d)
-		dist = &val
 	}
 
 	return OfferPreviewDTO{
@@ -216,7 +209,7 @@ func (s *OfferService) mapToPreviewDTO(o *domain.Offer, userLat, userLng *float6
 		ImageURL:          o.ImageURL,
 		RestaurantID:      o.RestaurantID.String(),
 		RestaurantName:    o.Restaurant.Name,
-		Distance:          dist,
+		Distance:          o.DistanceMeters,
 		PickupStart:       o.PickupStart,
 		PickupEnd:         o.PickupEnd,
 		QuantityAvailable: o.QuantityAvailable,
@@ -225,19 +218,4 @@ func (s *OfferService) mapToPreviewDTO(o *domain.Offer, userLat, userLng *float6
 			Name: o.Category.Name,
 		},
 	}
-}
-
-func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
-	const R = 6371000
-	phi1 := lat1 * math.Pi / 180
-	phi2 := lat2 * math.Pi / 180
-	deltaPhi := (lat2 - lat1) * math.Pi / 180
-	deltaLambda := (lon2 - lon1) * math.Pi / 180
-
-	a := math.Sin(deltaPhi/2)*math.Sin(deltaPhi/2) +
-		math.Cos(phi1)*math.Cos(phi2)*
-			math.Sin(deltaLambda/2)*math.Sin(deltaLambda/2)
-	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-
-	return R * c
 }
