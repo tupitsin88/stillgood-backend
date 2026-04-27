@@ -4,7 +4,6 @@ import (
 	"errors"
 	"kursach_backend/internal/auth"
 	"kursach_backend/internal/pkg/geo"
-	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -272,11 +271,6 @@ func (h *Handler) GetList(c *gin.Context) {
 
 	var response []RestaurantResponse
 	for _, r := range restaurants {
-		var distance *int
-		if params.Lat != nil && params.Lng != nil {
-			val := int(calculateDistance(*params.Lat, *params.Lng, r.Latitude, r.Longitude))
-			distance = &val
-		}
 		meta := metaByRestaurantID[r.ID]
 		response = append(response, RestaurantResponse{
 			ID:              r.ID.String(),
@@ -292,7 +286,7 @@ func (h *Handler) GetList(c *gin.Context) {
 			ReviewCount:     r.ReviewCount,
 			Categories:      meta.Categories,
 			HasActiveOffers: meta.HasActiveOffers,
-			Distance:        distance,
+			Distance:        r.DistanceMeters,
 		})
 	}
 
@@ -492,17 +486,4 @@ func (h *Handler) UpdateAdminRestaurant(c *gin.Context) {
 		Commission: restaurant.Commission,
 		IsActive:   restaurant.IsActive,
 	})
-}
-
-func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
-	const R = 6371000
-	phi1 := lat1 * math.Pi / 180
-	phi2 := lat2 * math.Pi / 180
-	deltaPhi := (lat2 - lat1) * math.Pi / 180
-	deltaLambda := (lon2 - lon1) * math.Pi / 180
-	a := math.Sin(deltaPhi/2)*math.Sin(deltaPhi/2) +
-		math.Cos(phi1)*math.Cos(phi2)*
-			math.Sin(deltaLambda/2)*math.Sin(deltaLambda/2)
-	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-	return R * c
 }

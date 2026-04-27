@@ -56,7 +56,8 @@ func (r *repository) GetList(params ListParams) ([]domain.Restaurant, int64, err
 		`, *params.CategoryID, true, time.Now())
 	}
 
-	hasGeoFilter := params.Lat != nil && params.Lng != nil && params.Radius != nil
+	hasGeoPoint := params.Lat != nil && params.Lng != nil
+	hasGeoFilter := hasGeoPoint && params.Radius != nil
 	if hasGeoFilter {
 		query = query.Where("ST_DWithin(restaurants.location, "+postgisPointSQL+", ?)", *params.Lng, *params.Lat, *params.Radius)
 	}
@@ -69,6 +70,9 @@ func (r *repository) GetList(params ListParams) ([]domain.Restaurant, int64, err
 		query = query.Order(distanceOrder(*params.Lng, *params.Lat))
 	} else {
 		query = query.Order("restaurants.created_at DESC")
+	}
+	if hasGeoPoint {
+		query = query.Select("restaurants.*, ROUND("+restaurantDistanceSQL+")::int AS distance_meters", *params.Lng, *params.Lat)
 	}
 
 	if err := query.Limit(params.Limit).Offset(params.Offset).Find(&restaurants).Error; err != nil {
