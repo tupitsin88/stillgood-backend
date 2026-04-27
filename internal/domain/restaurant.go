@@ -25,4 +25,6 @@ type Restaurant struct {
 	WorkingHours string    `json:"working_hours"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+
+	DistanceMeters *int `gorm:"column:distance_meters;->;-:migration" json:"-"`
 }

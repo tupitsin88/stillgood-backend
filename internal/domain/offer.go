@@ -20,4 +20,6 @@ type Offer struct {
 	PickupEnd         time.Time  `json:"pickup_time_end" gorm:"column:pickup_time_end"`
 	CreatedAt         time.Time  `json:"created_at"`
 	IsActive          bool       `json:"is_active"`
+
+	DistanceMeters *int `gorm:"column:distance_meters;->;-:migration" json:"-"`
 }
