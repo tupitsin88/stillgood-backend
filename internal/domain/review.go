@@ -11,6 +11,7 @@ type Review struct {
 	OrderID      uuid.UUID `gorm:"type:uuid;uniqueIndex" json:"order_id"`
 	RestaurantID uuid.UUID `gorm:"type:uuid;index" json:"restaurant_id"`
 	UserID       uuid.UUID `gorm:"type:uuid;index" json:"user_id"`
+	User         User      `gorm:"foreignKey:UserID" json:"-"`
 	Rating       int       `gorm:"not null;check:rating >= 1 AND rating <= 5" json:"rating"`
 	Comment      string    `gorm:"type:varchar(500)" json:"comment"`
 	CreatedAt    time.Time `json:"created_at"`

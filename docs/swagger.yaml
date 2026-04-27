@@ -667,6 +667,26 @@ definitions:
       workingHours:
         type: string
     type: object
+  restaurants.RestaurantReviewsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/restaurants.ReviewDTO'
+        type: array
+      pagination:
+        $ref: '#/definitions/restaurants.Pagination'
+    type: object
+  restaurants.ReviewDTO:
+    properties:
+      comment:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: string
+      rating:
+        type: integer
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -823,7 +843,39 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Обновление административных полей ресторана
+      tags:
+      - Admin
+  /admin/reviews/{id}:
+    delete:
+      parameters:
+      - description: Review ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
       tags:
       - Admin
   /admin/users:
@@ -1871,7 +1923,6 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Профиль заведения партнёра
       tags:
       - Partner
     patch:
@@ -1904,7 +1955,6 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Обновление профиля заведения
       tags:
       - Partner
   /restaurants:
@@ -1941,7 +1991,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/restaurants.RestaurantListResponse'
-      summary: Список ресторанов
       tags:
       - Restaurants
     post:
@@ -1981,7 +2030,6 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Создание карточки ресторана
       tags:
       - Restaurants
   /restaurants/{id}:
@@ -2005,7 +2053,45 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Детали ресторана
+      tags:
+      - Restaurants
+  /restaurants/{id}/reviews:
+    get:
+      parameters:
+      - description: Restaurant ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 10
+        description: Лимит
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Сдвиг
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/restaurants.RestaurantReviewsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
       tags:
       - Restaurants
   /restaurants/upload:
@@ -2051,7 +2137,6 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Загрузка изображения
       tags:
       - Restaurants
   /users/me:

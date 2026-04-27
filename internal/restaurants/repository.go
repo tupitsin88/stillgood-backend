@@ -1,6 +1,7 @@
 package restaurants
 
 import (
+	"context"
 	"fmt"
 	"kursach_backend/internal/domain"
 	"time"
@@ -23,6 +24,8 @@ type Repository interface {
 	UpdateAdminFields(id uuid.UUID, req AdminRestaurantUpdateRequest) (*domain.Restaurant, error)
 	GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error)
 	IsApprovedPartner(userID uuid.UUID) (bool, error)
+	GetReviews(ctx context.Context, restID uuid.UUID, limit, offset int) ([]domain.Review, int64, error)
+	DeleteReview(ctx context.Context, reviewID uuid.UUID) error
 }
 
 type repository struct {
@@ -210,4 +213,40 @@ func (r *repository) IsApprovedPartner(userID uuid.UUID) (bool, error) {
 		return false, err
 	}
 	return count > 0, nil
+}
+
+func (r *repository) GetReviews(ctx context.Context, restID uuid.UUID, limit, offset int) ([]domain.Review, int64, error) {
+	var reviews []domain.Review
+	var total int64
+	db := r.db.WithContext(ctx).Model(&domain.Review{}).Where("restaurant_id = ?", restID)
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := db.Preload("User").Order("created_at DESC").Limit(limit).Offset(offset).Find(&reviews).Error
+	return reviews, total, err
+}
+
+func (r *repository) DeleteReview(ctx context.Context, reviewID uuid.UUID) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var review domain.Review
+		if err := tx.First(&review, "id = ?", reviewID).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Delete(&review).Error; err != nil {
+			return err
+		}
+
+		return tx.Model(&domain.Restaurant{}).
+			Where("id = ?", review.RestaurantID).
+			Updates(map[string]interface{}{
+				"rating": tx.Model(&domain.Review{}).
+					Select("COALESCE(AVG(rating), 0)").
+					Where("restaurant_id = ?", review.RestaurantID),
+				"review_count": tx.Model(&domain.Review{}).
+					Select("COUNT(*)").
+					Where("restaurant_id = ?", review.RestaurantID),
+			}).Error
+	})
 }

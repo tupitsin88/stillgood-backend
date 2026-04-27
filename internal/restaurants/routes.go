@@ -8,27 +8,25 @@ import (
 )
 
 func RegisterRoutes(r *gin.Engine, h *Handler, authMiddleware gin.HandlerFunc) {
-	router := r.Group("/api/v1/restaurants")
+	v1 := r.Group("/api/v1")
+	res := v1.Group("/restaurants")
 	{
-		router.GET("", h.GetList)
-		router.GET("/:id", h.GetByID)
-		router.POST("/upload", h.UploadImage)
+		res.GET("", h.GetList)
+		res.GET("/:id", h.GetByID)
+		res.GET("/:id/reviews", h.GetReviews)
+		res.POST("/upload", h.UploadImage)
+		res.Use(authMiddleware)
+		{
+			res.POST("", h.CreateRestaurant)
+		}
 	}
-
-	protected := r.Group("/api/v1/restaurants")
-	protected.Use(authMiddleware)
+	admin := v1.Group("/admin")
+	admin.Use(authMiddleware, middleware.RoleMiddleware(auth.RoleAdmin))
 	{
-		protected.POST("", h.CreateRestaurant)
+		admin.PATCH("/restaurants/:id", h.UpdateAdminRestaurant)
+		admin.DELETE("/reviews/:id", h.DeleteReview)
 	}
-
-	admin := r.Group("/api/v1/admin/restaurants")
-	admin.Use(authMiddleware)
-	admin.Use(middleware.RoleMiddleware(auth.RoleAdmin))
-	{
-		admin.PATCH("/:id", h.UpdateAdminRestaurant)
-	}
-
-	partner := r.Group("/api/v1/partner")
+	partner := v1.Group("/partner")
 	partner.Use(authMiddleware)
 	{
 		partner.GET("/restaurant", h.GetPartnerRestaurant)

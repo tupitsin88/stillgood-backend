@@ -199,7 +199,6 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Обновление административных полей ресторана",
                 "parameters": [
                     {
                         "type": "string",
@@ -245,6 +244,59 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/reviews/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Review ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1890,7 +1942,6 @@ const docTemplate = `{
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Профиль заведения партнёра",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1933,7 +1984,6 @@ const docTemplate = `{
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Обновление профиля заведения",
                 "parameters": [
                     {
                         "description": "Поля профиля",
@@ -1980,7 +2030,6 @@ const docTemplate = `{
                 "tags": [
                     "Restaurants"
                 ],
-                "summary": "Список ресторанов",
                 "parameters": [
                     {
                         "type": "number",
@@ -2043,7 +2092,6 @@ const docTemplate = `{
                 "tags": [
                     "Restaurants"
                 ],
-                "summary": "Создание карточки ресторана",
                 "parameters": [
                     {
                         "description": "Данные ресторана",
@@ -2103,7 +2151,6 @@ const docTemplate = `{
                 "tags": [
                     "Restaurants"
                 ],
-                "summary": "Загрузка изображения",
                 "parameters": [
                     {
                         "type": "file",
@@ -2170,7 +2217,6 @@ const docTemplate = `{
                 "tags": [
                     "Restaurants"
                 ],
-                "summary": "Детали ресторана",
                 "parameters": [
                     {
                         "type": "string",
@@ -2189,6 +2235,65 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/restaurants/{id}/reviews": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Restaurants"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Restaurant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Лимит",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Сдвиг",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/restaurants.RestaurantReviewsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -3308,6 +3413,37 @@ const docTemplate = `{
                 },
                 "workingHours": {
                     "type": "string"
+                }
+            }
+        },
+        "restaurants.RestaurantReviewsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/restaurants.ReviewDTO"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/restaurants.Pagination"
+                }
+            }
+        },
+        "restaurants.ReviewDTO": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "rating": {
+                    "type": "integer"
                 }
             }
         }
