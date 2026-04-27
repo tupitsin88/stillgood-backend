@@ -19,6 +19,10 @@ services:
       - MINIO_BUCKET=${MINIO_BUCKET}
       - MINIO_USE_SSL=${MINIO_USE_SSL}
       - MINIO_PUBLIC_BASE_URL=${MINIO_PUBLIC_BASE_URL}
+      - FCM_ENABLED=${FCM_ENABLED}
+      - FIREBASE_CREDENTIALS_FILE=${FIREBASE_CREDENTIALS_FILE}
+    volumes:
+      - ./secrets:/run/secrets:ro
     depends_on:
       - postgres
 

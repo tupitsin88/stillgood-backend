@@ -20,6 +20,6 @@ AGENTS.md
 *.swp
 
 .env
-.env.*
+secrets/
 
 vendor/

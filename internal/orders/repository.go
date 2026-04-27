@@ -140,25 +140,6 @@ func (r *OrderRepository) UpdateOfferQuantity(ctx context.Context, offerID uuid.
 		Update("quantity_available", gorm.Expr("quantity_available + ?", delta)).Error
 }
 
-func (r *OrderRepository) CreateNotification(ctx context.Context, notification *domain.Notification) error {
-	return r.db.WithContext(ctx).Create(notification).Error
-}
-
-func (r *OrderRepository) CleanupOldNotifications(ctx context.Context, olderThan time.Time) error {
-	return r.db.WithContext(ctx).Where("created_at < ?", olderThan).Delete(&domain.Notification{}).Error
-}
-
-func (r *OrderRepository) GetNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]domain.Notification, error) {
-	var notifications []domain.Notification
-	err := r.db.WithContext(ctx).
-		Where("user_id = ?", userID).
-		Order("created_at DESC").
-		Limit(limit).
-		Offset(offset).
-		Find(&notifications).Error
-	return notifications, err
-}
-
 func (r *OrderRepository) CreateReview(ctx context.Context, review *domain.Review) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(review).Error; err != nil {
@@ -177,3 +158,4 @@ func (r *OrderRepository) CreateReview(ctx context.Context, review *domain.Revie
 		return err
 	})
 }
+

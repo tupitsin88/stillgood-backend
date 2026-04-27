@@ -317,7 +317,7 @@ func (h *OrderHandler) GetNotifications(c *gin.Context) {
 	userID, _ := uuid.Parse(uidStr)
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	notifications, err := h.service.repo.GetNotifications(c.Request.Context(), userID, limit, offset)
+	notifications, err := h.service.GetNotifications(c.Request.Context(), userID, limit, offset)
 	if err != nil {
 		errorResponse(c, 500, "INTERNAL_ERROR", err.Error())
 		return

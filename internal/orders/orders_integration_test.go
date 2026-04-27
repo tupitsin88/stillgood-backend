@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"kursach_backend/internal/domain"
+	"kursach_backend/internal/notifications"
 	"kursach_backend/pkg/postgres"
 	"os"
 	"strings"
@@ -43,12 +44,19 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		&domain.Offer{},
 		&domain.Order{},
 		&domain.OrderStatusHistory{},
+		&domain.Notification{},
 	)
 	if err != nil {
 		t.Fatalf("DB migration failed: %v", err)
 	}
 
 	return db
+}
+
+func newTestOrderService(db *gorm.DB, repo *OrderRepository) *OrderService {
+	notificationRepo := notifications.NewRepository(db)
+	notificationService := notifications.NewService(notificationRepo, notifications.LogPushProvider{})
+	return NewOrderService(repo, notificationService)
 }
 
 func testDBConfigFromEnv() testDBConfig {
@@ -122,7 +130,7 @@ func runningInDocker() bool {
 func TestCreateOrder_Concurrency(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewOrderRepository(db)
-	service := NewOrderService(repo, &LogNotificationProvider{})
+	service := newTestOrderService(db, repo)
 	ctx := context.Background()
 	testRunID := uuid.NewString()
 
@@ -207,7 +215,7 @@ func TestCreateOrder_Concurrency(t *testing.T) {
 func TestOrder_StateTransitions(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewOrderRepository(db)
-	service := NewOrderService(repo, &LogNotificationProvider{})
+	service := newTestOrderService(db, repo)
 	ctx := context.Background()
 	testRunID := uuid.NewString()
 
@@ -246,7 +254,7 @@ func TestOrder_StateTransitions(t *testing.T) {
 func TestOrder_PartnerSecurity(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewOrderRepository(db)
-	service := NewOrderService(repo, &LogNotificationProvider{})
+	service := newTestOrderService(db, repo)
 	ctx := context.Background()
 	testRunID := uuid.NewString()
 
@@ -278,7 +286,7 @@ func TestOrder_PartnerSecurity(t *testing.T) {
 func TestOrder_ForbiddenComplete(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewOrderRepository(db)
-	service := NewOrderService(repo, &LogNotificationProvider{})
+	service := newTestOrderService(db, repo)
 	ctx := context.Background()
 	testRunID := uuid.NewString()
 
@@ -312,7 +320,7 @@ func TestOrder_ForbiddenComplete(t *testing.T) {
 func TestOrder_PayAfterCancel(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewOrderRepository(db)
-	service := NewOrderService(repo, &LogNotificationProvider{})
+	service := newTestOrderService(db, repo)
 	ctx := context.Background()
 	testRunID := uuid.NewString()
 
@@ -347,7 +355,7 @@ func TestOrder_PayAfterCancel(t *testing.T) {
 func TestOrder_OfferAutoDeactivation(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewOrderRepository(db)
-	service := NewOrderService(repo, &LogNotificationProvider{})
+	service := newTestOrderService(db, repo)
 	ctx := context.Background()
 	testRunID := uuid.NewString()
 
@@ -385,7 +393,7 @@ func TestOrder_OfferAutoDeactivation(t *testing.T) {
 func TestOrder_CancellationWindow(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewOrderRepository(db)
-	service := NewOrderService(repo, &LogNotificationProvider{})
+	service := newTestOrderService(db, repo)
 	ctx := context.Background()
 	testRunID := uuid.NewString()
 
@@ -432,7 +440,7 @@ func TestOrder_CancellationWindow(t *testing.T) {
 func TestOrder_PaymentExpiration(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewOrderRepository(db)
-	service := NewOrderService(repo, &LogNotificationProvider{})
+	service := newTestOrderService(db, repo)
 	ctx := context.Background()
 	testRunID := uuid.NewString()
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"kursach_backend/internal/domain"
+	"kursach_backend/internal/notifications"
 	"log"
 	"math/rand"
 	"time"
@@ -11,26 +12,15 @@ import (
 	"github.com/google/uuid"
 )
 
-type NotificationProvider interface {
-	Send(ctx context.Context, userID uuid.UUID, message string) error
-}
-
-type LogNotificationProvider struct{}
-
-func (l LogNotificationProvider) Send(ctx context.Context, userID uuid.UUID, message string) error {
-	log.Printf("[NOTIFICATION STUB] Отправка пользователю %s: %s", userID, message)
-	return nil
-}
-
 type OrderService struct {
-	repo     *OrderRepository
-	notifier NotificationProvider
+	repo          *OrderRepository
+	notifications notifications.Service
 }
 
-func NewOrderService(repo *OrderRepository, notifier NotificationProvider) *OrderService {
+func NewOrderService(repo *OrderRepository, notificationsService notifications.Service) *OrderService {
 	return &OrderService{
-		repo:     repo,
-		notifier: notifier,
+		repo:          repo,
+		notifications: notificationsService,
 	}
 }
 
@@ -181,8 +171,7 @@ func (s *OrderService) PayOrder(ctx context.Context, orderID, userID uuid.UUID) 
 	if err != nil {
 		return nil, err
 	}
-	msg := fmt.Sprintf("Ваш заказ №%s успешно оплачен!", *order.OrderNumber)
-	s.notifier.Send(ctx, order.UserID, msg)
+	s.sendNotification(ctx, order.UserID, orderPaidNotificationPayload(order))
 	return order, nil
 }
 
@@ -237,7 +226,7 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID, actorID uuid.UU
 	if err != nil {
 		return nil, 0, err
 	}
-	s.notifier.Send(ctx, order.UserID, "Ваш заказ был отменен. Средства будут возвращены.")
+	s.sendNotification(ctx, order.UserID, orderCancelledNotificationPayload(order, refundAmount))
 	return order, refundAmount, nil
 }
 
@@ -281,14 +270,7 @@ func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID, res
 	if err != nil {
 		return nil, err
 	}
-	s.notifier.Send(ctx, order.UserID, "Заказ выдан! Приятного аппетита.")
-
-	msg := fmt.Sprintf("Заказ №%s успешно выдан! Спасибо, что спасаете еду.", *order.OrderNumber)
-	s.repo.CreateNotification(ctx, &domain.Notification{
-		UserID:    order.UserID,
-		Message:   msg,
-		CreatedAt: time.Now(),
-	})
+	s.sendNotification(ctx, order.UserID, orderCompletedNotificationPayload(order))
 	return order, nil
 }
 
@@ -303,16 +285,23 @@ func (s *OrderService) GetOrderById(ctx context.Context, orderID, userID uuid.UU
 	return order, nil
 }
 
+func (s *OrderService) GetNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]domain.Notification, error) {
+	return s.notifications.ListForUser(ctx, userID, limit, offset)
+}
+
 func (s *OrderService) StartNotificationWorker(ctx context.Context) {
-	ticker := time.NewTicker(24 * time.Hour)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			limit := time.Now().AddDate(0, 0, -30)
-			s.repo.CleanupOldNotifications(ctx, limit)
-		}
+	if s.notifications == nil {
+		return
+	}
+	s.notifications.StartCleanupWorker(ctx)
+}
+
+func (s *OrderService) sendNotification(ctx context.Context, userID uuid.UUID, payload notifications.Payload) {
+	if s.notifications == nil {
+		return
+	}
+	if err := s.notifications.SendToUser(ctx, userID, payload); err != nil {
+		log.Printf("[OrderService] notification failed for user %s: %v", userID, err)
 	}
 }
 

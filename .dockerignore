@@ -3,6 +3,7 @@
 
 .env
 .env.local
+secrets/
 
 main
 main.exe
