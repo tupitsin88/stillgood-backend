@@ -199,7 +199,6 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Обновление административных полей ресторана",
                 "parameters": [
                     {
                         "type": "string",
@@ -245,6 +244,94 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/restaurants/{id}/reviews": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Restaurant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/restaurants.AdminReviewDTO"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/reviews/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Review ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1542,6 +1629,50 @@ const docTemplate = `{
                 }
             }
         },
+        "/orders/{id}/review": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные отзыва",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/orders.CreateReviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/orders.ReviewDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/partner/analytics": {
             "get": {
                 "security": [
@@ -1846,7 +1977,6 @@ const docTemplate = `{
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Профиль заведения партнёра",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1889,7 +2019,6 @@ const docTemplate = `{
                 "tags": [
                     "Partner"
                 ],
-                "summary": "Обновление профиля заведения",
                 "parameters": [
                     {
                         "description": "Поля профиля",
@@ -1928,6 +2057,22 @@ const docTemplate = `{
                 }
             }
         },
+        "/partner/reviews": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "responses": {}
+            }
+        },
         "/restaurants": {
             "get": {
                 "produces": [
@@ -1936,7 +2081,6 @@ const docTemplate = `{
                 "tags": [
                     "Restaurants"
                 ],
-                "summary": "Список ресторанов",
                 "parameters": [
                     {
                         "type": "number",
@@ -1999,7 +2143,6 @@ const docTemplate = `{
                 "tags": [
                     "Restaurants"
                 ],
-                "summary": "Создание карточки ресторана",
                 "parameters": [
                     {
                         "description": "Данные ресторана",
@@ -2059,7 +2202,6 @@ const docTemplate = `{
                 "tags": [
                     "Restaurants"
                 ],
-                "summary": "Загрузка изображения",
                 "parameters": [
                     {
                         "type": "file",
@@ -2126,7 +2268,6 @@ const docTemplate = `{
                 "tags": [
                     "Restaurants"
                 ],
-                "summary": "Детали ресторана",
                 "parameters": [
                     {
                         "type": "string",
@@ -2145,6 +2286,65 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/restaurants/{id}/reviews": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Restaurants"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Restaurant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Лимит",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Сдвиг",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/restaurants.RestaurantReviewsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2903,6 +3103,23 @@ const docTemplate = `{
                 }
             }
         },
+        "orders.CreateReviewRequest": {
+            "type": "object",
+            "required": [
+                "rating"
+            ],
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "rating": {
+                    "type": "integer",
+                    "maximum": 5,
+                    "minimum": 1
+                }
+            }
+        },
         "orders.OfferDetailInternalDTO": {
             "type": "object",
             "properties": {
@@ -3056,6 +3273,23 @@ const docTemplate = `{
                 }
             }
         },
+        "orders.ReviewDTO": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "rating": {
+                    "type": "integer"
+                }
+            }
+        },
         "orders.UserStatsResponse": {
             "type": "object",
             "properties": {
@@ -3092,6 +3326,29 @@ const docTemplate = `{
                 },
                 "isActive": {
                     "type": "boolean"
+                }
+            }
+        },
+        "restaurants.AdminReviewDTO": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "rating": {
+                    "type": "integer"
+                },
+                "userEmail": {
+                    "type": "string"
+                },
+                "userName": {
+                    "type": "string"
                 }
             }
         },
@@ -3230,6 +3487,37 @@ const docTemplate = `{
                 },
                 "workingHours": {
                     "type": "string"
+                }
+            }
+        },
+        "restaurants.RestaurantReviewsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/restaurants.ReviewDTO"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/restaurants.Pagination"
+                }
+            }
+        },
+        "restaurants.ReviewDTO": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "rating": {
+                    "type": "integer"
                 }
             }
         }

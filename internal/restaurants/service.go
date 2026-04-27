@@ -2,6 +2,7 @@ package restaurants
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"image"
 	"image/color"
@@ -14,6 +15,9 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+
+	"kursach_backend/internal/domain"
+	"kursach_backend/internal/pkg/filestorage"
 
 	"github.com/gen2brain/heic"
 	"github.com/google/uuid"
@@ -33,6 +37,8 @@ type Service interface {
 	GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error)
 	IsApprovedPartner(userID string) (bool, error)
 	UploadImage(file *multipart.FileHeader) (string, error)
+	GetReviews(restID string, limit, offset int) ([]domain.Review, int64, error)
+	DeleteReview(reviewID string) error
 }
 
 type ListParams struct {
@@ -363,4 +369,20 @@ func trimOptionalString(value *string) *string {
 		return nil
 	}
 	return &trimmed
+}
+
+func (s *service) GetReviews(restID string, limit, offset int) ([]domain.Review, int64, error) {
+	uid, err := uuid.Parse(restID)
+	if err != nil {
+		return nil, 0, err
+	}
+	return s.repo.GetReviews(context.Background(), uid, limit, offset)
+}
+
+func (s *service) DeleteReview(reviewID string) error {
+	uid, err := uuid.Parse(reviewID)
+	if err != nil {
+		return err
+	}
+	return s.repo.DeleteReview(context.Background(), uid)
 }

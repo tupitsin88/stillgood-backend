@@ -1,5 +1,7 @@
 package restaurants
 
+import "time"
+
 type RestaurantResponse struct {
 	ID              string   `json:"id"`
 	Name            string   `json:"name"`
@@ -58,4 +60,25 @@ type CreateRestaurantRequest struct {
 	Latitude     float64 `json:"latitude" binding:"required"`
 	Longitude    float64 `json:"longitude" binding:"required"`
 	WorkingHours *string `json:"workingHours,omitempty"`
+}
+
+type ReviewDTO struct {
+	ID        string    `json:"id"`
+	Rating    int       `json:"rating"`
+	Comment   string    `json:"comment"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type AdminReviewDTO struct {
+	ID        string    `json:"id"`
+	Rating    int       `json:"rating"`
+	Comment   string    `json:"comment"`
+	UserName  string    `json:"userName"`
+	UserEmail string    `json:"userEmail"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type RestaurantReviewsResponse struct {
+	Data       []ReviewDTO `json:"data"`
+	Pagination Pagination  `json:"pagination"`
 }

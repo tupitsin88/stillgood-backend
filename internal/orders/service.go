@@ -315,3 +315,29 @@ func (s *OrderService) StartNotificationWorker(ctx context.Context) {
 		}
 	}
 }
+
+func (s *OrderService) CreateReview(ctx context.Context, orderID, userID uuid.UUID, req CreateReviewRequest) (*domain.Review, error) {
+	order, err := s.repo.GetByIDWithDetails(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if order.UserID != userID {
+		return nil, fmt.Errorf("unauthorized")
+	}
+	if order.Status != domain.OrderCompleted {
+		return nil, fmt.Errorf("ORDER_NOT_COMPLETED")
+	}
+	review := &domain.Review{
+		OrderID:      order.ID,
+		UserID:       userID,
+		RestaurantID: order.Offer.RestaurantID,
+		Rating:       req.Rating,
+		Comment:      req.Comment,
+		CreatedAt:    time.Now(),
+	}
+	if err := s.repo.CreateReview(ctx, review); err != nil {
+		return nil, err
+	}
+
+	return review, nil
+}
