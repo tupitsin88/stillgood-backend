@@ -2,7 +2,6 @@ package restaurants
 
 import (
 	"context"
-	"fmt"
 	"kursach_backend/internal/domain"
 	"time"
 

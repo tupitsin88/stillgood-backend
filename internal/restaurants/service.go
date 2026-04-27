@@ -19,12 +19,11 @@ import (
 	"kursach_backend/internal/domain"
 	"kursach_backend/internal/pkg/filestorage"
 
+	"kursach_backend/internal/pkg/geo"
+
 	"github.com/gen2brain/heic"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"kursach_backend/internal/domain"
-	"kursach_backend/internal/pkg/filestorage"
-	"kursach_backend/internal/pkg/geo"
 )
 
 type Service interface {
