@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"kursach_backend/internal/domain"
+	"kursach_backend/internal/notifications"
 	"kursach_backend/internal/offers"
 	"kursach_backend/internal/orders"
 
@@ -99,7 +100,10 @@ func main() {
 	}
 	// --- Orders ---
 	orderRepo := orders.NewOrderRepository(db)
-	orderService := orders.NewOrderService(orderRepo, &orders.LogNotificationProvider{})
+	notificationRepo := notifications.NewRepository(db)
+	pushProvider := notifications.NewPushProviderFromEnv(context.Background())
+	notificationService := notifications.NewService(notificationRepo, pushProvider)
+	orderService := orders.NewOrderService(orderRepo, notificationService)
 	orderHandler := orders.NewOrderHandler(orderService)
 
 	// --- Offers ---
