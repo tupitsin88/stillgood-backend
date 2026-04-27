@@ -171,17 +171,7 @@ func (s *OrderService) PayOrder(ctx context.Context, orderID, userID uuid.UUID) 
 	if err != nil {
 		return nil, err
 	}
-	msg := fmt.Sprintf("Ваш заказ №%s успешно оплачен!", *order.OrderNumber)
-	s.sendNotification(ctx, order.UserID, notifications.Payload{
-		Title:    "Заказ оплачен",
-		Body:     msg,
-		DeepLink: "/orders/" + order.ID.String(),
-		Data: map[string]string{
-			"type":    "order_paid",
-			"orderId": order.ID.String(),
-			"status":  string(order.Status),
-		},
-	})
+	s.sendNotification(ctx, order.UserID, orderPaidNotificationPayload(order))
 	return order, nil
 }
 
@@ -236,16 +226,7 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID, actorID uuid.UU
 	if err != nil {
 		return nil, 0, err
 	}
-	s.sendNotification(ctx, order.UserID, notifications.Payload{
-		Title:    "Заказ отменён",
-		Body:     "Ваш заказ был отменен. Средства будут возвращены.",
-		DeepLink: "/orders/" + order.ID.String(),
-		Data: map[string]string{
-			"type":    "order_cancelled",
-			"orderId": order.ID.String(),
-			"status":  string(order.Status),
-		},
-	})
+	s.sendNotification(ctx, order.UserID, orderCancelledNotificationPayload(order, refundAmount))
 	return order, refundAmount, nil
 }
 
@@ -289,20 +270,7 @@ func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID, res
 	if err != nil {
 		return nil, err
 	}
-	body := "Заказ выдан! Приятного аппетита."
-	if order.OrderNumber != nil {
-		body = fmt.Sprintf("Заказ №%s успешно выдан! Спасибо, что спасаете еду.", *order.OrderNumber)
-	}
-	s.sendNotification(ctx, order.UserID, notifications.Payload{
-		Title:    "Заказ выдан",
-		Body:     body,
-		DeepLink: "/orders/" + order.ID.String(),
-		Data: map[string]string{
-			"type":    "order_completed",
-			"orderId": order.ID.String(),
-			"status":  string(order.Status),
-		},
-	})
+	s.sendNotification(ctx, order.UserID, orderCompletedNotificationPayload(order))
 	return order, nil
 }
 
