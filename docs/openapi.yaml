@@ -3,12 +3,12 @@ info:
   title: Food-Sharing App API
   description: |
     API для приложения Food-Sharing.
-    
+
     ## Роли
     - **USER** — поиск, бронирование, заказы
     - **PARTNER** — управление боксами, аналитика
     - **ADMIN** — веб-панель модерации
-    
+
     ## Аутентификация
     - Access Token: 30 минут
     - Refresh Token: 14 дней
@@ -273,6 +273,56 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /auth/verify-email/request:
+    post:
+      tags: [Auth]
+      summary: Запрос OTP для верификации email
+      operationId: requestEmailVerification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestEmailVerificationRequest'
+      responses:
+        '200':
+          description: Код верификации отправлен, если email существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestEmailVerificationResponse'
+        '400':
+          description: Невалидный email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/verify-email/confirm:
+    post:
+      tags: [Auth]
+      summary: Подтверждение email по OTP-коду
+      operationId: verifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+      responses:
+        '200':
+          description: Email подтверждён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Невалидный email или код
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /auth/forgot-password:
     post:
       tags: [Auth]
@@ -438,6 +488,122 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   # ==================== ADMIN ====================
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: Список пользователей и партнёров
+      operationId: getAdminUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [USER, PARTNER]
+          description: Фильтр по роли
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Список пользователей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersResponse'
+        '400':
+          description: Невалидный фильтр роли или пагинация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Недостаточно прав (только ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/users/{id}/block:
+    post:
+      tags: [Admin]
+      summary: Заблокировать пользователя или партнёра
+      operationId: blockUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Пользователь заблокирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+        '400':
+          description: Нельзя заблокировать ADMIN или удалённый аккаунт
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Недостаточно прав (только ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/users/{id}/unblock:
+    post:
+      tags: [Admin]
+      summary: Разблокировать пользователя или партнёра
+      operationId: unblockUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Пользователь разблокирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+        '400':
+          description: Нельзя разблокировать ADMIN или удалённый аккаунт
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Недостаточно прав (только ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /admin/partners/pending:
     get:
       tags: [Admin]
@@ -588,6 +754,66 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /admin/restaurants/{id}/reviews:
+    get:
+      tags: [Admin]
+      summary: Список отзывов ресторана с данными авторов
+      operationId: getAdminRestaurantReviews
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список отзывов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminReviewDto'
+        '403':
+          description: Недостаточно прав (только ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/reviews/{id}:
+    delete:
+      tags: [Admin]
+      summary: Удалить отзыв
+      operationId: deleteReview
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Отзыв удалён
+        '403':
+          description: Недостаточно прав (только ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка удаления
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # ==================== PARTNER ====================
   /partner/restaurant:
     get:
@@ -619,14 +845,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                description:
-                  type: string
-                workingHours:
-                  type: string
-                imageUrl:
-                  type: string
+              $ref: '#/components/schemas/PartnerRestaurantUpdateRequest'
       responses:
         '200':
           description: Обновлённые данные
@@ -636,6 +855,33 @@ paths:
                 $ref: '#/components/schemas/RestaurantDetailDto'
         '403':
           description: Партнер не одобрен (PARTNER_NOT_APPROVED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /partner/reviews:
+    get:
+      tags: [Partner]
+      summary: Отзывы ресторана текущего партнёра
+      operationId: getPartnerReviews
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список отзывов ресторана партнёра
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestaurantReviewsResponse'
+        '404':
+          description: Ресторан партнёра не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка получения отзывов
           content:
             application/json:
               schema:
@@ -697,17 +943,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    format: uuid
-                  status:
-                    type: string
-                    example: COMPLETED
-                  completedAt:
-                    type: string
-                    format: date-time
+                $ref: '#/components/schemas/CompleteOrderResponse'
         '400':
           description: Неверный статус заказа
           content:
@@ -922,6 +1158,43 @@ paths:
                       $ref: '#/components/schemas/RestaurantDto'
                   pagination:
                     $ref: '#/components/schemas/Pagination'
+    post:
+      tags: [Restaurants]
+      summary: Создание карточки ресторана
+      operationId: createRestaurant
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRestaurantRequest'
+      responses:
+        '201':
+          description: Ресторан создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestaurantDetailDto'
+        '400':
+          description: Невалидные данные ресторана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Только одобренный PARTNER может создать ресторан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: У партнёра уже есть ресторан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /restaurants/{id}:
     get:
@@ -944,6 +1217,42 @@ paths:
                 $ref: '#/components/schemas/RestaurantDetailDto'
         '404':
           description: Не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /restaurants/{id}/reviews:
+    get:
+      tags: [Restaurants]
+      summary: Отзывы ресторана
+      operationId: getRestaurantReviews
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Список отзывов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestaurantReviewsResponse'
+        '500':
+          description: Ошибка получения отзывов
           content:
             application/json:
               schema:
@@ -1022,6 +1331,11 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - name: isActive
+          in: query
+          schema:
+            type: boolean
+          description: По умолчанию возвращаются только активные офферы.
         - name: restaurantId
           in: query
           schema:
@@ -1106,6 +1420,112 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/CategoryDto'
+    post:
+      tags: [Admin]
+      summary: Создание категории
+      operationId: createCategory
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        '201':
+          description: Категория создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryDto'
+        '400':
+          description: Невалидные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Недостаточно прав (только ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /categories/{id}:
+    patch:
+      tags: [Admin]
+      summary: Обновление категории
+      operationId: updateCategory
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        '200':
+          description: Категория обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryDto'
+        '400':
+          description: Невалидные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Недостаточно прав (только ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Категория не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Admin]
+      summary: Удаление категории
+      description: Нельзя удалить категорию, если в ней есть активные офферы.
+      operationId: deleteCategory
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Категория удалена
+        '400':
+          description: Категория содержит активные офферы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Недостаточно прав (только ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   # ==================== ORDERS ====================
   /orders:
@@ -1147,12 +1567,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [offerId]
-              properties:
-                offerId:
-                  type: string
-                  format: uuid
+              $ref: '#/components/schemas/CreateOrderRequest'
       responses:
         '201':
           description: Заказ создан
@@ -1189,6 +1604,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderDetailDto'
 
+  /orders/me/stats:
+    get:
+      tags: [Orders]
+      summary: Статистика пользователя
+      operationId: getUserStats
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Количество спасённых боксов и сумма экономии
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStatsResponse'
+
+  /orders/me/notifications:
+    get:
+      tags: [Orders]
+      summary: История уведомлений пользователя
+      operationId: getUserNotifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Список уведомлений
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationDto'
+
   /orders/{id}/pay:
     post:
       tags: [Orders]
@@ -1209,21 +1659,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    format: uuid
-                  status:
-                    type: string
-                    example: PAID
-                  orderNumber:
-                    type: string
-                    description: 6-значный номер заказа
-                    example: "482951"
-                  paidAt:
-                    type: string
-                    format: date-time
+                $ref: '#/components/schemas/PayOrderResponse'
         '422':
           description: Время на оплату истекло
           content:
@@ -1249,31 +1685,56 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                reason:
-                  type: string
+              $ref: '#/components/schemas/CancelOrderRequest'
       responses:
         '200':
           description: Отменён
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    format: uuid
-                  status:
-                    type: string
-                    example: CANCELLED
-                  cancelledAt:
-                    type: string
-                    format: date-time
-                  refundAmount:
-                    type: number
+                $ref: '#/components/schemas/CancelOrderResponse'
         '400':
           description: Нельзя отменить
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/{id}/review:
+    post:
+      tags: [Orders]
+      summary: Оставить отзыв по завершённому заказу
+      operationId: createOrderReview
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+      responses:
+        '201':
+          description: Отзыв создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewDto'
+        '400':
+          description: Заказ ещё не завершён или тело запроса невалидно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Заказ принадлежит другому пользователю
           content:
             application/json:
               schema:
@@ -1346,10 +1807,13 @@ components:
           type: string
         description:
           type: string
+        deviceToken:
+          type: string
+          description: FCM/APNS token
 
     LoginRequest:
       type: object
-      required: [email, password]
+      required: [email, password, deviceToken]
       properties:
         email:
           type: string
@@ -1358,6 +1822,36 @@ components:
           type: string
         deviceToken:
           type: string
+
+    RequestEmailVerificationRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    RequestEmailVerificationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        expiresIn:
+          type: integer
+          description: Секунды до истечения кода
+          example: 600
+
+    VerifyEmailRequest:
+      type: object
+      required: [email, code]
+      properties:
+        email:
+          type: string
+          format: email
+        code:
+          type: string
+          minLength: 6
+          maxLength: 6
 
     UpdateProfileRequest:
       type: object
@@ -1423,6 +1917,11 @@ components:
           enum: [USER, PARTNER, ADMIN]
         isVerified:
           type: boolean
+        isBlocked:
+          type: boolean
+        accountStatus:
+          type: string
+          enum: [active, blocked, deleted]
         authProvider:
           type: string
           enum: [email, google, apple]
@@ -1432,6 +1931,16 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    UsersResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserDto'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
 
     PendingPartnersResponse:
       type: object
@@ -1487,6 +1996,10 @@ components:
           format: double
         imageUrl:
           type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
         rating:
           type: number
           format: float
@@ -1498,21 +2011,18 @@ components:
             type: string
         distance:
           type: integer
+          nullable: true
           description: Метры
         hasActiveOffers:
           type: boolean
+        description:
+          type: string
+          nullable: true
+        workingHours:
+          type: string
 
     RestaurantDetailDto:
-      allOf:
-        - $ref: '#/components/schemas/RestaurantDto'
-        - type: object
-          properties:
-            description:
-              type: string
-            workingHours:
-              type: string
-            phone:
-              type: string
+      $ref: '#/components/schemas/RestaurantDto'
 
     RestaurantShortDto:
       type: object
@@ -1532,6 +2042,96 @@ components:
           format: double
         phone:
           type: string
+          nullable: true
+
+    CreateRestaurantRequest:
+      type: object
+      required: [name, companyName, inn, address, latitude, longitude]
+      properties:
+        partnerId:
+          type: string
+          format: uuid
+          description: Обязателен, если ресторан создаёт ADMIN. PARTNER создаёт только для себя.
+        name:
+          type: string
+        companyName:
+          type: string
+        inn:
+          type: string
+        address:
+          type: string
+        description:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+        workingHours:
+          type: string
+          nullable: true
+
+    PartnerRestaurantUpdateRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          nullable: true
+        workingHours:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+
+    ReviewDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminReviewDto:
+      allOf:
+        - $ref: '#/components/schemas/ReviewDto'
+        - type: object
+          properties:
+            userName:
+              type: string
+            userEmail:
+              type: string
+              format: email
+
+    RestaurantReviewsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewDto'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
 
     # ==================== OFFERS ====================
     CategoryDto:
@@ -1542,7 +2142,27 @@ components:
           format: uuid
         name:
           type: string
-        iconUrl:
+        icon_url:
+          type: string
+          nullable: true
+
+    CreateCategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        icon_url:
+          type: string
+          nullable: true
+
+    OfferCategoryDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
           type: string
 
     OfferPreviewDto:
@@ -1569,6 +2189,7 @@ components:
           type: string
         distance:
           type: integer
+          nullable: true
         pickupStart:
           type: string
           format: date-time
@@ -1578,7 +2199,7 @@ components:
         quantityAvailable:
           type: integer
         category:
-          $ref: '#/components/schemas/CategoryDto'
+          $ref: '#/components/schemas/OfferCategoryDto'
 
     OfferDetailDto:
       type: object
@@ -1594,8 +2215,12 @@ components:
           type: number
         originalPrice:
           type: number
+        discount:
+          type: integer
+          description: Процент скидки
         imageUrl:
           type: string
+          nullable: true
         quantityAvailable:
           type: integer
         quantityTotal:
@@ -1609,7 +2234,7 @@ components:
         isActive:
           type: boolean
         category:
-          $ref: '#/components/schemas/CategoryDto'
+          $ref: '#/components/schemas/OfferCategoryDto'
         restaurant:
           $ref: '#/components/schemas/RestaurantShortDto'
 
@@ -1658,6 +2283,14 @@ components:
       type: string
       enum: [CREATED, PAID, COMPLETED, CANCELLED]
 
+    CreateOrderRequest:
+      type: object
+      required: [offerId]
+      properties:
+        offerId:
+          type: string
+          format: uuid
+
     OrderPreviewDto:
       type: object
       properties:
@@ -1670,6 +2303,7 @@ components:
           type: number
         orderNumber:
           type: string
+          nullable: true
         offer:
           type: object
           properties:
@@ -1677,6 +2311,7 @@ components:
               type: string
             imageUrl:
               type: string
+              nullable: true
         restaurant:
           type: object
           properties:
@@ -1696,6 +2331,42 @@ components:
         expiresAt:
           type: string
           format: date-time
+          nullable: true
+
+    OrderOfferDetailDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        price:
+          type: number
+        originalPrice:
+          type: number
+        discount:
+          type: integer
+        description:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        restaurantId:
+          type: string
+          format: uuid
+        restaurantName:
+          type: string
+        distance:
+          type: integer
+        pickupStart:
+          type: string
+          format: date-time
+        pickupEnd:
+          type: string
+          format: date-time
+        quantityAvailable:
+          type: integer
 
     OrderDetailDto:
       type: object
@@ -1709,8 +2380,9 @@ components:
           type: number
         orderNumber:
           type: string
+          nullable: true
         offer:
-          $ref: '#/components/schemas/OfferPreviewDto'
+          $ref: '#/components/schemas/OrderOfferDetailDto'
         restaurant:
           $ref: '#/components/schemas/RestaurantShortDto'
         createdAt:
@@ -1719,17 +2391,22 @@ components:
         paidAt:
           type: string
           format: date-time
+          nullable: true
         completedAt:
           type: string
           format: date-time
+          nullable: true
         cancelledAt:
           type: string
           format: date-time
+          nullable: true
         expiresAt:
           type: string
           format: date-time
+          nullable: true
         cancellationReason:
           type: string
+          nullable: true
 
     CreateOrderResponse:
       type: object
@@ -1745,6 +2422,7 @@ components:
         expiresAt:
           type: string
           format: date-time
+          nullable: true
         offer:
           type: object
           properties:
@@ -1767,6 +2445,47 @@ components:
             address:
               type: string
 
+    PayOrderResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: PAID
+        orderNumber:
+          type: string
+          description: 6-значный номер заказа
+          example: "482951"
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CancelOrderRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+
+    CancelOrderResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: CANCELLED
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        refundAmount:
+          type: number
+          nullable: true
+
     PartnerOrderDto:
       type: object
       properties:
@@ -1778,6 +2497,10 @@ components:
         status:
           $ref: '#/components/schemas/OrderStatus'
         amount:
+          type: number
+        serviceFee:
+          type: number
+        netPayout:
           type: number
         offerTitle:
           type: string
@@ -1792,6 +2515,55 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    CompleteOrderResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: COMPLETED
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    UserStatsResponse:
+      type: object
+      properties:
+        savedBoxes:
+          type: integer
+        savedMoney:
+          type: number
+
+    NotificationDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        message:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    CreateReviewRequest:
+      type: object
+      required: [rating]
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          maxLength: 500
 
     # ==================== ANALYTICS ====================
     AnalyticsResponse:
@@ -1808,27 +2580,64 @@ components:
               type: integer
             expiredOrders:
               type: integer
-            conversionRate:
-              type: number
             grossRevenue:
               type: number
             serviceFee:
               type: number
             netPayout:
               type: number
+            conversionRate:
+              type: number
+            cancelRate:
+              type: number
+            categoryBreakdown:
+              type: array
+              items:
+                $ref: '#/components/schemas/CategoryStatDto'
         periods:
           type: array
           items:
-            type: object
-            properties:
-              period:
-                type: string
-              completedOrders:
-                type: integer
-              grossRevenue:
-                type: number
-              netPayout:
-                type: number
+            $ref: '#/components/schemas/DailyAnalyticsDto'
+
+    CategoryStatDto:
+      type: object
+      properties:
+        name:
+          type: string
+        grossRevenue:
+          type: number
+
+    DailyAnalyticsDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        restaurant_id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date-time
+        category_name:
+          type: string
+        total_bookings:
+          type: integer
+        completed_orders:
+          type: integer
+        cancelled_orders:
+          type: integer
+        expired_orders:
+          type: integer
+        gross_revenue:
+          type: number
+        service_fee:
+          type: number
+        net_payout:
+          type: number
+        created_at:
+          type: string
+          format: date-time
 
     # ==================== COMMON ====================
     Pagination:
