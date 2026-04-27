@@ -2,17 +2,20 @@ package offers
 
 import (
 	"context"
-	"fmt"
 	"kursach_backend/internal/domain"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type OfferRepository struct {
 	db *gorm.DB
 }
+
+const postgisPointSQL = "ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography"
+const restaurantDistanceSQL = "ST_Distance(restaurants.location, " + postgisPointSQL + ")"
 
 func NewOfferRepository(db *gorm.DB) *OfferRepository {
 	return &OfferRepository{db: db}
@@ -92,13 +95,13 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 		query = query.Where("offers.price <= ?", *params.MaxPrice)
 	}
 
-	if params.Lat != nil && params.Lng != nil && params.Radius != nil {
-		radiusKm := float64(*params.Radius) / 1000.0
-		distanceSQL := fmt.Sprintf(
-			"(6371 * acos(cos(radians(%f)) * cos(radians(restaurants.latitude)) * cos(radians(restaurants.longitude) - radians(%f)) + sin(radians(%f)) * sin(radians(restaurants.latitude))))",
-			*params.Lat, *params.Lng, *params.Lat,
-		)
-		query = query.Where(distanceSQL+" <= ?", radiusKm)
+	hasGeoPoint := params.Lat != nil && params.Lng != nil
+	if hasGeoPoint && params.Radius != nil {
+		query = query.Where("ST_DWithin(restaurants.location, "+postgisPointSQL+", ?)", *params.Lng, *params.Lat, *params.Radius)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
 	}
 
 	switch params.SortBy {
@@ -109,28 +112,34 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 	case "rating":
 		query = query.Order("restaurants.rating DESC")
 	case "distance":
-		if params.Lat != nil && params.Lng != nil {
-			distanceSQL := fmt.Sprintf(
-				"(6371 * acos(cos(radians(%f)) * cos(radians(restaurants.latitude)) * cos(radians(restaurants.longitude) - radians(%f)) + sin(radians(%f)) * sin(radians(restaurants.latitude))))",
-				*params.Lat, *params.Lng, *params.Lat,
-			)
-			query = query.Order(distanceSQL + " ASC")
+		if hasGeoPoint {
+			query = query.Order(distanceOrder(*params.Lng, *params.Lat))
 		} else {
 			query = query.Order("offers.id DESC")
 		}
 	default:
 		query = query.Order("offers.pickup_time_start ASC")
 	}
-
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
+	if hasGeoPoint {
+		query = query.Select("offers.*, ROUND("+restaurantDistanceSQL+")::int AS distance_meters", *params.Lng, *params.Lat)
 	}
+
 	err := query.
 		Limit(params.Limit).
 		Offset(params.Offset).
 		Find(&offers).Error
 
 	return offers, total, err
+}
+
+func distanceOrder(lng, lat float64) clause.OrderBy {
+	return clause.OrderBy{
+		Expression: clause.Expr{
+			SQL:                restaurantDistanceSQL + " ASC",
+			Vars:               []interface{}{lng, lat},
+			WithoutParentheses: true,
+		},
+	}
 }
 
 func (r *OfferRepository) GetRestaurantByPartnerID(ctx context.Context, partnerID uuid.UUID) (*domain.Restaurant, error) {

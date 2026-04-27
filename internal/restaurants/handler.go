@@ -3,7 +3,7 @@ package restaurants
 import (
 	"errors"
 	"kursach_backend/internal/auth"
-	"math"
+	"kursach_backend/internal/pkg/geo"
 	"net/http"
 	"strconv"
 	"strings"
@@ -53,6 +53,14 @@ func (h *Handler) CreateRestaurant(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "name, companyName, inn and address are required"})
 		return
 	}
+	if !geo.ValidLatitude(req.Latitude) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid latitude"})
+		return
+	}
+	if !geo.ValidLongitude(req.Longitude) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid longitude"})
+		return
+	}
 
 	var partnerID string
 	switch c.GetString("role") {
@@ -80,6 +88,8 @@ func (h *Handler) CreateRestaurant(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "PARTNER_NOT_APPROVED", "message": "Partner is not approved"})
 		case errors.Is(err, ErrRestaurantAlreadyExists):
 			c.JSON(http.StatusConflict, gin.H{"error": "RESTAURANT_ALREADY_EXISTS"})
+		case errors.Is(err, ErrInvalidCoordinates):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_COORDINATES"})
 		case errors.Is(err, gorm.ErrRecordNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "Partner not found"})
 		default:
@@ -209,7 +219,7 @@ func (h *Handler) GetList(c *gin.Context) {
 
 	if latStr := c.Query("lat"); latStr != "" {
 		lat, parseErr := strconv.ParseFloat(latStr, 64)
-		if parseErr != nil {
+		if parseErr != nil || !geo.ValidLatitude(lat) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid lat"})
 			return
 		}
@@ -218,7 +228,7 @@ func (h *Handler) GetList(c *gin.Context) {
 
 	if lngStr := c.Query("lng"); lngStr != "" {
 		lng, parseErr := strconv.ParseFloat(lngStr, 64)
-		if parseErr != nil {
+		if parseErr != nil || !geo.ValidLongitude(lng) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid lng"})
 			return
 		}
@@ -227,7 +237,7 @@ func (h *Handler) GetList(c *gin.Context) {
 
 	if radiusStr := c.Query("radius"); radiusStr != "" {
 		radius, parseErr := strconv.Atoi(radiusStr)
-		if parseErr != nil || radius <= 0 {
+		if parseErr != nil || !geo.ValidRadiusMeters(radius) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid radius"})
 			return
 		}
@@ -261,11 +271,6 @@ func (h *Handler) GetList(c *gin.Context) {
 
 	var response []RestaurantResponse
 	for _, r := range restaurants {
-		var distance *int
-		if params.Lat != nil && params.Lng != nil {
-			val := int(calculateDistance(*params.Lat, *params.Lng, r.Latitude, r.Longitude))
-			distance = &val
-		}
 		meta := metaByRestaurantID[r.ID]
 		response = append(response, RestaurantResponse{
 			ID:              r.ID.String(),
@@ -281,7 +286,7 @@ func (h *Handler) GetList(c *gin.Context) {
 			ReviewCount:     r.ReviewCount,
 			Categories:      meta.Categories,
 			HasActiveOffers: meta.HasActiveOffers,
-			Distance:        distance,
+			Distance:        r.DistanceMeters,
 		})
 	}
 

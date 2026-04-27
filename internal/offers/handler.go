@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"kursach_backend/internal/pkg/geo"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -149,8 +151,8 @@ func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 
 	if latStr := c.Query("lat"); latStr != "" {
 		val, err := strconv.ParseFloat(latStr, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_LATITUDE", "message": "Latitude must be a number"})
+		if err != nil || !geo.ValidLatitude(val) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_LATITUDE", "message": "Latitude must be between -90 and 90"})
 			return
 		}
 		params.Lat = &val
@@ -158,8 +160,8 @@ func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 
 	if lngStr := c.Query("lng"); lngStr != "" {
 		val, err := strconv.ParseFloat(lngStr, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_LONGITUDE", "message": "Longitude must be a number"})
+		if err != nil || !geo.ValidLongitude(val) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_LONGITUDE", "message": "Longitude must be between -180 and 180"})
 			return
 		}
 		params.Lng = &val
@@ -176,8 +178,8 @@ func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 
 	if rStr := c.Query("radius"); rStr != "" {
 		val, err := strconv.Atoi(rStr)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_RADIUS", "message": "Radius must be an integer"})
+		if err != nil || !geo.ValidRadiusMeters(val) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_RADIUS", "message": "Radius must be a positive integer"})
 			return
 		}
 		params.Radius = &val

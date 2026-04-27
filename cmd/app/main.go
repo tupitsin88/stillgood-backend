@@ -59,6 +59,10 @@ func main() {
 		log.Fatal("JWT_SECRET is required")
 	}
 
+	if err := postgres.EnsurePostGIS(db); err != nil {
+		log.Fatal("PostGIS setup failed:", err)
+	}
+
 	// 2. Авто-миграции
 	log.Println("Running migrations...")
 	err = db.AutoMigrate(
@@ -74,6 +78,9 @@ func main() {
 	)
 	if err != nil {
 		log.Fatal("Migration failed:", err)
+	}
+	if err := postgres.EnsureRestaurantGeoLayer(db); err != nil {
+		log.Fatal("Restaurant geo setup failed:", err)
 	}
 	log.Println("Migrations completed successfully")
 

@@ -22,6 +22,9 @@ import (
 	"github.com/gen2brain/heic"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"kursach_backend/internal/domain"
+	"kursach_backend/internal/pkg/filestorage"
+	"kursach_backend/internal/pkg/geo"
 )
 
 type Service interface {
@@ -55,6 +58,7 @@ var ErrRestaurantAlreadyExists = errors.New("restaurant already exists")
 var ErrPartnerNotApproved = errors.New("partner is not approved")
 var ErrInvalidRestaurantID = errors.New("invalid restaurant id")
 var ErrInvalidCommission = errors.New("invalid commission")
+var ErrInvalidCoordinates = errors.New("invalid coordinates")
 
 const (
 	maxUploadImageSizeBytes   = 10 << 20 // 10MB
@@ -109,6 +113,9 @@ func (s *service) CreateRestaurant(partnerID string, req CreateRestaurantRequest
 	workingHours := ""
 	if req.WorkingHours != nil {
 		workingHours = strings.TrimSpace(*req.WorkingHours)
+	}
+	if !geo.ValidLatitude(req.Latitude) || !geo.ValidLongitude(req.Longitude) {
+		return nil, ErrInvalidCoordinates
 	}
 
 	restaurant := &domain.Restaurant{

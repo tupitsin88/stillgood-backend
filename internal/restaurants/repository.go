@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type OfferMeta struct {
@@ -31,6 +32,9 @@ type Repository interface {
 type repository struct {
 	db *gorm.DB
 }
+
+const postgisPointSQL = "ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography"
+const restaurantDistanceSQL = "ST_Distance(restaurants.location, " + postgisPointSQL + ")"
 
 func NewRepository(db *gorm.DB) Repository {
 	return &repository{db: db}
@@ -56,25 +60,39 @@ func (r *repository) GetList(params ListParams) ([]domain.Restaurant, int64, err
 		`, *params.CategoryID, true, time.Now())
 	}
 
-	if params.Lat != nil && params.Lng != nil && params.Radius != nil {
-		radiusKm := float64(*params.Radius) / 1000.0
-		distanceSQL := fmt.Sprintf(
-			"(6371 * acos(cos(radians(%f)) * cos(radians(restaurants.latitude)) * cos(radians(restaurants.longitude) - radians(%f)) + sin(radians(%f)) * sin(radians(restaurants.latitude))))",
-			*params.Lat, *params.Lng, *params.Lat,
-		)
-		query = query.Where(distanceSQL+" <= ?", radiusKm).Order(distanceSQL + " ASC")
-	} else {
-		query = query.Order("restaurants.created_at DESC")
+	hasGeoPoint := params.Lat != nil && params.Lng != nil
+	hasGeoFilter := hasGeoPoint && params.Radius != nil
+	if hasGeoFilter {
+		query = query.Where("ST_DWithin(restaurants.location, "+postgisPointSQL+", ?)", *params.Lng, *params.Lat, *params.Radius)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	if hasGeoFilter {
+		query = query.Order(distanceOrder(*params.Lng, *params.Lat))
+	} else {
+		query = query.Order("restaurants.created_at DESC")
+	}
+	if hasGeoPoint {
+		query = query.Select("restaurants.*, ROUND("+restaurantDistanceSQL+")::int AS distance_meters", *params.Lng, *params.Lat)
+	}
+
 	if err := query.Limit(params.Limit).Offset(params.Offset).Find(&restaurants).Error; err != nil {
 		return nil, 0, err
 	}
 	return restaurants, total, nil
+}
+
+func distanceOrder(lng, lat float64) clause.OrderBy {
+	return clause.OrderBy{
+		Expression: clause.Expr{
+			SQL:                restaurantDistanceSQL + " ASC",
+			Vars:               []interface{}{lng, lat},
+			WithoutParentheses: true,
+		},
+	}
 }
 
 func (r *repository) GetByID(id string) (*domain.Restaurant, error) {
