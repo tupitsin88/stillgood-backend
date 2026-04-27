@@ -12,6 +12,7 @@ func RegisterRoutes(r *gin.Engine, h *OrderHandler, authMiddleware gin.HandlerFu
 		orders.POST("", h.CreateOrder)
 		orders.POST("/:id/pay", h.PayOrder)
 		orders.POST("/:id/cancel", h.CancelOrder)
+		orders.POST("/:id/review", h.CreateReview)
 		orders.GET("", h.GetUserOrders)
 		orders.GET("/:id", h.GetOrderById)
 		orders.GET("/me/stats", h.GetUserStats)

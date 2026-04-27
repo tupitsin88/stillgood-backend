@@ -427,6 +427,18 @@ definitions:
       status:
         type: string
     type: object
+  orders.CreateReviewRequest:
+    properties:
+      comment:
+        maxLength: 500
+        type: string
+      rating:
+        maximum: 5
+        minimum: 1
+        type: integer
+    required:
+    - rating
+    type: object
   orders.OfferDetailInternalDTO:
     properties:
       description:
@@ -526,6 +538,17 @@ definitions:
         type: string
       name:
         type: string
+    type: object
+  orders.ReviewDTO:
+    properties:
+      comment:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: string
+      rating:
+        type: integer
     type: object
   orders.UserStatsResponse:
     properties:
@@ -1571,6 +1594,33 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - ApiKeyAuth: []
+      tags:
+      - Orders
+  /orders/{id}/review:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Данные отзыва
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/orders.CreateReviewRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/orders.ReviewDTO'
       security:
       - ApiKeyAuth: []
       tags:

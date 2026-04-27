@@ -70,6 +70,7 @@ func main() {
 		&domain.Category{},
 		&domain.DailyAnalytics{},
 		&domain.Notification{},
+		&domain.Review{},
 	)
 	if err != nil {
 		log.Fatal("Migration failed:", err)
