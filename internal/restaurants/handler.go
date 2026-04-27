@@ -553,3 +553,63 @@ func (h *Handler) DeleteReview(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// GetAdminReviews @Summary Список отзывов с данными авторов (Admin)
+// @Tags Admin
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path string true "Restaurant ID"
+// @Success 200 {object} []AdminReviewDTO
+// @Router /admin/restaurants/{id}/reviews [get]
+func (h *Handler) GetAdminReviews(c *gin.Context) {
+	restID := c.Param("id")
+	reviews, _, err := h.service.GetReviews(restID, 100, 0)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to fetch reviews"})
+		return
+	}
+	var data []AdminReviewDTO
+	for _, r := range reviews {
+		data = append(data, AdminReviewDTO{
+			ID:        r.ID.String(),
+			Rating:    r.Rating,
+			Comment:   r.Comment,
+			UserName:  r.User.Name,
+			UserEmail: r.User.Email,
+			CreatedAt: r.CreatedAt,
+		})
+	}
+	c.JSON(200, data)
+}
+
+// GetPartnerReviews @Summary Отзывы моего ресторана (Partner)
+// @Tags Partner
+// @Security ApiKeyAuth
+// @Produce json
+// @Router /partner/reviews [get]
+func (h *Handler) GetPartnerReviews(c *gin.Context) {
+	userID := c.GetString("user_id")
+	rest, err := h.service.GetPartnerRestaurant(userID)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "RESTAURANT_NOT_FOUND"})
+		return
+	}
+	reviews, total, err := h.service.GetReviews(rest.ID.String(), 10, 0)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to fetch reviews"})
+		return
+	}
+	var data []ReviewDTO
+	for _, r := range reviews {
+		data = append(data, ReviewDTO{
+			ID:        r.ID.String(),
+			Rating:    r.Rating,
+			Comment:   r.Comment,
+			CreatedAt: r.CreatedAt,
+		})
+	}
+	c.JSON(200, gin.H{
+		"data":       data,
+		"pagination": gin.H{"total": total, "limit": 10, "offset": 0},
+	})
+}

@@ -24,6 +24,7 @@ func RegisterRoutes(r *gin.Engine, h *Handler, authMiddleware gin.HandlerFunc) {
 	admin.Use(authMiddleware, middleware.RoleMiddleware(auth.RoleAdmin))
 	{
 		admin.PATCH("/restaurants/:id", h.UpdateAdminRestaurant)
+		admin.GET("/restaurants/:id/reviews", h.GetAdminReviews)
 		admin.DELETE("/reviews/:id", h.DeleteReview)
 	}
 	partner := v1.Group("/partner")
@@ -31,5 +32,6 @@ func RegisterRoutes(r *gin.Engine, h *Handler, authMiddleware gin.HandlerFunc) {
 	{
 		partner.GET("/restaurant", h.GetPartnerRestaurant)
 		partner.PATCH("/restaurant", h.UpdatePartnerRestaurant)
+		partner.GET("/reviews", h.GetPartnerReviews)
 	}
 }

@@ -254,6 +254,41 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/restaurants/{id}/reviews": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Restaurant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/restaurants.AdminReviewDTO"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/admin/reviews/{id}": {
             "delete": {
                 "security": [
@@ -2022,6 +2057,22 @@ const docTemplate = `{
                 }
             }
         },
+        "/partner/reviews": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "responses": {}
+            }
+        },
         "/restaurants": {
             "get": {
                 "produces": [
@@ -3275,6 +3326,29 @@ const docTemplate = `{
                 },
                 "isActive": {
                     "type": "boolean"
+                }
+            }
+        },
+        "restaurants.AdminReviewDTO": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "rating": {
+                    "type": "integer"
+                },
+                "userEmail": {
+                    "type": "string"
+                },
+                "userName": {
+                    "type": "string"
                 }
             }
         },
