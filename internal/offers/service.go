@@ -19,11 +19,15 @@ func NewOfferService(repo *OfferRepository) *OfferService {
 }
 
 func (s *OfferService) CreateOffer(ctx context.Context, partnerID uuid.UUID, req CreateOfferRequest) (*domain.Offer, error) {
+	partner, err := s.repo.GetPartnerByID(ctx, partnerID)
+	if err != nil || partner.PartnerStatus != "APPROVED" {
+		return nil, fmt.Errorf("PARTNER_NOT_APPROVED")
+	}
 	restaurant, err := s.repo.GetRestaurantByPartnerID(ctx, partnerID)
 	if err != nil {
 		return nil, fmt.Errorf("RESTAURANT_NOT_FOUND")
 	}
-	if req.Price >= req.OriginalPrice {
+	if req.Price > req.OriginalPrice {
 		return nil, fmt.Errorf("INVALID_PRICE")
 	}
 	if req.PickupEnd.Before(req.PickupStart) {
@@ -32,13 +36,15 @@ func (s *OfferService) CreateOffer(ctx context.Context, partnerID uuid.UUID, req
 	if req.PickupStart.Before(time.Now().Add(-5 * time.Minute)) {
 		return nil, fmt.Errorf("START_TIME_IN_PAST")
 	}
-
-	imgUrl := req.ImageURL
+	if req.Quantity <= 0 {
+		return nil, fmt.Errorf("INVALID_QUANTITY")
+	}
 
 	catID, err := uuid.Parse(req.CategoryID)
 	if err != nil {
 		return nil, fmt.Errorf("INVALID_CATEGORY_ID")
 	}
+	imgUrl := req.ImageURL
 	offer := &domain.Offer{
 		RestaurantID:      restaurant.ID,
 		Title:             req.Title,
@@ -58,13 +64,7 @@ func (s *OfferService) CreateOffer(ctx context.Context, partnerID uuid.UUID, req
 	if err := s.repo.Create(ctx, offer); err != nil {
 		return nil, err
 	}
-
-	fullOffer, err := s.repo.GetByID(ctx, offer.ID)
-	if err != nil {
-		offer.Restaurant = *restaurant
-		return offer, nil
-	}
-	return fullOffer, nil
+	return s.repo.GetByID(ctx, offer.ID)
 }
 
 func (s *OfferService) UpdateOffer(ctx context.Context, id, partnerID uuid.UUID, req UpdateOfferRequest) (*domain.Offer, error) {
@@ -87,14 +87,17 @@ func (s *OfferService) UpdateOffer(ctx context.Context, id, partnerID uuid.UUID,
 		if *req.Price < 0 {
 			return nil, fmt.Errorf("PRICE_MUST_BE_POSITIVE")
 		}
-		if *req.Price >= offer.OriginalPrice {
-			return nil, fmt.Errorf("PRICE_TOO_HIGH: must be lower than original")
+		if *req.Price > offer.OriginalPrice {
+			return nil, fmt.Errorf("PRICE_TOO_HIGH")
 		}
 		offer.Price = *req.Price
 	}
+	if req.OriginalPrice != nil {
+		offer.OriginalPrice = *req.OriginalPrice
+	}
 	if req.Quantity != nil {
-		if *req.Quantity < 0 {
-			return nil, fmt.Errorf("QUANTITY_MUST_BE_POSITIVE")
+		if *req.Quantity <= 0 {
+			return nil, fmt.Errorf("INVALID_QUANTITY")
 		}
 		diff := *req.Quantity - offer.QuantityTotal
 		offer.QuantityAvailable += diff
@@ -106,11 +109,24 @@ func (s *OfferService) UpdateOffer(ctx context.Context, id, partnerID uuid.UUID,
 	if req.IsActive != nil {
 		offer.IsActive = *req.IsActive
 	}
+	if req.PickupStart != nil {
+		offer.PickupStart = *req.PickupStart
+	}
+	if req.PickupEnd != nil {
+		offer.PickupEnd = *req.PickupEnd
+	}
+	if req.ImageURL != nil {
+		offer.ImageURL = req.ImageURL
+	}
+	if req.CategoryID != nil {
+		catID, _ := uuid.Parse(*req.CategoryID)
+		offer.CategoryID = catID
+	}
 
 	if err := s.repo.Update(ctx, offer); err != nil {
 		return nil, err
 	}
-	return offer, nil
+	return s.repo.GetByID(ctx, offer.ID)
 }
 
 func (s *OfferService) GetPartnerOffers(ctx context.Context, partnerID uuid.UUID, limit, offset int) ([]OfferDetailDTO, int64, error) {
@@ -148,6 +164,9 @@ func (s *OfferService) GetOfferByID(ctx context.Context, id uuid.UUID) (*OfferDe
 	offer, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("OFFER_NOT_FOUND")
+	}
+	if !offer.IsActive || offer.QuantityAvailable <= 0 {
+		return nil, fmt.Errorf("OFFER_NOT_AVAILABLE")
 	}
 	dto := s.mapToDetailDTO(offer)
 	return &dto, nil

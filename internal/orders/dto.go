@@ -59,6 +59,7 @@ type OrderDetailDTO struct {
 	Status             string                 `json:"status"`
 	Amount             float64                `json:"amount"`
 	OrderNumber        *string                `json:"orderNumber,omitempty"`
+	CustomerName       string                 `json:"customerName"`
 	Offer              OfferDetailInternalDTO `json:"offer"`
 	Restaurant         RestaurantShortDTO     `json:"restaurant"`
 	CreatedAt          time.Time              `json:"createdAt"`
@@ -168,4 +169,8 @@ type ReviewDTO struct {
 	Rating    int       `json:"rating"`
 	Comment   string    `json:"comment"`
 	CreatedAt time.Time `json:"createdAt"`
+}
+
+type CompleteOrderRequest struct {
+	ConfirmationCode string `json:"confirmationCode" binding:"required"`
 }

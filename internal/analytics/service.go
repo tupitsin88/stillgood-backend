@@ -61,7 +61,7 @@ type AnalyticsSummary struct {
 	CompletedOrders   int            `json:"completedOrders"`
 	CancelledOrders   int            `json:"cancelledOrders"`
 	ExpiredOrders     int            `json:"expiredOrders"`
-	GrossRevenue      float64        `json:"grossRevenue"`
+	TotalRevenue      float64        `json:"totalRevenue"`
 	ServiceFee        float64        `json:"serviceFee"`
 	NetPayout         float64        `json:"netPayout"`
 	ConversionRate    float64        `json:"conversionRate"`
@@ -71,7 +71,7 @@ type AnalyticsSummary struct {
 
 type CategoryStat struct {
 	Name         string  `json:"name"`
-	GrossRevenue float64 `json:"grossRevenue"`
+	TotalRevenue float64 `json:"totalRevenue"`
 }
 
 func (s *AnalyticsService) GetPartnerAnalytics(ctx context.Context, restaurantID uuid.UUID, start, end time.Time, groupBy string) (AnalyticsSummary, []domain.DailyAnalytics, error) {
@@ -87,7 +87,7 @@ func (s *AnalyticsService) GetPartnerAnalytics(ctx context.Context, restaurantID
 		summary.CompletedOrders += day.CompletedOrders
 		summary.CancelledOrders += day.CancelledOrders
 		summary.ExpiredOrders += day.ExpiredOrders
-		summary.GrossRevenue += day.GrossRevenue
+		summary.TotalRevenue += day.GrossRevenue
 		summary.ServiceFee += day.ServiceFee
 		summary.NetPayout += day.NetPayout
 		if day.CategoryName != "" {
@@ -102,7 +102,7 @@ func (s *AnalyticsService) GetPartnerAnalytics(ctx context.Context, restaurantID
 	for name, revenue := range categoryMap {
 		summary.CategoryBreakdown = append(summary.CategoryBreakdown, CategoryStat{
 			Name:         name,
-			GrossRevenue: revenue,
+			TotalRevenue: revenue,
 		})
 	}
 	if groupBy == "week" || groupBy == "month" {

@@ -21,9 +21,9 @@ func NewAnalyticsHandler(service *AnalyticsService) *AnalyticsHandler {
 // @Description Получение статистики продаж, выручки и процента отмен за период с группировкой
 // @Tags Analytics
 // @Security ApiKeyAuth
-// @Param startDate query string true "Дата начала (YYYY-MM-DD)"
-// @Param endDate query string true "Дата конца (YYYY-MM-DD)"
-// @Param groupBy query string false "Группировка данных" Enums(day, week, month) default(day) // <-- ДОБАВЛЯЕМ ЭТУ СТРОКУ
+// @Param startDate query string false "Дата начала (YYYY-MM-DD), по умолчанию 7 дней назад"
+// @Param endDate query string false "Дата конца (YYYY-MM-DD), по умолчанию сегодня"
+// @Param groupBy query string false "Группировка данных" Enums(day, week, month) default(day)
 // @Success 200 {object} AnalyticsSummary
 // @Router /partner/analytics [get]
 func (h *AnalyticsHandler) GetPartnerAnalytics(c *gin.Context) {
@@ -41,6 +41,14 @@ func (h *AnalyticsHandler) GetPartnerAnalytics(c *gin.Context) {
 		})
 		return
 	}
+	groupBy := c.DefaultQuery("groupBy", "day")
+	if groupBy != "day" && groupBy != "week" && groupBy != "month" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "INVALID_GROUP_BY",
+			"message": "Supported values: day, week, month",
+		})
+		return
+	}
 	startStr := c.Query("startDate")
 	endStr := c.Query("endDate")
 	start, errStart := time.Parse("2006-01-02", startStr)
@@ -49,7 +57,7 @@ func (h *AnalyticsHandler) GetPartnerAnalytics(c *gin.Context) {
 		end = time.Now()
 		start = end.AddDate(0, 0, -7)
 	}
-	groupBy := c.DefaultQuery("groupBy", "day")
+
 	summary, periods, err := h.service.GetPartnerAnalytics(c.Request.Context(), restaurant.ID, start, end, groupBy)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

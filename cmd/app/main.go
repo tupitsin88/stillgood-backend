@@ -164,6 +164,8 @@ func main() {
 	analyticsService := analytics.NewAnalyticsService(analyticsRepo)
 	analyticsHandler := analytics.NewAnalyticsHandler(analyticsService)
 
+	notificationsHandler := notifications.NewNotificationsHandler(notificationService)
+
 	// Cron-worker
 	go analyticsService.StartAnalyticsWorker(context.Background())
 	go orderService.StartExpirationWorker(context.Background())
@@ -173,7 +175,7 @@ func main() {
 	// 4. Роутер
 	router := gin.Default()
 	router.HandleMethodNotAllowed = true
-	app.NewRouter(router, authService, authHandler, restaurantsHandler, categoriesHandler, orderHandler, offerHandler, analyticsHandler, jwtSecret)
+	app.NewRouter(router, authService, authHandler, restaurantsHandler, categoriesHandler, orderHandler, offerHandler, analyticsHandler, notificationsHandler, jwtSecret)
 
 	appPort := os.Getenv("APP_PORT")
 	if appPort == "" {
