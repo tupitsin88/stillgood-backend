@@ -44,8 +44,10 @@ type fakePushProvider struct {
 	sendCount   int
 }
 
-func (p *fakePushProvider) Send(ctx context.Context, deviceToken string, payload Payload) error {
-	p.deviceToken = deviceToken
+func (p *fakePushProvider) SendBatch(ctx context.Context, tokens []string, payload Payload) error {
+	if len(tokens) > 0 {
+		p.deviceToken = tokens[0]
+	}
 	p.payload = payload
 	p.sendCount++
 	return p.err
@@ -54,10 +56,13 @@ func (p *fakePushProvider) Send(ctx context.Context, deviceToken string, payload
 func TestServiceSendToUserStoresNotificationAndSendsPush(t *testing.T) {
 	store := &fakeStore{deviceToken: "device-token", hasDeviceToken: true}
 	push := &fakePushProvider{}
-	service := NewService(store, push)
-	userID := uuid.New()
+	s := NewService(store, push).(*service)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	s.Start(ctx)
 
-	err := service.SendToUser(context.Background(), userID, Payload{
+	userID := uuid.New()
+	err := s.SendToUser(ctx, userID, Payload{
 		Title:    "Заказ оплачен",
 		Body:     "Ваш заказ успешно оплачен",
 		DeepLink: "/orders/123",
@@ -65,6 +70,8 @@ func TestServiceSendToUserStoresNotificationAndSendsPush(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, store.notifications, 1)
+	time.Sleep(50 * time.Millisecond)
+
 	assert.Equal(t, userID, store.notifications[0].UserID)
 	assert.Equal(t, "Ваш заказ успешно оплачен", store.notifications[0].Message)
 	assert.Equal(t, 1, push.sendCount)
@@ -75,23 +82,31 @@ func TestServiceSendToUserStoresNotificationAndSendsPush(t *testing.T) {
 func TestServiceSendToUserSkipsPushWithoutDeviceToken(t *testing.T) {
 	store := &fakeStore{}
 	push := &fakePushProvider{}
-	service := NewService(store, push)
+	s := NewService(store, push).(*service)
 
-	err := service.SendToUser(context.Background(), uuid.New(), Payload{Body: "Message"})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	s.Start(ctx)
+	err := s.SendToUser(ctx, uuid.New(), Payload{Body: "Message"})
 
 	require.NoError(t, err)
 	require.Len(t, store.notifications, 1)
+	time.Sleep(50 * time.Millisecond)
 	assert.Equal(t, 0, push.sendCount)
 }
 
 func TestServiceSendToUserDoesNotFailOnPushError(t *testing.T) {
 	store := &fakeStore{deviceToken: "device-token", hasDeviceToken: true}
 	push := &fakePushProvider{err: errors.New("fcm unavailable")}
-	service := NewService(store, push)
+	s := NewService(store, push).(*service)
 
-	err := service.SendToUser(context.Background(), uuid.New(), Payload{Body: "Message"})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	s.Start(ctx)
+	err := s.SendToUser(ctx, uuid.New(), Payload{Body: "Message"})
 
 	require.NoError(t, err)
+	time.Sleep(50 * time.Millisecond)
 	assert.Equal(t, 1, push.sendCount)
 	require.Len(t, store.notifications, 1)
 }

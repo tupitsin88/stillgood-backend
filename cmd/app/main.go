@@ -99,6 +99,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("invalid REFRESH_TOKEN_TTL: %v", err)
 	}
+
 	// --- Orders ---
 	orderRepo := orders.NewOrderRepository(db)
 	notificationRepo := notifications.NewRepository(db)
@@ -167,6 +168,7 @@ func main() {
 	go analyticsService.StartAnalyticsWorker(context.Background())
 	go orderService.StartExpirationWorker(context.Background())
 	go orderService.StartNotificationWorker(context.Background())
+	go notificationService.Start(context.Background())
 
 	// 4. Роутер
 	router := gin.Default()
