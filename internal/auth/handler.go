@@ -85,6 +85,10 @@ func (h *Handler) Register(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be at least 8 characters and include a digit and a special character"})
 			return
 		}
+		if errors.Is(err, ErrDeviceTokenRequired) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "deviceToken is required"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register"})
 		return
 	}
@@ -128,6 +132,10 @@ func (h *Handler) RegisterPartner(c *gin.Context) {
 		}
 		if errors.Is(err, ErrWeakPassword) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be at least 8 characters and include a digit and a special character"})
+			return
+		}
+		if errors.Is(err, ErrDeviceTokenRequired) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "deviceToken is required"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register partner"})
@@ -218,6 +226,8 @@ func (h *Handler) OAuth(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid OAuth provider"})
 		case errors.Is(err, ErrInvalidOAuthToken):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid OAuth token"})
+		case errors.Is(err, ErrDeviceTokenRequired):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "deviceToken is required"})
 		case errors.Is(err, ErrUserBlocked):
 			c.JSON(http.StatusForbidden, gin.H{"error": "Account is blocked"})
 		default:

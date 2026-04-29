@@ -8,7 +8,8 @@ type RestaurantResponse struct {
 	Address         string   `json:"address"`
 	Latitude        float64  `json:"latitude"`
 	Longitude       float64  `json:"longitude"`
-	ImageURL        *string  `json:"imageUrl,omitempty"`
+	LogoURL         *string  `json:"logoUrl,omitempty"`
+	CoverURL        *string  `json:"coverUrl,omitempty"`
 	Phone           *string  `json:"phone,omitempty"`
 	Rating          float64  `json:"rating"`
 	ReviewCount     int      `json:"reviewCount"`
@@ -30,10 +31,17 @@ type RestaurantListResponse struct {
 	Pagination Pagination           `json:"pagination"`
 }
 
+type UploadRestaurantImageResponse struct {
+	Kind  string `json:"kind"`
+	Field string `json:"field"`
+	URL   string `json:"url"`
+}
+
 type PartnerRestaurantUpdateRequest struct {
 	Description  *string `json:"description"`
 	WorkingHours *string `json:"workingHours"`
-	ImageURL     *string `json:"imageUrl"`
+	LogoURL      *string `json:"logoUrl"`
+	CoverURL     *string `json:"coverUrl"`
 }
 
 type AdminRestaurantUpdateRequest struct {
@@ -56,7 +64,8 @@ type CreateRestaurantRequest struct {
 	Address      string  `json:"address" binding:"required"`
 	Description  *string `json:"description,omitempty"`
 	Phone        *string `json:"phone,omitempty"`
-	ImageURL     *string `json:"imageUrl,omitempty"`
+	LogoURL      *string `json:"logoUrl,omitempty"`
+	CoverURL     *string `json:"coverUrl,omitempty"`
 	Latitude     float64 `json:"latitude" binding:"required"`
 	Longitude    float64 `json:"longitude" binding:"required"`
 	WorkingHours *string `json:"workingHours,omitempty"`

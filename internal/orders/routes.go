@@ -14,8 +14,9 @@ func RegisterRoutes(r *gin.Engine, h *OrderHandler, authMiddleware gin.HandlerFu
 		orders.POST("/:id/cancel", h.CancelOrder)
 		orders.POST("/:id/review", h.CreateReview)
 		orders.GET("", h.GetUserOrders)
-		orders.GET("/:id", h.GetOrderById)
 		orders.GET("/me/stats", h.GetUserStats)
+		orders.GET("/me/notifications", h.GetNotifications)
+		orders.GET("/:id", h.GetOrderById)
 	}
 	partner := v1.Group("/partner/orders")
 	partner.Use(authMiddleware)

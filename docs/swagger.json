@@ -2197,16 +2197,20 @@
                         "name": "image",
                         "in": "formData",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Image kind: logo or cover",
+                        "name": "kind",
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/restaurants.UploadRestaurantImageResponse"
                         }
                     },
                     "400": {
@@ -2583,6 +2587,7 @@
         "auth.OAuthRequest": {
             "type": "object",
             "required": [
+                "deviceToken",
                 "idToken",
                 "provider"
             ],
@@ -2626,6 +2631,7 @@
             "type": "object",
             "required": [
                 "companyName",
+                "deviceToken",
                 "email",
                 "establishmentAddress",
                 "establishmentName",
@@ -2682,6 +2688,7 @@
         "auth.RegisterRequest": {
             "type": "object",
             "required": [
+                "deviceToken",
                 "email",
                 "name",
                 "password"
@@ -3372,10 +3379,10 @@
                 "companyName": {
                     "type": "string"
                 },
-                "description": {
+                "coverUrl": {
                     "type": "string"
                 },
-                "imageUrl": {
+                "description": {
                     "type": "string"
                 },
                 "inn": {
@@ -3383,6 +3390,9 @@
                 },
                 "latitude": {
                     "type": "number"
+                },
+                "logoUrl": {
+                    "type": "string"
                 },
                 "longitude": {
                     "type": "number"
@@ -3418,10 +3428,13 @@
         "restaurants.PartnerRestaurantUpdateRequest": {
             "type": "object",
             "properties": {
+                "coverUrl": {
+                    "type": "string"
+                },
                 "description": {
                     "type": "string"
                 },
-                "imageUrl": {
+                "logoUrl": {
                     "type": "string"
                 },
                 "workingHours": {
@@ -3455,6 +3468,9 @@
                         "type": "string"
                     }
                 },
+                "coverUrl": {
+                    "type": "string"
+                },
                 "description": {
                     "type": "string"
                 },
@@ -3467,11 +3483,11 @@
                 "id": {
                     "type": "string"
                 },
-                "imageUrl": {
-                    "type": "string"
-                },
                 "latitude": {
                     "type": "number"
+                },
+                "logoUrl": {
+                    "type": "string"
                 },
                 "longitude": {
                     "type": "number"
@@ -3521,6 +3537,20 @@
                 },
                 "rating": {
                     "type": "integer"
+                }
+            }
+        },
+        "restaurants.UploadRestaurantImageResponse": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         }

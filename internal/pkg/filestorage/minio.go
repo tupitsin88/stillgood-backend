@@ -50,16 +50,23 @@ func (fs *FileStorage) Upload(fileHeader *multipart.FileHeader) (string, error) 
 	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
 	contentType := fileHeader.Header.Get("Content-Type")
 
-	return fs.uploadReader(file, fileHeader.Size, ext, contentType)
+	return fs.uploadReader(file, fileHeader.Size, ext, contentType, "")
 }
 
 func (fs *FileStorage) UploadBytes(content []byte, ext string, contentType string) (string, error) {
-	reader := bytes.NewReader(content)
-	return fs.uploadReader(reader, int64(len(content)), ext, contentType)
+	return fs.UploadBytesWithPrefix(content, ext, contentType, "")
 }
 
-func (fs *FileStorage) uploadReader(reader io.Reader, size int64, ext string, contentType string) (string, error) {
+func (fs *FileStorage) UploadBytesWithPrefix(content []byte, ext string, contentType string, prefix string) (string, error) {
+	reader := bytes.NewReader(content)
+	return fs.uploadReader(reader, int64(len(content)), ext, contentType, prefix)
+}
+
+func (fs *FileStorage) uploadReader(reader io.Reader, size int64, ext string, contentType string, prefix string) (string, error) {
 	filename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+	if cleanPrefix := strings.Trim(prefix, "/"); cleanPrefix != "" {
+		filename = cleanPrefix + "/" + filename
+	}
 
 	_, err := fs.client.PutObject(context.Background(), fs.bucketName, filename, reader, size, minio.PutObjectOptions{
 		ContentType: contentType,

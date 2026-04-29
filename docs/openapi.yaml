@@ -1269,12 +1269,16 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [image]
+              required: [image, kind]
               properties:
                 image:
                   type: string
                   format: binary
                   description: JPG/PNG/HEIC(HEIF), максимум 10MB
+                kind:
+                  type: string
+                  enum: [logo, cover]
+                  description: Назначение изображения. logo сохраняется как logoUrl, cover сохраняется как coverUrl.
       responses:
         '200':
           description: Изображение загружено
@@ -1283,9 +1287,16 @@ paths:
               schema:
                 type: object
                 properties:
+                  kind:
+                    type: string
+                    enum: [logo, cover]
+                  field:
+                    type: string
+                    enum: [logoUrl, coverUrl]
+                    description: Поле ресторана, в которое нужно записать url.
                   url:
                     type: string
-                    example: https://cdn.feedex.ru/food-images/0f3d3f95-0e2b-4b5c-9ce9-7f4ef0b6a312.jpg
+                    example: https://cdn.feedex.ru/food-images/restaurants/logos/0f3d3f95-0e2b-4b5c-9ce9-7f4ef0b6a312.jpg
         '400':
           description: Невалидный формат файла или пустой файл
           content:
@@ -1766,7 +1777,7 @@ components:
     # ==================== AUTH ====================
     RegisterRequest:
       type: object
-      required: [email, password, name]
+      required: [email, password, name, deviceToken]
       properties:
         email:
           type: string
@@ -1782,7 +1793,7 @@ components:
 
     PartnerRegisterRequest:
       type: object
-      required: [email, password, name, phone, companyName, inn, establishmentName, establishmentAddress]
+      required: [email, password, name, phone, companyName, inn, establishmentName, establishmentAddress, deviceToken]
       properties:
         email:
           type: string
@@ -1866,7 +1877,7 @@ components:
 
     OAuthRequest:
       type: object
-      required: [provider, idToken]
+      required: [provider, idToken, deviceToken]
       properties:
         provider:
           type: string
@@ -1994,7 +2005,10 @@ components:
         longitude:
           type: number
           format: double
-        imageUrl:
+        logoUrl:
+          type: string
+          nullable: true
+        coverUrl:
           type: string
           nullable: true
         phone:
@@ -2066,7 +2080,10 @@ components:
         phone:
           type: string
           nullable: true
-        imageUrl:
+        logoUrl:
+          type: string
+          nullable: true
+        coverUrl:
           type: string
           nullable: true
         latitude:
@@ -2092,7 +2109,10 @@ components:
         workingHours:
           type: string
           nullable: true
-        imageUrl:
+        logoUrl:
+          type: string
+          nullable: true
+        coverUrl:
           type: string
           nullable: true
 

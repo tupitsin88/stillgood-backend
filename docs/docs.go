@@ -2203,16 +2203,20 @@ const docTemplate = `{
                         "name": "image",
                         "in": "formData",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Image kind: logo or cover",
+                        "name": "kind",
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/restaurants.UploadRestaurantImageResponse"
                         }
                     },
                     "400": {
@@ -2589,6 +2593,7 @@ const docTemplate = `{
         "auth.OAuthRequest": {
             "type": "object",
             "required": [
+                "deviceToken",
                 "idToken",
                 "provider"
             ],
@@ -2632,6 +2637,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "companyName",
+                "deviceToken",
                 "email",
                 "establishmentAddress",
                 "establishmentName",
@@ -2688,6 +2694,7 @@ const docTemplate = `{
         "auth.RegisterRequest": {
             "type": "object",
             "required": [
+                "deviceToken",
                 "email",
                 "name",
                 "password"
@@ -3378,10 +3385,10 @@ const docTemplate = `{
                 "companyName": {
                     "type": "string"
                 },
-                "description": {
+                "coverUrl": {
                     "type": "string"
                 },
-                "imageUrl": {
+                "description": {
                     "type": "string"
                 },
                 "inn": {
@@ -3389,6 +3396,9 @@ const docTemplate = `{
                 },
                 "latitude": {
                     "type": "number"
+                },
+                "logoUrl": {
+                    "type": "string"
                 },
                 "longitude": {
                     "type": "number"
@@ -3424,10 +3434,13 @@ const docTemplate = `{
         "restaurants.PartnerRestaurantUpdateRequest": {
             "type": "object",
             "properties": {
+                "coverUrl": {
+                    "type": "string"
+                },
                 "description": {
                     "type": "string"
                 },
-                "imageUrl": {
+                "logoUrl": {
                     "type": "string"
                 },
                 "workingHours": {
@@ -3461,6 +3474,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "coverUrl": {
+                    "type": "string"
+                },
                 "description": {
                     "type": "string"
                 },
@@ -3473,11 +3489,11 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "imageUrl": {
-                    "type": "string"
-                },
                 "latitude": {
                     "type": "number"
+                },
+                "logoUrl": {
+                    "type": "string"
                 },
                 "longitude": {
                     "type": "number"
@@ -3527,6 +3543,20 @@ const docTemplate = `{
                 },
                 "rating": {
                     "type": "integer"
+                }
+            }
+        },
+        "restaurants.UploadRestaurantImageResponse": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         }
