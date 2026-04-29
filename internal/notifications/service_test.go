@@ -73,7 +73,9 @@ func TestServiceSendToUserStoresNotificationAndSendsPush(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	assert.Equal(t, userID, store.notifications[0].UserID)
-	assert.Equal(t, "Ваш заказ успешно оплачен", store.notifications[0].Message)
+	assert.Equal(t, "Заказ оплачен", store.notifications[0].Title)
+	assert.Equal(t, "Ваш заказ успешно оплачен", store.notifications[0].Body)
+	assert.Equal(t, "/orders/123", store.notifications[0].DeepLink)
 	assert.Equal(t, 1, push.sendCount)
 	assert.Equal(t, "device-token", push.deviceToken)
 	assert.Equal(t, "/orders/123", push.payload.DeepLink)
