@@ -153,3 +153,9 @@ func (r *OfferRepository) GetRestaurantByPartnerID(ctx context.Context, partnerI
 func (r *OfferRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return r.db.WithContext(ctx).Delete(&domain.Offer{}, "id = ?", id).Error
 }
+
+func (r *OfferRepository) GetPartnerByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	var user domain.User
+	err := r.db.WithContext(ctx).First(&user, "id = ?", id).Error
+	return &user, err
+}
