@@ -13,12 +13,12 @@ type Payload struct {
 }
 
 type PushProvider interface {
-	Send(ctx context.Context, deviceToken string, payload Payload) error
+	SendBatch(ctx context.Context, tokens []string, payload Payload) error
 }
 
 type LogPushProvider struct{}
 
-func (LogPushProvider) Send(ctx context.Context, deviceToken string, payload Payload) error {
-	log.Printf("[NOTIFICATION STUB] deviceTokenLen=%d title=%q body=%q deepLink=%q", len(deviceToken), payload.Title, payload.Body, payload.DeepLink)
+func (LogPushProvider) SendBatch(ctx context.Context, tokens []string, payload Payload) error {
+	log.Printf("[NOTIFICATION STUB] BATCH SEND to %d tokens: %q", len(tokens), payload.Title)
 	return nil
 }

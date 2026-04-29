@@ -12,6 +12,11 @@ import (
 	"github.com/google/uuid"
 )
 
+type PushJob struct {
+	Tokens  []string
+	Payload Payload
+}
+
 var ErrStoreRequired = errors.New("notifications store is required")
 
 type Service interface {
@@ -19,18 +24,45 @@ type Service interface {
 	ListForUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]domain.Notification, error)
 	CleanupOld(ctx context.Context, olderThan time.Time) error
 	StartCleanupWorker(ctx context.Context)
+	Start(ctx context.Context)
+	SendToTokens(ctx context.Context, tokens []string, payload Payload) error
 }
 
 type service struct {
-	store Store
-	push  PushProvider
+	store   Store
+	push    PushProvider
+	jobChan chan PushJob
 }
 
 func NewService(store Store, push PushProvider) Service {
 	if push == nil {
 		push = LogPushProvider{}
 	}
-	return &service{store: store, push: push}
+	return &service{
+		store:   store,
+		push:    push,
+		jobChan: make(chan PushJob, 1000),
+	}
+}
+
+func (s *service) Start(ctx context.Context) {
+	log.Println("[Notifications] Worker pool started")
+	for i := 0; i < 3; i++ {
+		go s.worker(ctx)
+	}
+}
+
+func (s *service) worker(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case job := <-s.jobChan:
+			if err := s.push.SendBatch(ctx, job.Tokens, job.Payload); err != nil {
+				log.Printf("[Notifications] Batch push failed: %v", err)
+			}
+		}
+	}
 }
 
 func (s *service) SendToUser(ctx context.Context, userID uuid.UUID, payload Payload) error {
@@ -52,12 +84,18 @@ func (s *service) SendToUser(ctx context.Context, userID uuid.UUID, payload Payl
 		return err
 	}
 	if !ok {
-		log.Printf("[Notifications] user %s has no device token", userID)
+		log.Printf("[Notifications] user %s has no device token, skipping push", userID)
 		return nil
 	}
+	job := PushJob{
+		Tokens:  []string{deviceToken},
+		Payload: payload,
+	}
 
-	if err := s.push.Send(ctx, deviceToken, payload); err != nil {
-		log.Printf("[Notifications] push send failed for user %s: %v", userID, err)
+	select {
+	case s.jobChan <- job:
+	default:
+		log.Println("[Notifications] Queue is full, dropping push notification")
 	}
 	return nil
 }
@@ -110,4 +148,21 @@ func normalizePayload(payload Payload) Payload {
 		payload.Body = payload.Title
 	}
 	return payload
+}
+
+func (s *service) SendToTokens(ctx context.Context, tokens []string, payload Payload) error {
+	if len(tokens) == 0 {
+		return nil
+	}
+	job := PushJob{
+		Tokens:  tokens,
+		Payload: payload,
+	}
+	select {
+	case s.jobChan <- job:
+		log.Printf("[Notifications] Enqueued batch for %d tokens", len(tokens))
+	default:
+		log.Println("[Notifications] Queue is full, dropping batch push")
+	}
+	return nil
 }

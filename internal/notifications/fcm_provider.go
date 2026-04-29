@@ -50,24 +50,42 @@ func NewFCMPushProvider(ctx context.Context, credentialsFile string) (*FCMPushPr
 	return &FCMPushProvider{client: client}, nil
 }
 
-func (p *FCMPushProvider) Send(ctx context.Context, deviceToken string, payload Payload) error {
-	data := make(map[string]string, len(payload.Data)+1)
+func (p *FCMPushProvider) SendBatch(ctx context.Context, tokens []string, payload Payload) error {
+	if len(tokens) == 0 {
+		return nil
+	}
+
+	fcmData := make(map[string]string, len(payload.Data)+1)
 	for key, value := range payload.Data {
-		data[key] = value
+		fcmData[key] = value
 	}
 	if payload.DeepLink != "" {
-		data["deepLink"] = payload.DeepLink
+		fcmData["deepLink"] = payload.DeepLink
 	}
 
-	message := &messaging.Message{
-		Token: deviceToken,
-		Notification: &messaging.Notification{
-			Title: payload.Title,
-			Body:  payload.Body,
-		},
-		Data: data,
+	for i := 0; i < len(tokens); i += 500 {
+		end := i + 500
+		if end > len(tokens) {
+			end = len(tokens)
+		}
+		batch := tokens[i:end]
+		var messages []*messaging.Message
+		for _, t := range batch {
+			messages = append(messages, &messaging.Message{
+				Token: t,
+				Notification: &messaging.Notification{
+					Title: payload.Title,
+					Body:  payload.Body,
+				},
+				Data: fcmData,
+			})
+		}
+		response, err := p.client.SendEach(ctx, messages)
+		if err != nil {
+			log.Printf("[FCM] Batch send error: %v", err)
+			continue
+		}
+		log.Printf("[FCM] Batch sent: %d success", response.SuccessCount)
 	}
-
-	_, err := p.client.Send(ctx, message)
-	return err
+	return nil
 }
