@@ -1,6 +1,7 @@
 package orders
 
 import (
+	"kursach_backend/internal/domain"
 	"strconv"
 	"strings"
 
@@ -48,7 +49,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	order, err := h.service.CreateOrder(c.Request.Context(), userID, req)
 	if err != nil {
-		if strings.ToLower(err.Error()) == "offer not found" {
+		if err.Error() == "OFFER_NOT_FOUND" {
 			errorResponse(c, 404, "OFFER_NOT_FOUND", "The requested offer does not exist")
 		} else {
 			errorResponse(c, 400, "CREATION_FAILED", err.Error())
@@ -182,7 +183,7 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 // @Security ApiKeyAuth
 // @Produce json
 // @Param id path string true "Order ID"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} CompleteOrderResponse
 // @Router /partner/orders/{id}/complete [post]
 func (h *OrderHandler) CompleteOrder(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
@@ -193,7 +194,7 @@ func (h *OrderHandler) CompleteOrder(c *gin.Context) {
 	restIDStr := c.GetString("restaurant_id")
 	restaurantID, err := uuid.Parse(restIDStr)
 	if err != nil {
-		errorResponse(c, 400, "INVALID_ID", "Invalid ID format")
+		errorResponse(c, 400, "INVALID_RESTAURANT_ID", "Your account is not linked to a restaurant")
 		return
 	}
 	order, err := h.service.CompleteOrder(c.Request.Context(), id, restaurantID)
@@ -202,11 +203,11 @@ func (h *OrderHandler) CompleteOrder(c *gin.Context) {
 		case "unauthorized":
 			errorResponse(c, 403, "FORBIDDEN", "This order belongs to another restaurant")
 		case "INVALID_ORDER_STATUS":
-			errorResponse(c, 400, "INVALID_ORDER_STATUS", "Can only complete PAID orders")
+			errorResponse(c, 400, "INVALID_ORDER_STATUS", "Only PAID orders can be completed")
 		case "not found":
 			errorResponse(c, 404, "ORDER_NOT_FOUND", "Order not found")
 		default:
-			errorResponse(c, 400, "COMPLETION_FAILED", err.Error())
+			errorResponse(c, 500, "COMPLETION_FAILED", err.Error())
 		}
 		return
 	}
@@ -234,18 +235,20 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 		errorResponse(c, 401, "UNAUTHORIZED", "Invalid or missing User ID")
 		return
 	}
-	limit := 20
-	offset := 0
-	if l := c.Query("limit"); l != "" {
-		limit, _ = strconv.Atoi(l)
-	}
-	if o := c.Query("offset"); o != "" {
-		offset, _ = strconv.Atoi(o)
-	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	statusStr := c.Query("status")
 	var statuses []string
 	if statusStr != "" {
-		statuses = strings.Split(statusStr, ",")
+		for _, s := range strings.Split(statusStr, ",") {
+			s = strings.ToUpper(strings.TrimSpace(s))
+			if isValidStatus(s) {
+				statuses = append(statuses, s)
+			} else {
+				errorResponse(c, 400, "INVALID_STATUS", "Status "+s+" is not allowed")
+				return
+			}
+		}
 	}
 
 	orders, total, err := h.service.repo.GetUserOrders(c.Request.Context(), userID, limit, offset, statuses)
@@ -303,28 +306,6 @@ func (h *OrderHandler) GetUserStats(c *gin.Context) {
 	})
 }
 
-// GetNotifications @Summary История уведомлений
-// @Description Получение списка уведомлений пользователя с пагинацией
-// @Tags Profile
-// @Security ApiKeyAuth
-// @Produce json
-// @Param limit query int false "Лимит" default(20)
-// @Param offset query int false "Смещение" default(0)
-// @Success 200 {object} []domain.Notification
-// @Router /orders/me/notifications [get]
-func (h *OrderHandler) GetNotifications(c *gin.Context) {
-	uidStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(uidStr)
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	notifications, err := h.service.GetNotifications(c.Request.Context(), userID, limit, offset)
-	if err != nil {
-		errorResponse(c, 500, "INTERNAL_ERROR", err.Error())
-		return
-	}
-	c.JSON(200, notifications)
-}
-
 // GetPartnerOrders @Summary Заказы партнёра
 // @Tags Partner
 // @Security ApiKeyAuth
@@ -342,7 +323,15 @@ func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 	statusStr := c.Query("status")
 	var statuses []string
 	if statusStr != "" {
-		statuses = strings.Split(statusStr, ",")
+		for _, s := range strings.Split(statusStr, ",") {
+			s = strings.ToUpper(strings.TrimSpace(s))
+			if isValidStatus(s) {
+				statuses = append(statuses, s)
+			} else {
+				errorResponse(c, 400, "INVALID_STATUS", "Status "+s+" is not allowed")
+				return
+			}
+		}
 	}
 	orders, total, err := h.service.repo.GetPartnerOrdersWithTotal(c.Request.Context(), restaurantID, limit, offset, statuses)
 	if err != nil {
@@ -372,12 +361,8 @@ func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{
-		"data": data,
-		"pagination": gin.H{
-			"total":  total,
-			"limit":  limit,
-			"offset": offset,
-		},
+		"data":       data,
+		"pagination": gin.H{"total": total, "limit": limit, "offset": offset},
 	})
 }
 
@@ -416,6 +401,7 @@ func (h *OrderHandler) GetOrderById(c *gin.Context) {
 		Status:             string(order.Status),
 		Amount:             order.Amount,
 		OrderNumber:        order.OrderNumber,
+		CustomerName:       order.User.Name,
 		CreatedAt:          order.CreatedAt,
 		PaidAt:             order.PaidAt,
 		CompletedAt:        order.CompletedAt,
@@ -492,4 +478,12 @@ func (h *OrderHandler) CreateReview(c *gin.Context) {
 		Comment:   review.Comment,
 		CreatedAt: review.CreatedAt,
 	})
+}
+
+func isValidStatus(s string) bool {
+	switch domain.OrderStatus(s) {
+	case domain.OrderCreated, domain.OrderPaid, domain.OrderCompleted, domain.OrderCancelled:
+		return true
+	}
+	return false
 }

@@ -36,6 +36,7 @@ func (r *OrderRepository) CreateOrder(ctx context.Context, order *domain.Order) 
 func (r *OrderRepository) GetByIDWithDetails(ctx context.Context, id uuid.UUID) (*domain.Order, error) {
 	var order domain.Order
 	err := r.db.WithContext(ctx).
+		Preload("User").
 		Preload("Offer").
 		Preload("Offer.Restaurant").
 		First(&order, "id = ?", id).Error
@@ -158,4 +159,3 @@ func (r *OrderRepository) CreateReview(ctx context.Context, review *domain.Revie
 		return err
 	})
 }
-

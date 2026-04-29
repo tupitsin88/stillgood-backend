@@ -16,21 +16,21 @@ definitions:
         type: number
       expiredOrders:
         type: integer
-      grossRevenue:
-        type: number
       netPayout:
         type: number
       serviceFee:
         type: number
       totalBookings:
         type: integer
+      totalRevenue:
+        type: number
     type: object
   analytics.CategoryStat:
     properties:
-      grossRevenue:
-        type: number
       name:
         type: string
+      totalRevenue:
+        type: number
     type: object
   auth.AuthResponse:
     properties:
@@ -285,17 +285,6 @@ definitions:
       name:
         type: string
     type: object
-  domain.Notification:
-    properties:
-      created_at:
-        type: string
-      id:
-        type: string
-      message:
-        type: string
-      user_id:
-        type: string
-    type: object
   offers.CategoryDTO:
     properties:
       id:
@@ -381,10 +370,20 @@ definitions:
     type: object
   offers.UpdateOfferRequest:
     properties:
+      categoryId:
+        type: string
       description:
+        type: string
+      imageUrl:
         type: string
       isActive:
         type: boolean
+      originalPrice:
+        type: number
+      pickupEnd:
+        type: string
+      pickupStart:
+        type: string
       price:
         type: number
       quantity:
@@ -405,6 +404,15 @@ definitions:
         type: string
       refundAmount:
         type: number
+      status:
+        type: string
+    type: object
+  orders.CompleteOrderResponse:
+    properties:
+      completedAt:
+        type: string
+      id:
+        type: string
       status:
         type: string
     type: object
@@ -493,6 +501,8 @@ definitions:
       completedAt:
         type: string
       createdAt:
+        type: string
+      customerName:
         type: string
       expiresAt:
         type: string
@@ -1493,6 +1503,30 @@ paths:
       - ApiKeyAuth: []
       tags:
       - Admin
+  /notifications:
+    get:
+      description: Получение списка всех уведомлений пользователя с пагинацией
+      parameters:
+      - description: Количество (default 20)
+        in: query
+        name: limit
+        type: integer
+      - description: Смещение (default 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      tags:
+      - Notifications
   /offers:
     get:
       parameters:
@@ -1529,6 +1563,7 @@ paths:
         - distance
         - price
         - pickupTime
+        - rating
         in: query
         name: sortBy
         type: string
@@ -1731,33 +1766,6 @@ paths:
       - ApiKeyAuth: []
       tags:
       - Orders
-  /orders/me/notifications:
-    get:
-      description: Получение списка уведомлений пользователя с пагинацией
-      parameters:
-      - default: 20
-        description: Лимит
-        in: query
-        name: limit
-        type: integer
-      - default: 0
-        description: Смещение
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/domain.Notification'
-            type: array
-      security:
-      - ApiKeyAuth: []
-      tags:
-      - Profile
   /orders/me/stats:
     get:
       description: Получение количества спасенных боксов и сэкономленных денег
@@ -1777,15 +1785,13 @@ paths:
       description: Получение статистики продаж, выручки и процента отмен за период
         с группировкой
       parameters:
-      - description: Дата начала (YYYY-MM-DD)
+      - description: Дата начала (YYYY-MM-DD), по умолчанию 7 дней назад
         in: query
         name: startDate
-        required: true
         type: string
-      - description: Дата конца (YYYY-MM-DD)
+      - description: Дата конца (YYYY-MM-DD), по умолчанию сегодня
         in: query
         name: endDate
-        required: true
         type: string
       - default: day
         description: Группировка данных
@@ -1948,8 +1954,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/orders.CompleteOrderResponse'
       security:
       - ApiKeyAuth: []
       tags:

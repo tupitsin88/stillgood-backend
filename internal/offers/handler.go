@@ -51,6 +51,8 @@ func (h *OfferHandler) CreateOffer(c *gin.Context) {
 			c.JSON(403, gin.H{"error": "PARTNER_NOT_APPROVED", "message": "Partner has no active restaurant"})
 		case "INVALID_CATEGORY_ID":
 			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_CATEGORY_ID", "message": "The provided category ID is not a valid UUID"})
+		case "PARTNER_NOT_APPROVED":
+			c.JSON(http.StatusForbidden, gin.H{"error": "PARTNER_NOT_APPROVED", "message": "Your account must be approved to create offers"})
 		default:
 			c.JSON(400, gin.H{"error": "CREATION_FAILED", "message": err.Error()})
 		}
@@ -72,6 +74,10 @@ func (h *OfferHandler) CreateOffer(c *gin.Context) {
 // @Router /partner/offers/{id} [patch]
 func (h *OfferHandler) UpdateOffer(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(400, gin.H{"error": "INVALID_ID"})
+		return
+	}
 	uidStr := c.GetString("user_id")
 	partnerID, _ := uuid.Parse(uidStr)
 
@@ -134,7 +140,7 @@ func (h *OfferHandler) GetPartnerOffers(c *gin.Context) {
 // @Param categoryId query string false "Category ID"
 // @Param minPrice query number false "Min Price"
 // @Param maxPrice query number false "Max Price"
-// @Param sortBy query string false "Sort By" Enums(distance, price, pickupTime)
+// @Param sortBy query string false "Sort By" Enums(distance, price, pickupTime, rating)
 // @Param limit query integer false "Limit"
 // @Param offset query integer false "Offset"
 // @Success 200 {object} map[string]interface{}
@@ -220,6 +226,16 @@ func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 			return
 		}
 		params.MaxPrice = &val
+	}
+
+	if params.MinPrice != nil && params.MaxPrice != nil && *params.MinPrice > *params.MaxPrice {
+		c.JSON(400, gin.H{"error": "INVALID_PRICE_RANGE", "message": "minPrice cannot be greater than maxPrice"})
+		return
+	}
+
+	if params.SortBy == "distance" && (params.Lat == nil || params.Lng == nil) {
+		c.JSON(400, gin.H{"error": "COORDINATES_REQUIRED", "message": "lat and lng are required for distance sorting"})
+		return
 	}
 
 	offers, total, err := h.service.GetPublicOffers(c.Request.Context(), params)

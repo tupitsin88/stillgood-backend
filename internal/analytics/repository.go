@@ -27,7 +27,7 @@ func (r *AnalyticsRepository) AggregateDailyStats(ctx context.Context, date time
 			SELECT off.restaurant_id, off.category_id, COUNT(o.id) as bookings
 			FROM orders o
 			JOIN offers off ON o.offer_id = off.id
-			WHERE o.created_at::date = ?::date
+			WHERE o.created_at::date = ?::date AND o.status != 'CREATED'
 			GROUP BY 1, 2
 		),
 		status_changes AS (
@@ -51,19 +51,22 @@ func (r *AnalyticsRepository) AggregateDailyStats(ctx context.Context, date time
 			COALESCE(s.completed, 0) as completed_orders,
 			COALESCE(s.cancelled, 0) as cancelled_orders,
 			COALESCE(s.expired, 0) as expired_orders,
-			COALESCE(s.revenue, 0) as gross_revenue
+			COALESCE(s.revenue, 0) as gross_revenue,
+			res.commission as restaurant_commission -- ТЯНЕМ КОМИССИЮ ИЗ БД
 		FROM daily_orders d
 		FULL OUTER JOIN status_changes s ON d.restaurant_id = s.restaurant_id AND d.category_id = s.category_id
 		JOIN categories c ON c.id = COALESCE(d.category_id, s.category_id)
+		JOIN restaurants res ON res.id = COALESCE(d.restaurant_id, s.restaurant_id)
 	`
 	type aggResult struct {
-		RestaurantID    uuid.UUID
-		CategoryName    string
-		TotalBookings   int
-		CompletedOrders int
-		CancelledOrders int
-		ExpiredOrders   int
-		GrossRevenue    float64
+		RestaurantID         uuid.UUID
+		CategoryName         string
+		TotalBookings        int
+		CompletedOrders      int
+		CancelledOrders      int
+		ExpiredOrders        int
+		GrossRevenue         float64
+		RestaurantCommission float64
 	}
 	var rawStats []aggResult
 	err := r.db.WithContext(ctx).Raw(query, dateStr, dateStr).Scan(&rawStats).Error
@@ -72,7 +75,12 @@ func (r *AnalyticsRepository) AggregateDailyStats(ctx context.Context, date time
 	}
 
 	for _, s := range rawStats {
-		fee := s.GrossRevenue * 0.15
+		commRate := s.RestaurantCommission / 100.0
+		if commRate == 0 {
+			commRate = 0.15
+		}
+
+		fee := s.GrossRevenue * commRate
 		results = append(results, domain.DailyAnalytics{
 			ID:              uuid.New(),
 			RestaurantID:    s.RestaurantID,

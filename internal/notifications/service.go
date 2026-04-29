@@ -71,9 +71,13 @@ func (s *service) SendToUser(ctx context.Context, userID uuid.UUID, payload Payl
 	}
 
 	payload = normalizePayload(payload)
+	notificationType := payload.Data["type"]
 	if err := s.store.Create(ctx, &domain.Notification{
 		UserID:    userID,
-		Message:   payload.Body,
+		Title:     payload.Title,
+		Body:      payload.Body,
+		DeepLink:  payload.DeepLink,
+		Type:      notificationType,
 		CreatedAt: time.Now(),
 	}); err != nil {
 		return err

@@ -48,7 +48,7 @@ func (s *OrderService) cancelExpiredOrders(ctx context.Context) {
 	for _, order := range expired {
 		log.Printf("[Cron] Expiring order %s...", order.ID)
 
-		reason := "Payment timeout"
+		reason := "expired"
 		now := time.Now()
 		order.Status = domain.OrderCancelled
 		order.CancelledAt = &now
@@ -141,7 +141,7 @@ func (s *OrderService) PayOrder(ctx context.Context, orderID, userID uuid.UUID) 
 	if order.UserID != userID {
 		return nil, fmt.Errorf("unauthorized")
 	}
-	if order.Status != domain.OrderCreated {
+	if !s.canTransition(order.Status, domain.OrderPaid) {
 		return nil, fmt.Errorf("INVALID_ORDER_STATUS")
 	}
 	if order.ExpiresAt != nil && time.Now().After(*order.ExpiresAt) {
@@ -149,7 +149,6 @@ func (s *OrderService) PayOrder(ctx context.Context, orderID, userID uuid.UUID) 
 	}
 
 	num := fmt.Sprintf("%06d", rand.Intn(1000000))
-
 	now := time.Now()
 	order.Status = domain.OrderPaid
 	order.PaidAt = &now
@@ -190,7 +189,7 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID, actorID uuid.UU
 			return nil, 0, fmt.Errorf("unauthorized: not your restaurant's order")
 		}
 	}
-	if order.Status == domain.OrderCompleted || order.Status == domain.OrderCancelled {
+	if !s.canTransition(order.Status, domain.OrderCancelled) {
 		return nil, 0, fmt.Errorf("CANNOT_CANCEL")
 	}
 	refundAmount := 0.0
@@ -239,7 +238,7 @@ func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID, res
 	if order.Offer.RestaurantID != restaurantID {
 		return nil, fmt.Errorf("unauthorized")
 	}
-	if order.Status != domain.OrderPaid {
+	if !s.canTransition(order.Status, domain.OrderCompleted) {
 		return nil, fmt.Errorf("INVALID_ORDER_STATUS")
 	}
 
@@ -247,12 +246,13 @@ func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID, res
 	order.Status = domain.OrderCompleted
 	order.CompletedAt = &now
 
-	grossRevenue := order.Amount
-	serviceFee := grossRevenue * 0.15
-	netPayout := grossRevenue - serviceFee
-	order.ServiceFee = order.Amount * 0.15
+	commissionRate := order.Offer.Restaurant.Commission / 100.0
+	if commissionRate == 0 {
+		commissionRate = 0.15
+	}
+
+	order.ServiceFee = order.Amount * commissionRate
 	order.NetPayout = order.Amount - order.ServiceFee
-	log.Printf("[OrderService] Order %s COMPLETED. Gross: %.2f, Fee: %.2f, Net: %.2f", order.ID, grossRevenue, serviceFee, netPayout)
 
 	err = s.repo.Transaction(func(txRepo *OrderRepository) error {
 		if err := txRepo.Update(ctx, order); err != nil {
@@ -283,10 +283,6 @@ func (s *OrderService) GetOrderById(ctx context.Context, orderID, userID uuid.UU
 		return nil, fmt.Errorf("unauthorized")
 	}
 	return order, nil
-}
-
-func (s *OrderService) GetNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]domain.Notification, error) {
-	return s.notifications.ListForUser(ctx, userID, limit, offset)
 }
 
 func (s *OrderService) StartNotificationWorker(ctx context.Context) {
@@ -329,4 +325,20 @@ func (s *OrderService) CreateReview(ctx context.Context, orderID, userID uuid.UU
 	}
 
 	return review, nil
+}
+
+func (s *OrderService) canTransition(from, to domain.OrderStatus) bool {
+	allowed := map[domain.OrderStatus][]domain.OrderStatus{
+		domain.OrderCreated:   {domain.OrderPaid, domain.OrderCancelled},
+		domain.OrderPaid:      {domain.OrderCompleted, domain.OrderCancelled},
+		domain.OrderCompleted: {},
+		domain.OrderCancelled: {},
+	}
+
+	for _, status := range allowed[from] {
+		if status == to {
+			return true
+		}
+	}
+	return false
 }

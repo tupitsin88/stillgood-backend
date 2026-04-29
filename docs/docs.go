@@ -1226,6 +1226,45 @@ const docTemplate = `{
                 }
             }
         },
+        "/notifications": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Получение списка всех уведомлений пользователя с пагинацией",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Количество (default 20)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Смещение (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/offers": {
             "get": {
                 "produces": [
@@ -1281,7 +1320,8 @@ const docTemplate = `{
                         "enum": [
                             "distance",
                             "price",
-                            "pickupTime"
+                            "pickupTime",
+                            "rating"
                         ],
                         "type": "string",
                         "description": "Sort By",
@@ -1430,49 +1470,6 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/orders/me/notifications": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Получение списка уведомлений пользователя с пагинацией",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Profile"
-                ],
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 20,
-                        "description": "Лимит",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 0,
-                        "description": "Смещение",
-                        "name": "offset",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/domain.Notification"
                             }
                         }
                     }
@@ -1687,17 +1684,15 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Дата начала (YYYY-MM-DD)",
+                        "description": "Дата начала (YYYY-MM-DD), по умолчанию 7 дней назад",
                         "name": "startDate",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Дата конца (YYYY-MM-DD)",
+                        "description": "Дата конца (YYYY-MM-DD), по умолчанию сегодня",
                         "name": "endDate",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "enum": [
@@ -1957,8 +1952,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/orders.CompleteOrderResponse"
                         }
                     }
                 }
@@ -2488,9 +2482,6 @@ const docTemplate = `{
                 "expiredOrders": {
                     "type": "integer"
                 },
-                "grossRevenue": {
-                    "type": "number"
-                },
                 "netPayout": {
                     "type": "number"
                 },
@@ -2499,17 +2490,20 @@ const docTemplate = `{
                 },
                 "totalBookings": {
                     "type": "integer"
+                },
+                "totalRevenue": {
+                    "type": "number"
                 }
             }
         },
         "analytics.CategoryStat": {
             "type": "object",
             "properties": {
-                "grossRevenue": {
-                    "type": "number"
-                },
                 "name": {
                     "type": "string"
+                },
+                "totalRevenue": {
+                    "type": "number"
                 }
             }
         },
@@ -2891,23 +2885,6 @@ const docTemplate = `{
                 }
             }
         },
-        "domain.Notification": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
-                }
-            }
-        },
         "offers.CategoryDTO": {
             "type": "object",
             "properties": {
@@ -3034,11 +3011,26 @@ const docTemplate = `{
         "offers.UpdateOfferRequest": {
             "type": "object",
             "properties": {
+                "categoryId": {
+                    "type": "string"
+                },
                 "description": {
+                    "type": "string"
+                },
+                "imageUrl": {
                     "type": "string"
                 },
                 "isActive": {
                     "type": "boolean"
+                },
+                "originalPrice": {
+                    "type": "number"
+                },
+                "pickupEnd": {
+                    "type": "string"
+                },
+                "pickupStart": {
+                    "type": "string"
                 },
                 "price": {
                     "type": "number"
@@ -3070,6 +3062,20 @@ const docTemplate = `{
                 },
                 "refundAmount": {
                     "type": "number"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "orders.CompleteOrderResponse": {
+            "type": "object",
+            "properties": {
+                "completedAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
                 },
                 "status": {
                     "type": "string"
@@ -3204,6 +3210,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "createdAt": {
+                    "type": "string"
+                },
+                "customerName": {
                     "type": "string"
                 },
                 "expiresAt": {
