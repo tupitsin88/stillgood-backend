@@ -99,6 +99,7 @@ definitions:
         - apple
         type: string
     required:
+    - deviceToken
     - idToken
     - provider
     type: object
@@ -140,6 +141,7 @@ definitions:
         type: string
     required:
     - companyName
+    - deviceToken
     - email
     - establishmentAddress
     - establishmentName
@@ -167,6 +169,7 @@ definitions:
         minLength: 8
         type: string
     required:
+    - deviceToken
     - email
     - name
     - password
@@ -596,14 +599,16 @@ definitions:
         type: string
       companyName:
         type: string
-      description:
+      coverUrl:
         type: string
-      imageUrl:
+      description:
         type: string
       inn:
         type: string
       latitude:
         type: number
+      logoUrl:
+        type: string
       longitude:
         type: number
       name:
@@ -633,9 +638,11 @@ definitions:
     type: object
   restaurants.PartnerRestaurantUpdateRequest:
     properties:
+      coverUrl:
+        type: string
       description:
         type: string
-      imageUrl:
+      logoUrl:
         type: string
       workingHours:
         type: string
@@ -657,6 +664,8 @@ definitions:
         items:
           type: string
         type: array
+      coverUrl:
+        type: string
       description:
         type: string
       distance:
@@ -665,10 +674,10 @@ definitions:
         type: boolean
       id:
         type: string
-      imageUrl:
-        type: string
       latitude:
         type: number
+      logoUrl:
+        type: string
       longitude:
         type: number
       name:
@@ -701,6 +710,15 @@ definitions:
         type: string
       rating:
         type: integer
+    type: object
+  restaurants.UploadRestaurantImageResponse:
+    properties:
+      field:
+        type: string
+      kind:
+        type: string
+      url:
+        type: string
     type: object
 host: localhost:8080
 info:
@@ -2149,15 +2167,18 @@ paths:
         name: image
         required: true
         type: file
+      - description: 'Image kind: logo or cover'
+        in: formData
+        name: kind
+        required: true
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/restaurants.UploadRestaurantImageResponse'
         "400":
           description: Bad Request
           schema:
