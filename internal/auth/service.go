@@ -131,6 +131,10 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, *
 	if err != nil {
 		return Tokens{}, nil, err
 	}
+	deviceToken = strings.TrimSpace(deviceToken)
+	if deviceToken == "" {
+		return Tokens{}, nil, ErrDeviceTokenRequired
+	}
 
 	exists, err := s.repo.ExistsByEmail(email)
 	if err != nil {
@@ -155,10 +159,7 @@ func (s *service) Register(email, password, name, deviceToken string) (Tokens, *
 		Role:         RoleUser,
 		AuthProvider: "email",
 	}
-
-	if deviceToken != "" {
-		user.DeviceToken = &deviceToken
-	}
+	user.DeviceToken = &deviceToken
 
 	if err = s.repo.CreateUser(user); err != nil {
 		return Tokens{}, nil, err
@@ -183,6 +184,10 @@ func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain
 	email, err := normalizeAndValidateEmail(input.Email)
 	if err != nil {
 		return Tokens{}, nil, err
+	}
+	input.DeviceToken = strings.TrimSpace(input.DeviceToken)
+	if input.DeviceToken == "" {
+		return Tokens{}, nil, ErrDeviceTokenRequired
 	}
 
 	exists, err := s.repo.ExistsByEmail(email)
@@ -214,10 +219,7 @@ func (s *service) RegisterPartner(input PartnerRegisterRequest) (Tokens, *domain
 	if phone != "" {
 		user.Phone = &phone
 	}
-
-	if input.DeviceToken != "" {
-		user.DeviceToken = &input.DeviceToken
-	}
+	user.DeviceToken = &input.DeviceToken
 
 	if err = s.repo.CreateUser(user); err != nil {
 		return Tokens{}, nil, err
@@ -283,6 +285,10 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 	if provider != "google" && provider != "apple" {
 		return Tokens{}, nil, false, ErrInvalidOAuthProvider
 	}
+	deviceToken = strings.TrimSpace(deviceToken)
+	if deviceToken == "" {
+		return Tokens{}, nil, false, ErrDeviceTokenRequired
+	}
 
 	email, name, err := extractOAuthIdentity(idToken)
 	if err != nil {
@@ -306,11 +312,8 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 		if user.IsBlocked {
 			return Tokens{}, nil, false, ErrUserBlocked
 		}
-
-		if deviceToken != "" {
-			if err := s.repo.UpdateDeviceToken(user.ID, deviceToken); err != nil {
-				return Tokens{}, nil, false, err
-			}
+		if err := s.repo.UpdateDeviceToken(user.ID, deviceToken); err != nil {
+			return Tokens{}, nil, false, err
 		}
 
 		restID := ""
@@ -328,9 +331,7 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 		Role:         RoleUser,
 		AuthProvider: provider,
 	}
-	if deviceToken != "" {
-		user.DeviceToken = &deviceToken
-	}
+	user.DeviceToken = &deviceToken
 
 	if err := s.repo.CreateUser(user); err != nil {
 		return Tokens{}, nil, false, err

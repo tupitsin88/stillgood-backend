@@ -6,7 +6,7 @@ type RegisterRequest struct {
 	Email       string `json:"email" binding:"required"`
 	Password    string `json:"password" binding:"required,min=8"`
 	Name        string `json:"name" binding:"required"`
-	DeviceToken string `json:"deviceToken"`
+	DeviceToken string `json:"deviceToken" binding:"required"`
 }
 
 type PartnerRegisterRequest struct {
@@ -19,7 +19,7 @@ type PartnerRegisterRequest struct {
 	EstablishmentName    string `json:"establishmentName" binding:"required"`
 	EstablishmentAddress string `json:"establishmentAddress" binding:"required"`
 	Description          string `json:"description"`
-	DeviceToken          string `json:"deviceToken"`
+	DeviceToken          string `json:"deviceToken" binding:"required"`
 }
 
 type LoginRequest struct {
@@ -31,7 +31,7 @@ type LoginRequest struct {
 type OAuthRequest struct {
 	Provider    string `json:"provider" binding:"required,oneof=google apple"`
 	IDToken     string `json:"idToken" binding:"required"`
-	DeviceToken string `json:"deviceToken"`
+	DeviceToken string `json:"deviceToken" binding:"required"`
 }
 
 type AuthResponse struct {
