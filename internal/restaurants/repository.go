@@ -138,8 +138,11 @@ func (r *repository) UpdatePartnerProfile(partnerID uuid.UUID, req PartnerRestau
 	if req.WorkingHours != nil {
 		updates["working_hours"] = *req.WorkingHours
 	}
-	if req.ImageURL != nil {
-		updates["image_url"] = *req.ImageURL
+	if req.LogoURL != nil {
+		updates["logo_url"] = *req.LogoURL
+	}
+	if req.CoverURL != nil {
+		updates["cover_url"] = *req.CoverURL
 	}
 
 	if len(updates) > 0 {

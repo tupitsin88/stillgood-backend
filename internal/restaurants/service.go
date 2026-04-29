@@ -35,7 +35,7 @@ type Service interface {
 	UpdateAdminRestaurant(id string, req AdminRestaurantUpdateRequest) (*domain.Restaurant, error)
 	GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error)
 	IsApprovedPartner(userID string) (bool, error)
-	UploadImage(file *multipart.FileHeader) (string, error)
+	UploadImage(file *multipart.FileHeader, kind string) (string, error)
 	GetReviews(restID string, limit, offset int) ([]domain.Review, int64, error)
 	DeleteReview(reviewID string) error
 }
@@ -50,6 +50,7 @@ type ListParams struct {
 }
 
 var ErrInvalidImageFormat = errors.New("invalid image format")
+var ErrInvalidImageKind = errors.New("invalid image kind")
 var ErrImageTooLarge = errors.New("image is too large")
 var ErrImageProcessingFailed = errors.New("image processing failed")
 var ErrStorageUnavailable = errors.New("file storage is unavailable")
@@ -124,7 +125,8 @@ func (s *service) CreateRestaurant(partnerID string, req CreateRestaurantRequest
 		Inn:          inn,
 		Address:      address,
 		Description:  trimOptionalString(req.Description),
-		ImageURL:     trimOptionalString(req.ImageURL),
+		LogoURL:      trimOptionalString(req.LogoURL),
+		CoverURL:     trimOptionalString(req.CoverURL),
 		Phone:        trimOptionalString(req.Phone),
 		Latitude:     req.Latitude,
 		Longitude:    req.Longitude,
@@ -183,9 +185,13 @@ func (s *service) IsApprovedPartner(userID string) (bool, error) {
 	return s.repo.IsApprovedPartner(uid)
 }
 
-func (s *service) UploadImage(file *multipart.FileHeader) (string, error) {
+func (s *service) UploadImage(file *multipart.FileHeader, kind string) (string, error) {
 	if s.fileStorage == nil {
 		return "", ErrStorageUnavailable
+	}
+	prefix, err := restaurantImagePrefix(kind)
+	if err != nil {
+		return "", err
 	}
 
 	if file == nil {
@@ -221,7 +227,7 @@ func (s *service) UploadImage(file *multipart.FileHeader) (string, error) {
 		if err != nil {
 			return "", ErrImageProcessingFailed
 		}
-		return s.fileStorage.UploadBytes(compressed, ".jpg", "image/jpeg")
+		return s.fileStorage.UploadBytesWithPrefix(compressed, ".jpg", "image/jpeg", prefix)
 	}
 
 	if normalizedExt == ".png" {
@@ -229,7 +235,7 @@ func (s *service) UploadImage(file *multipart.FileHeader) (string, error) {
 		if err != nil {
 			return "", ErrImageProcessingFailed
 		}
-		return s.fileStorage.UploadBytes(processed, outExt, outContentType)
+		return s.fileStorage.UploadBytesWithPrefix(processed, outExt, outContentType, prefix)
 	}
 
 	compressed, err := compressToJPEG(content)
@@ -237,7 +243,18 @@ func (s *service) UploadImage(file *multipart.FileHeader) (string, error) {
 		return "", ErrImageProcessingFailed
 	}
 
-	return s.fileStorage.UploadBytes(compressed, ".jpg", "image/jpeg")
+	return s.fileStorage.UploadBytesWithPrefix(compressed, ".jpg", "image/jpeg", prefix)
+}
+
+func restaurantImagePrefix(kind string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "logo":
+		return "restaurants/logos", nil
+	case "cover":
+		return "restaurants/covers", nil
+	default:
+		return "", ErrInvalidImageKind
+	}
 }
 
 func normalizeImageFormat(ext string, content []byte) (normalizedExt string, contentType string, isHEIC bool) {

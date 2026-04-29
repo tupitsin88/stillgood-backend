@@ -103,7 +103,8 @@ func (h *Handler) CreateRestaurant(c *gin.Context) {
 		Name:            restaurant.Name,
 		Address:         restaurant.Address,
 		Phone:           restaurant.Phone,
-		ImageURL:        restaurant.ImageURL,
+		LogoURL:         restaurant.LogoURL,
+		CoverURL:        restaurant.CoverURL,
 		Description:     restaurant.Description,
 		WorkingHours:    restaurant.WorkingHours,
 		Latitude:        restaurant.Latitude,
@@ -147,7 +148,8 @@ func (h *Handler) requirePartner(c *gin.Context) (string, bool) {
 // @Accept multipart/form-data
 // @Produce json
 // @Param image formData file true "Image file (JPG, PNG, HEIC/HEIF, max 10MB)"
-// @Success 200 {object} map[string]string
+// @Param kind formData string true "Image kind: logo or cover"
+// @Success 200 {object} UploadRestaurantImageResponse
 // @Failure 400 {object} map[string]string
 // @Failure 413 {object} map[string]string
 // @Failure 503 {object} map[string]string
@@ -155,6 +157,7 @@ func (h *Handler) requirePartner(c *gin.Context) (string, bool) {
 // @Router /restaurants/upload [post]
 func (h *Handler) UploadImage(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUploadRequestBodyBytes)
+	kind := strings.ToLower(strings.TrimSpace(c.PostForm("kind")))
 
 	file, err := c.FormFile("image")
 	if err != nil {
@@ -168,8 +171,12 @@ func (h *Handler) UploadImage(c *gin.Context) {
 		return
 	}
 
-	url, err := h.service.UploadImage(file)
+	url, err := h.service.UploadImage(file, kind)
 	if err != nil {
+		if errors.Is(err, ErrInvalidImageKind) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image kind", "message": "kind must be logo or cover"})
+			return
+		}
 		if errors.Is(err, ErrInvalidImageFormat) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image format"})
 			return
@@ -186,7 +193,15 @@ func (h *Handler) UploadImage(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"url": url})
+	field := "logoUrl"
+	if kind == "cover" {
+		field = "coverUrl"
+	}
+	c.JSON(http.StatusOK, UploadRestaurantImageResponse{
+		Kind:  kind,
+		Field: field,
+		URL:   url,
+	})
 }
 
 // GetList @Summary Список ресторанов
@@ -277,7 +292,8 @@ func (h *Handler) GetList(c *gin.Context) {
 			Name:            r.Name,
 			Address:         r.Address,
 			Phone:           r.Phone,
-			ImageURL:        r.ImageURL,
+			LogoURL:         r.LogoURL,
+			CoverURL:        r.CoverURL,
 			Description:     r.Description,
 			WorkingHours:    r.WorkingHours,
 			Latitude:        r.Latitude,
@@ -328,7 +344,8 @@ func (h *Handler) GetByID(c *gin.Context) {
 		Name:            restaurant.Name,
 		Address:         restaurant.Address,
 		Phone:           restaurant.Phone,
-		ImageURL:        restaurant.ImageURL,
+		LogoURL:         restaurant.LogoURL,
+		CoverURL:        restaurant.CoverURL,
 		Description:     restaurant.Description,
 		WorkingHours:    restaurant.WorkingHours,
 		Latitude:        restaurant.Latitude,
@@ -378,7 +395,8 @@ func (h *Handler) GetPartnerRestaurant(c *gin.Context) {
 		Name:            restaurant.Name,
 		Address:         restaurant.Address,
 		Phone:           restaurant.Phone,
-		ImageURL:        restaurant.ImageURL,
+		LogoURL:         restaurant.LogoURL,
+		CoverURL:        restaurant.CoverURL,
 		Description:     restaurant.Description,
 		WorkingHours:    restaurant.WorkingHours,
 		Latitude:        restaurant.Latitude,
@@ -434,7 +452,8 @@ func (h *Handler) UpdatePartnerRestaurant(c *gin.Context) {
 		Name:            restaurant.Name,
 		Address:         restaurant.Address,
 		Phone:           restaurant.Phone,
-		ImageURL:        restaurant.ImageURL,
+		LogoURL:         restaurant.LogoURL,
+		CoverURL:        restaurant.CoverURL,
 		Description:     restaurant.Description,
 		WorkingHours:    restaurant.WorkingHours,
 		Latitude:        restaurant.Latitude,

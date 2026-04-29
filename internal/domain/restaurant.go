@@ -17,7 +17,8 @@ type Restaurant struct {
 	Commission   float64   `gorm:"not null;default:0" json:"commission"`
 	Rating       float64   `json:"rating"`
 	ReviewCount  int       `json:"review_count"`
-	ImageURL     *string   `json:"image_url"`
+	LogoURL      *string   `json:"logo_url"`
+	CoverURL     *string   `json:"cover_url"`
 	Phone        *string   `json:"phone"`
 	Latitude     float64   `json:"latitude"`
 	Longitude    float64   `json:"longitude"`
