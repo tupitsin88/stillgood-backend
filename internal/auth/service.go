@@ -1,9 +1,8 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"kursach_backend/internal/domain"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/api/idtoken"
 	"gorm.io/gorm"
 )
 
@@ -100,10 +100,11 @@ type emailVerificationCodeEntry struct {
 }
 
 type service struct {
-	repo         Repository
-	tokenManager *TokenManager
-	accessTTL    time.Duration
-	refreshTTL   time.Duration
+	repo           Repository
+	tokenManager   *TokenManager
+	accessTTL      time.Duration
+	refreshTTL     time.Duration
+	googleClientID string
 
 	mu                     sync.Mutex
 	resetCodes             map[string]resetCodeEntry
@@ -112,12 +113,13 @@ type service struct {
 	revokedRT              map[string]int64
 }
 
-func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshTTL time.Duration) Service {
+func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshTTL time.Duration, googleClientID string) Service {
 	return &service{
 		repo:                   repo,
 		tokenManager:           tokenManager,
 		accessTTL:              accessTTL,
 		refreshTTL:             refreshTTL,
+		googleClientID:         googleClientID,
 		resetCodes:             make(map[string]resetCodeEntry),
 		emailVerificationCodes: make(map[string]emailVerificationCodeEntry),
 		resetTokens:            make(map[string]resetTokenEntry),
@@ -290,7 +292,7 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 		return Tokens{}, nil, false, ErrDeviceTokenRequired
 	}
 
-	email, name, err := extractOAuthIdentity(idToken)
+	email, name, err := s.extractOAuthIdentity(idToken)
 	if err != nil {
 		return Tokens{}, nil, false, err
 	}
@@ -894,13 +896,12 @@ func (s *service) cleanupRevokedTokensLocked(nowUnix int64) {
 	}
 }
 
-func extractOAuthIdentity(idToken string) (string, string, error) {
+func (s *service) extractOAuthIdentity(idToken string) (string, string, error) {
 	idToken = strings.TrimSpace(idToken)
 	if idToken == "" {
 		return "", "", ErrInvalidOAuthToken
 	}
-
-	// MVP-режим: для локальных тестов разрешаем передавать email напрямую в idToken.
+	// --- MVP-РЕЖИМ ---
 	if strings.Contains(idToken, "@") && !strings.Contains(idToken, " ") {
 		email, err := normalizeAndValidateEmail(idToken)
 		if err != nil {
@@ -909,23 +910,12 @@ func extractOAuthIdentity(idToken string) (string, string, error) {
 		name := strings.Split(email, "@")[0]
 		return email, name, nil
 	}
-
-	parts := strings.Split(idToken, ".")
-	if len(parts) != 3 {
-		return "", "", ErrInvalidOAuthToken
-	}
-
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	payload, err := idtoken.Validate(context.Background(), idToken, s.googleClientID)
 	if err != nil {
+		log.Printf("google token validation failed: %v", err)
 		return "", "", ErrInvalidOAuthToken
 	}
-
-	var claims map[string]interface{}
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return "", "", ErrInvalidOAuthToken
-	}
-
-	emailRaw, ok := claims["email"].(string)
+	emailRaw, ok := payload.Claims["email"].(string)
 	if !ok || strings.TrimSpace(emailRaw) == "" {
 		return "", "", ErrInvalidOAuthToken
 	}
@@ -933,9 +923,8 @@ func extractOAuthIdentity(idToken string) (string, string, error) {
 	if err != nil {
 		return "", "", ErrInvalidOAuthToken
 	}
-
-	name := strings.Split(email, "@")[0]
-	if claimName, ok := claims["name"].(string); ok && strings.TrimSpace(claimName) != "" {
+	name := "Google User"
+	if claimName, ok := payload.Claims["name"].(string); ok && strings.TrimSpace(claimName) != "" {
 		name = strings.TrimSpace(claimName)
 	}
 
