@@ -25,6 +25,7 @@ type Repository interface {
 	GetOfferMetaByRestaurantIDs(restaurantIDs []uuid.UUID) (map[uuid.UUID]OfferMeta, error)
 	IsApprovedPartner(userID uuid.UUID) (bool, error)
 	GetReviews(ctx context.Context, restID uuid.UUID, limit, offset int) ([]domain.Review, int64, error)
+	GetAdminReviews(ctx context.Context, restaurantID *uuid.UUID, limit, offset int) ([]domain.Review, int64, error)
 	DeleteReview(ctx context.Context, reviewID uuid.UUID) error
 }
 
@@ -236,9 +237,16 @@ func (r *repository) IsApprovedPartner(userID uuid.UUID) (bool, error) {
 }
 
 func (r *repository) GetReviews(ctx context.Context, restID uuid.UUID, limit, offset int) ([]domain.Review, int64, error) {
+	return r.GetAdminReviews(ctx, &restID, limit, offset)
+}
+
+func (r *repository) GetAdminReviews(ctx context.Context, restaurantID *uuid.UUID, limit, offset int) ([]domain.Review, int64, error) {
 	var reviews []domain.Review
 	var total int64
-	db := r.db.WithContext(ctx).Model(&domain.Review{}).Where("restaurant_id = ?", restID)
+	db := r.db.WithContext(ctx).Model(&domain.Review{})
+	if restaurantID != nil {
+		db = db.Where("restaurant_id = ?", *restaurantID)
+	}
 
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err

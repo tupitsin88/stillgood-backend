@@ -24,6 +24,7 @@ func RegisterRoutes(r *gin.Engine, h *Handler, authMiddleware gin.HandlerFunc) {
 	admin.Use(authMiddleware, middleware.RoleMiddleware(auth.RoleAdmin))
 	{
 		admin.PATCH("/restaurants/:id", h.UpdateAdminRestaurant)
+		admin.GET("/reviews", h.GetAdminReviewList)
 		admin.GET("/restaurants/:id/reviews", h.GetAdminReviews)
 		admin.DELETE("/reviews/:id", h.DeleteReview)
 	}

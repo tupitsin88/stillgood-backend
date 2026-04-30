@@ -101,7 +101,11 @@ func (h *Handler) Update(c *gin.Context) {
 // @Success 204 "Успешное удаление без тела ответа"
 // @Router /categories/{id} [delete]
 func (h *Handler) Delete(c *gin.Context) {
-	id, _ := uuid.Parse(c.Param("id"))
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID"})
+		return
+	}
 	if err := h.service.Delete(id); err != nil {
 		if err.Error() == "CANNOT_DELETE_CATEGORY_WITH_ACTIVE_OFFERS" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "CATEGORY_NOT_EMPTY", "message": "Нельзя удалить категорию с активными боксами"})

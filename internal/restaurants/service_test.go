@@ -1,6 +1,7 @@
 package restaurants
 
 import (
+	"context"
 	"math"
 	"testing"
 
@@ -97,4 +98,24 @@ func TestUpdateAdminRestaurantRejectsInvalidID(t *testing.T) {
 	require.ErrorIs(t, err, ErrInvalidRestaurantID)
 	assert.Nil(t, restaurant)
 	assert.Equal(t, uuid.Nil, repo.id)
+}
+
+type deleteReviewRepo struct {
+	Repository
+	deleteCalled bool
+}
+
+func (r *deleteReviewRepo) DeleteReview(_ context.Context, _ uuid.UUID) error {
+	r.deleteCalled = true
+	return nil
+}
+
+func TestDeleteReviewRejectsInvalidID(t *testing.T) {
+	repo := &deleteReviewRepo{}
+	service := NewService(repo, nil)
+
+	err := service.DeleteReview("not-a-uuid")
+
+	require.ErrorIs(t, err, ErrInvalidReviewID)
+	assert.False(t, repo.deleteCalled)
 }

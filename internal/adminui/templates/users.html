@@ -1,0 +1,56 @@
+{{ define "users" }}
+{{ template "layout_start" . }}
+<div class="panel">
+	<div class="panel-body">
+		<form class="toolbar" method="get" action="/admin/users">
+			<label>Role
+				<select name="role">
+					<option value="" {{ if eq .Role "" }}selected{{ end }}>All</option>
+					<option value="USER" {{ if eq .Role "USER" }}selected{{ end }}>USER</option>
+					<option value="PARTNER" {{ if eq .Role "PARTNER" }}selected{{ end }}>PARTNER</option>
+				</select>
+			</label>
+			<label>Limit <input type="number" min="1" max="100" name="limit" value="{{ .Pagination.Limit }}"></label>
+			<button class="btn" type="submit">Apply</button>
+		</form>
+	</div>
+</div>
+<div class="panel table-scroll">
+	<table>
+		<thead>
+			<tr>
+				<th>Name</th>
+				<th>Email</th>
+				<th>Role</th>
+				<th>Partner status</th>
+				<th>Account</th>
+				<th>Created</th>
+				<th>Actions</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{ range .Users }}
+			<tr>
+				<td>{{ .Name }}</td>
+				<td>{{ .Email }}</td>
+				<td>{{ .Role }}</td>
+				<td>{{ .PartnerStatus }}</td>
+				<td>{{ .AccountStatus }}</td>
+				<td>{{ .CreatedAt }}</td>
+				<td class="actions">
+					{{ if .IsBlocked }}
+					<form method="post" action="/admin/users/{{ .ID }}/unblock"><button class="btn" type="submit">Unblock</button></form>
+					{{ else }}
+					<form method="post" action="/admin/users/{{ .ID }}/block"><button class="btn warning" type="submit">Block</button></form>
+					{{ end }}
+				</td>
+			</tr>
+			{{ else }}
+			<tr><td class="empty" colspan="7">No users.</td></tr>
+			{{ end }}
+		</tbody>
+	</table>
+	{{ template "pagination" .Pagination }}
+</div>
+{{ template "layout_end" . }}
+{{ end }}

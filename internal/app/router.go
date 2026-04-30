@@ -1,6 +1,7 @@
 package app
 
 import (
+	"kursach_backend/internal/adminui"
 	"kursach_backend/internal/analytics"
 	"kursach_backend/internal/notifications"
 
@@ -17,7 +18,7 @@ import (
 	"kursach_backend/internal/restaurants"
 )
 
-func NewRouter(handler *gin.Engine, authService auth.Service, authHandler *auth.Handler, restaurantsHandler *restaurants.Handler, categoriesHandler *categories.Handler, orderHandler *orders.OrderHandler, offerHandler *offers.OfferHandler, analyticsHandler *analytics.AnalyticsHandler, notificationsHandler *notifications.NotificationsHandler, jwtSecret string) {
+func NewRouter(handler *gin.Engine, authService auth.Service, authHandler *auth.Handler, restaurantsHandler *restaurants.Handler, categoriesHandler *categories.Handler, orderHandler *orders.OrderHandler, offerHandler *offers.OfferHandler, analyticsHandler *analytics.AnalyticsHandler, notificationsHandler *notifications.NotificationsHandler, adminHandler *adminui.Handler, jwtSecret string) {
 	// Options
 	handler.Use(gin.Recovery())
 
@@ -29,6 +30,7 @@ func NewRouter(handler *gin.Engine, authService auth.Service, authHandler *auth.
 	})
 
 	// Init Routes
+	adminui.RegisterRoutes(handler, adminHandler)
 	auth.RegisterRoutes(handler, authHandler, authMiddleware)
 	restaurants.RegisterRoutes(handler, restaurantsHandler, authMiddleware)
 	categories.RegisterRoutes(handler, categoriesHandler, authMiddleware)

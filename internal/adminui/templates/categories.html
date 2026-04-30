@@ -1,0 +1,44 @@
+{{ define "categories" }}
+{{ template "layout_start" . }}
+<div class="panel">
+	<div class="panel-body">
+		<form class="toolbar" method="post" action="/admin/categories">
+			<label>Name <input type="text" name="name" required></label>
+			<button class="btn" type="submit">Create</button>
+		</form>
+	</div>
+</div>
+<div class="panel table-scroll">
+	<table>
+		<thead>
+			<tr>
+				<th>Name</th>
+				<th>ID</th>
+				<th>Actions</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{ range .Categories }}
+			<tr>
+				<td>
+					<form class="inline-form compact-form" method="post" action="/admin/categories/{{ .ID }}/update">
+						<input type="text" name="name" value="{{ .Name }}" required>
+						<input type="hidden" name="iconUrl" value="{{ .IconURL }}">
+						<button class="btn" type="submit">Save</button>
+					</form>
+				</td>
+				<td class="muted">{{ .ID }}</td>
+				<td class="actions">
+					<form method="post" action="/admin/categories/{{ .ID }}/delete">
+						<button class="btn danger" type="submit">Delete</button>
+					</form>
+				</td>
+			</tr>
+			{{ else }}
+			<tr><td class="empty" colspan="3">No categories.</td></tr>
+			{{ end }}
+		</tbody>
+	</table>
+</div>
+{{ template "layout_end" . }}
+{{ end }}

@@ -37,6 +37,7 @@ type Service interface {
 	IsApprovedPartner(userID string) (bool, error)
 	UploadImage(file *multipart.FileHeader, kind string) (string, error)
 	GetReviews(restID string, limit, offset int) ([]domain.Review, int64, error)
+	GetAdminReviews(restaurantID *uuid.UUID, limit, offset int) ([]domain.Review, int64, error)
 	DeleteReview(reviewID string) error
 }
 
@@ -57,6 +58,7 @@ var ErrStorageUnavailable = errors.New("file storage is unavailable")
 var ErrRestaurantAlreadyExists = errors.New("restaurant already exists")
 var ErrPartnerNotApproved = errors.New("partner is not approved")
 var ErrInvalidRestaurantID = errors.New("invalid restaurant id")
+var ErrInvalidReviewID = errors.New("invalid review id")
 var ErrInvalidCommission = errors.New("invalid commission")
 var ErrInvalidCoordinates = errors.New("invalid coordinates")
 
@@ -395,10 +397,23 @@ func (s *service) GetReviews(restID string, limit, offset int) ([]domain.Review,
 	return s.repo.GetReviews(context.Background(), uid, limit, offset)
 }
 
+func (s *service) GetAdminReviews(restaurantID *uuid.UUID, limit, offset int) ([]domain.Review, int64, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return s.repo.GetAdminReviews(context.Background(), restaurantID, limit, offset)
+}
+
 func (s *service) DeleteReview(reviewID string) error {
-	uid, err := uuid.Parse(reviewID)
+	uid, err := uuid.Parse(strings.TrimSpace(reviewID))
 	if err != nil {
-		return err
+		return ErrInvalidReviewID
 	}
 	return s.repo.DeleteReview(context.Background(), uid)
 }

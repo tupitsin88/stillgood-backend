@@ -79,15 +79,21 @@ type ReviewDTO struct {
 }
 
 type AdminReviewDTO struct {
-	ID        string    `json:"id"`
-	Rating    int       `json:"rating"`
-	Comment   string    `json:"comment"`
-	UserName  string    `json:"userName"`
-	UserEmail string    `json:"userEmail"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID           string    `json:"id"`
+	RestaurantID string    `json:"restaurantId"`
+	Rating       int       `json:"rating"`
+	Comment      string    `json:"comment"`
+	UserName     string    `json:"userName"`
+	UserEmail    string    `json:"userEmail"`
+	CreatedAt    time.Time `json:"createdAt"`
 }
 
 type RestaurantReviewsResponse struct {
 	Data       []ReviewDTO `json:"data"`
 	Pagination Pagination  `json:"pagination"`
+}
+
+type AdminReviewsResponse struct {
+	Data       []AdminReviewDTO `json:"data"`
+	Pagination Pagination       `json:"pagination"`
 }
