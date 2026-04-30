@@ -114,8 +114,9 @@ func main() {
 	offerHandler := offers.NewOfferHandler(offerService)
 
 	// --- Auth ---
+	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
 	authRepo := auth.NewRepository(db)
-	authService := auth.NewService(authRepo, tokenManager, accessTTL, refreshTTL)
+	authService := auth.NewService(authRepo, tokenManager, accessTTL, refreshTTL, googleClientID)
 	authHandler := auth.NewHandler(authService)
 
 	// File Storage
