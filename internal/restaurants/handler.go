@@ -3,6 +3,7 @@ package restaurants
 import (
 	"errors"
 	"kursach_backend/internal/auth"
+	"kursach_backend/internal/domain"
 	"kursach_backend/internal/pkg/geo"
 	"net/http"
 	"strconv"
@@ -559,10 +560,57 @@ func (h *Handler) GetReviews(c *gin.Context) {
 func (h *Handler) DeleteReview(c *gin.Context) {
 	reviewID := c.Param("id")
 	if err := h.service.DeleteReview(reviewID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete review"})
+		switch {
+		case errors.Is(err, ErrInvalidReviewID):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REVIEW_ID"})
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "REVIEW_NOT_FOUND"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete review"})
+		}
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// GetAdminReviewList @Summary Общий список отзывов (Admin)
+// @Tags Admin
+// @Security ApiKeyAuth
+// @Produce json
+// @Param restaurantId query string false "Restaurant ID"
+// @Param limit query int false "Лимит" default(20)
+// @Param offset query int false "Сдвиг" default(0)
+// @Success 200 {object} AdminReviewsResponse
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /admin/reviews [get]
+func (h *Handler) GetAdminReviewList(c *gin.Context) {
+	limit, offset, ok := adminPaginationQuery(c, 20)
+	if !ok {
+		return
+	}
+
+	var restaurantID *uuid.UUID
+	if restaurantIDStr := strings.TrimSpace(c.Query("restaurantId")); restaurantIDStr != "" {
+		parsed, err := uuid.Parse(restaurantIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_RESTAURANT_ID"})
+			return
+		}
+		restaurantID = &parsed
+	}
+
+	reviews, total, err := h.service.GetAdminReviews(restaurantID, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reviews"})
+		return
+	}
+
+	c.JSON(http.StatusOK, AdminReviewsResponse{
+		Data:       adminReviewDTOs(reviews),
+		Pagination: Pagination{Total: total, Limit: limit, Offset: offset},
+	})
 }
 
 // GetAdminReviews @Summary Список отзывов с данными авторов (Admin)
@@ -570,27 +618,68 @@ func (h *Handler) DeleteReview(c *gin.Context) {
 // @Security ApiKeyAuth
 // @Produce json
 // @Param id path string true "Restaurant ID"
-// @Success 200 {object} []AdminReviewDTO
+// @Param limit query int false "Лимит" default(20)
+// @Param offset query int false "Сдвиг" default(0)
+// @Success 200 {object} AdminReviewsResponse
+// @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /admin/restaurants/{id}/reviews [get]
 func (h *Handler) GetAdminReviews(c *gin.Context) {
-	restID := c.Param("id")
-	reviews, _, err := h.service.GetReviews(restID, 100, 0)
+	restaurantID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to fetch reviews"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_RESTAURANT_ID"})
 		return
 	}
-	var data []AdminReviewDTO
+
+	limit, offset, ok := adminPaginationQuery(c, 20)
+	if !ok {
+		return
+	}
+
+	reviews, total, err := h.service.GetAdminReviews(&restaurantID, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch reviews"})
+		return
+	}
+	c.JSON(http.StatusOK, AdminReviewsResponse{
+		Data:       adminReviewDTOs(reviews),
+		Pagination: Pagination{Total: total, Limit: limit, Offset: offset},
+	})
+}
+
+func adminReviewDTOs(reviews []domain.Review) []AdminReviewDTO {
+	data := make([]AdminReviewDTO, 0, len(reviews))
 	for _, r := range reviews {
 		data = append(data, AdminReviewDTO{
-			ID:        r.ID.String(),
-			Rating:    r.Rating,
-			Comment:   r.Comment,
-			UserName:  r.User.Name,
-			UserEmail: r.User.Email,
-			CreatedAt: r.CreatedAt,
+			ID:           r.ID.String(),
+			RestaurantID: r.RestaurantID.String(),
+			Rating:       r.Rating,
+			Comment:      r.Comment,
+			UserName:     r.User.Name,
+			UserEmail:    r.User.Email,
+			CreatedAt:    r.CreatedAt,
 		})
 	}
-	c.JSON(200, data)
+	return data
+}
+
+func adminPaginationQuery(c *gin.Context, defaultLimit int) (int, int, bool) {
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", strconv.Itoa(defaultLimit)))
+	if err != nil || limit <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit"})
+		return 0, 0, false
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil || offset < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset"})
+		return 0, 0, false
+	}
+	return limit, offset, true
 }
 
 // GetPartnerReviews @Summary Отзывы моего ресторана (Partner)
