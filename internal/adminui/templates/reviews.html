@@ -1,0 +1,45 @@
+{{ define "reviews" }}
+{{ template "layout_start" . }}
+<div class="panel">
+	<div class="panel-body">
+		<form class="toolbar" method="get" action="/admin/reviews">
+			<label>Restaurant ID <input type="text" name="restaurantId" value="{{ .RestaurantFilter }}"></label>
+			<label>Limit <input type="number" min="1" max="100" name="limit" value="{{ .Pagination.Limit }}"></label>
+			<button class="btn" type="submit">Apply</button>
+			<a class="btn secondary" href="/admin/reviews">Reset</a>
+		</form>
+	</div>
+</div>
+<div class="panel table-scroll">
+	<table>
+		<thead>
+			<tr>
+				<th>Rating</th>
+				<th>Comment</th>
+				<th>User</th>
+				<th>Restaurant ID</th>
+				<th>Created</th>
+				<th>Actions</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{ range .Reviews }}
+			<tr>
+				<td>{{ .Rating }}</td>
+				<td class="comment">{{ .Comment }}</td>
+				<td>{{ .UserName }}<br><span class="muted">{{ .UserEmail }}</span></td>
+				<td>{{ .RestaurantID }}</td>
+				<td>{{ .CreatedAt }}</td>
+				<td class="actions">
+					<form method="post" action="/admin/reviews/{{ .ID }}/delete"><button class="btn danger" type="submit">Delete</button></form>
+				</td>
+			</tr>
+			{{ else }}
+			<tr><td class="empty" colspan="6">No reviews.</td></tr>
+			{{ end }}
+		</tbody>
+	</table>
+	{{ template "pagination" .Pagination }}
+</div>
+{{ template "layout_end" . }}
+{{ end }}

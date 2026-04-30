@@ -1,0 +1,38 @@
+{{ define "partners" }}
+{{ template "layout_start" . }}
+<div class="panel table-scroll">
+	<table>
+		<thead>
+			<tr>
+				<th>Name</th>
+				<th>Email</th>
+				<th>Phone</th>
+				<th>Status</th>
+				<th>Created</th>
+				<th>Actions</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{ range .Partners }}
+			<tr>
+				<td>{{ .Name }}</td>
+				<td>{{ .Email }}</td>
+				<td>{{ .Phone }}</td>
+				<td>{{ .PartnerStatus }}</td>
+				<td>{{ .CreatedAt }}</td>
+				<td class="actions">
+					<div class="inline-actions">
+						<form method="post" action="/admin/partners/{{ .ID }}/approve"><button class="btn" type="submit">Approve</button></form>
+						<form method="post" action="/admin/partners/{{ .ID }}/reject"><button class="btn danger" type="submit">Reject</button></form>
+					</div>
+				</td>
+			</tr>
+			{{ else }}
+			<tr><td class="empty" colspan="6">No pending partners.</td></tr>
+			{{ end }}
+		</tbody>
+	</table>
+	{{ template "pagination" .Pagination }}
+</div>
+{{ template "layout_end" . }}
+{{ end }}

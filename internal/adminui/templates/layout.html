@@ -1,0 +1,46 @@
+{{ define "layout_start" }}
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{{ .Base.Title }} - Admin</title>
+	<link rel="stylesheet" href="/admin/assets/admin.css">
+</head>
+<body>
+<div class="shell">
+	<aside class="sidebar">
+		<div class="brand">Admin</div>
+		<nav class="nav">
+			<a class="{{ if eq .Base.Active "partners" }}active{{ end }}" href="/admin/partners/pending">Pending partners</a>
+			<a class="{{ if eq .Base.Active "users" }}active{{ end }}" href="/admin/users">Users</a>
+			<a class="{{ if eq .Base.Active "reviews" }}active{{ end }}" href="/admin/reviews">Reviews</a>
+			<a class="{{ if eq .Base.Active "categories" }}active{{ end }}" href="/admin/categories">Categories</a>
+		</nav>
+		<form method="post" action="/admin/logout">
+			<button class="btn secondary" type="submit">Logout</button>
+		</form>
+	</aside>
+	<main class="main">
+		<div class="topbar">
+			<h1>{{ .Base.Title }}</h1>
+			<div class="admin-email">{{ .Base.AdminEmail }}</div>
+		</div>
+		{{ if .Base.Notice }}<div class="notice">{{ .Base.Notice }}</div>{{ end }}
+		{{ if .Base.Error }}<div class="error">{{ .Base.Error }}</div>{{ end }}
+{{ end }}
+
+{{ define "layout_end" }}
+	</main>
+</div>
+</body>
+</html>
+{{ end }}
+
+{{ define "pagination" }}
+<div class="pagination">
+	<span class="muted">Total: {{ .Total }}</span>
+	{{ if .HasPrev }}<a class="btn secondary" href="{{ .PrevURL }}">Previous</a>{{ end }}
+	{{ if .HasNext }}<a class="btn secondary" href="{{ .NextURL }}">Next</a>{{ end }}
+</div>
+{{ end }}
