@@ -200,7 +200,7 @@ func (h *Handler) Login(c *gin.Context) {
 }
 
 // OAuth godoc
-// @Summary OAuth вход (Google/Apple) — только USER
+// @Summary OAuth вход (Google/Yandex) — только USER
 // @Tags Auth
 // @Accept json
 // @Produce json
