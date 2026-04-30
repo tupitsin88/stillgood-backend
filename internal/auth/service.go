@@ -3,11 +3,13 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"kursach_backend/internal/domain"
 	"log"
 	"math/big"
+	"net/http"
 	"net/mail"
 	"strings"
 	"sync"
@@ -284,7 +286,7 @@ func (s *service) Login(email, password, deviceToken string) (Tokens, *domain.Us
 
 func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *domain.User, bool, error) {
 	provider = strings.ToLower(strings.TrimSpace(provider))
-	if provider != "google" && provider != "apple" {
+	if provider != "google" && provider != "yandex" {
 		return Tokens{}, nil, false, ErrInvalidOAuthProvider
 	}
 	deviceToken = strings.TrimSpace(deviceToken)
@@ -292,7 +294,7 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 		return Tokens{}, nil, false, ErrDeviceTokenRequired
 	}
 
-	email, name, err := s.extractOAuthIdentity(idToken)
+	email, name, err := s.extractOAuthIdentity(provider, idToken)
 	if err != nil {
 		return Tokens{}, nil, false, err
 	}
@@ -896,12 +898,12 @@ func (s *service) cleanupRevokedTokensLocked(nowUnix int64) {
 	}
 }
 
-func (s *service) extractOAuthIdentity(idToken string) (string, string, error) {
+func (s *service) extractOAuthIdentity(provider, idToken string) (string, string, error) {
 	idToken = strings.TrimSpace(idToken)
 	if idToken == "" {
 		return "", "", ErrInvalidOAuthToken
 	}
-	// --- MVP-РЕЖИМ ---
+	// MVP-режим
 	if strings.Contains(idToken, "@") && !strings.Contains(idToken, " ") {
 		email, err := normalizeAndValidateEmail(idToken)
 		if err != nil {
@@ -910,25 +912,46 @@ func (s *service) extractOAuthIdentity(idToken string) (string, string, error) {
 		name := strings.Split(email, "@")[0]
 		return email, name, nil
 	}
-	payload, err := idtoken.Validate(context.Background(), idToken, s.googleClientID)
-	if err != nil {
-		log.Printf("google token validation failed: %v", err)
-		return "", "", ErrInvalidOAuthToken
+	if provider == "google" {
+		payload, err := idtoken.Validate(context.Background(), idToken, s.googleClientID)
+		if err != nil {
+			log.Printf("google token validation failed: %v", err)
+			return "", "", ErrInvalidOAuthToken
+		}
+		emailRaw, ok := payload.Claims["email"].(string)
+		if !ok || strings.TrimSpace(emailRaw) == "" {
+			return "", "", ErrInvalidOAuthToken
+		}
+		email, err := normalizeAndValidateEmail(emailRaw)
+		if err != nil {
+			return "", "", ErrInvalidOAuthToken
+		}
+		name := "Google User"
+		if claimName, ok := payload.Claims["name"].(string); ok && strings.TrimSpace(claimName) != "" {
+			name = strings.TrimSpace(claimName)
+		}
+		return email, name, nil
 	}
-	emailRaw, ok := payload.Claims["email"].(string)
-	if !ok || strings.TrimSpace(emailRaw) == "" {
-		return "", "", ErrInvalidOAuthToken
+	if provider == "yandex" {
+		req, _ := http.NewRequest("GET", "https://login.yandex.ru/info?format=json", nil)
+		req.Header.Set("Authorization", "OAuth "+idToken)
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			return "", "", ErrInvalidOAuthToken
+		}
+		defer resp.Body.Close()
+		var data struct {
+			DefaultEmail string `json:"default_email"`
+			DisplayName  string `json:"display_name"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+			return "", "", ErrInvalidOAuthToken
+		}
+		email, _ := normalizeAndValidateEmail(data.DefaultEmail)
+		return email, data.DisplayName, nil
 	}
-	email, err := normalizeAndValidateEmail(emailRaw)
-	if err != nil {
-		return "", "", ErrInvalidOAuthToken
-	}
-	name := "Google User"
-	if claimName, ok := payload.Claims["name"].(string); ok && strings.TrimSpace(claimName) != "" {
-		name = strings.TrimSpace(claimName)
-	}
-
-	return email, name, nil
+	return "", "", ErrInvalidOAuthProvider
 }
 
 func validatePasswordComplexity(password string) error {

@@ -1881,7 +1881,7 @@ components:
       properties:
         provider:
           type: string
-          enum: [google, apple]
+          enum: [google, yandex]
         idToken:
           type: string
         deviceToken:

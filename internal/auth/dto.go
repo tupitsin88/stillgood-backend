@@ -29,7 +29,7 @@ type LoginRequest struct {
 }
 
 type OAuthRequest struct {
-	Provider    string `json:"provider" binding:"required,oneof=google apple"`
+	Provider    string `json:"provider" binding:"required,oneof=google yandex"`
 	IDToken     string `json:"idToken" binding:"required"`
 	DeviceToken string `json:"deviceToken" binding:"required"`
 }
