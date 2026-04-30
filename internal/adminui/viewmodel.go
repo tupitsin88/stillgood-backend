@@ -20,6 +20,7 @@ type viewData struct {
 	Reviews          []reviewRow
 	Categories       []categoryRow
 	Role             string
+	Search           string
 	RestaurantFilter string
 	Pagination       paginationData
 }

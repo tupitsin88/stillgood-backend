@@ -28,12 +28,14 @@ func (h *Handler) PendingPartnersPage(c *gin.Context) {
 func (h *Handler) UsersPage(c *gin.Context) {
 	limit, offset, pageErr := htmlPagination(c, 20)
 	role := strings.TrimSpace(c.Query("role"))
-	users, total, err := h.authService.ListUsers(limit, offset, role)
+	search := strings.TrimSpace(c.Query("q"))
+	users, total, err := h.authService.ListUsers(limit, offset, role, search)
 
 	data := viewData{
 		Base:       h.base(c, "Users", "users"),
 		Users:      userRows(users),
 		Role:       role,
+		Search:     search,
 		Pagination: pagination(c, total, limit, offset),
 	}
 	if errors.Is(err, auth.ErrInvalidUserRoleFilter) {

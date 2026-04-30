@@ -67,7 +67,7 @@ type Service interface {
 	ChangePassword(userID, currentPassword, newPassword string) error
 	UpdateProfile(userID string, name, phone, email *string) (*domain.User, error)
 	ChangeEmail(userID, newEmail string) (*domain.User, error)
-	ListUsers(limit, offset int, roleFilter string) ([]*domain.User, int64, error)
+	ListUsers(limit, offset int, roleFilter string, search string) ([]*domain.User, int64, error)
 	BlockUser(userID string) (*domain.User, error)
 	UnblockUser(userID string) (*domain.User, error)
 	ListPendingPartners(limit, offset int) ([]*domain.User, int64, error)
@@ -537,7 +537,7 @@ func (s *service) ListPendingPartners(limit, offset int) ([]*domain.User, int64,
 	return result, total, nil
 }
 
-func (s *service) ListUsers(limit, offset int, roleFilter string) ([]*domain.User, int64, error) {
+func (s *service) ListUsers(limit, offset int, roleFilter string, search string) ([]*domain.User, int64, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -553,7 +553,7 @@ func (s *service) ListUsers(limit, offset int, roleFilter string) ([]*domain.Use
 		return nil, 0, err
 	}
 
-	users, total, err := s.repo.ListUsersByRoles(roles, limit, offset)
+	users, total, err := s.repo.ListUsersByRoles(roles, limit, offset, strings.TrimSpace(search))
 	if err != nil {
 		return nil, 0, err
 	}

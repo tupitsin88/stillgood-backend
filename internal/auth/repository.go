@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"strings"
 	"time"
 
 	"kursach_backend/internal/domain"
@@ -15,7 +16,7 @@ type Repository interface {
 	GetByID(id uuid.UUID) (*domain.User, error)
 	IsUserBlocked(id uuid.UUID) (bool, error)
 	ListPartnersByStatus(status string, limit, offset int) ([]domain.User, int64, error)
-	ListUsersByRoles(roles []string, limit, offset int) ([]domain.User, int64, error)
+	ListUsersByRoles(roles []string, limit, offset int, search string) ([]domain.User, int64, error)
 	UpdatePartnerStatus(userID uuid.UUID, status string) error
 	UpdateBlockedStatus(userID uuid.UUID, isBlocked bool) error
 	UpdateDeviceToken(userID uuid.UUID, token string) error
@@ -81,13 +82,22 @@ func (r *repository) ListPartnersByStatus(status string, limit, offset int) ([]d
 	return users, total, nil
 }
 
-func (r *repository) ListUsersByRoles(roles []string, limit, offset int) ([]domain.User, int64, error) {
+func (r *repository) ListUsersByRoles(roles []string, limit, offset int, search string) ([]domain.User, int64, error) {
 	var (
 		users []domain.User
 		total int64
 	)
 
 	query := r.db.Model(&domain.User{}).Where("role IN ?", roles)
+	if pattern := userSearchPattern(search); pattern != "" {
+		query = query.Where(
+			`email ILIKE ? ESCAPE '\' OR name ILIKE ? ESCAPE '\' OR phone ILIKE ? ESCAPE '\' OR id::text ILIKE ? ESCAPE '\'`,
+			pattern,
+			pattern,
+			pattern,
+			pattern,
+		)
+	}
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -96,6 +106,15 @@ func (r *repository) ListUsersByRoles(roles []string, limit, offset int) ([]doma
 	}
 
 	return users, total, nil
+}
+
+func userSearchPattern(search string) string {
+	search = strings.TrimSpace(search)
+	if search == "" {
+		return ""
+	}
+	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return "%" + replacer.Replace(search) + "%"
 }
 
 func (r *repository) UpdatePartnerStatus(userID uuid.UUID, status string) error {

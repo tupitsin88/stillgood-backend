@@ -634,6 +634,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 // @Security ApiKeyAuth
 // @Produce json
 // @Param role query string false "Фильтр роли: USER или PARTNER"
+// @Param q query string false "Поиск по email, имени, телефону или id"
 // @Param limit query int false "Limit"
 // @Param offset query int false "Offset"
 // @Success 200 {object} map[string]interface{}
@@ -659,7 +660,7 @@ func (h *Handler) GetUsers(c *gin.Context) {
 		return
 	}
 
-	users, total, err := h.service.ListUsers(limit, offset, c.Query("role"))
+	users, total, err := h.service.ListUsers(limit, offset, c.Query("role"), c.Query("q"))
 	if err != nil {
 		if errors.Is(err, ErrInvalidUserRoleFilter) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role filter. Use USER or PARTNER"})
