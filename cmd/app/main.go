@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"kursach_backend/internal/adminui"
 	"kursach_backend/internal/analytics"
 	"log"
 	"os"
@@ -158,6 +159,7 @@ func main() {
 	categoriesRepo := categories.NewRepository(db)
 	categoriesService := categories.NewService(categoriesRepo)
 	categoriesHandler := categories.NewHandler(categoriesService)
+	adminHandler := adminui.NewHandler(authService, categoriesService, restaurantsService, jwtSecret)
 
 	// --- Analytics ---
 	analyticsRepo := analytics.NewAnalyticsRepository(db)
@@ -175,7 +177,7 @@ func main() {
 	// 4. Роутер
 	router := gin.Default()
 	router.HandleMethodNotAllowed = true
-	app.NewRouter(router, authService, authHandler, restaurantsHandler, categoriesHandler, orderHandler, offerHandler, analyticsHandler, notificationsHandler, jwtSecret)
+	app.NewRouter(router, authService, authHandler, restaurantsHandler, categoriesHandler, orderHandler, offerHandler, analyticsHandler, notificationsHandler, adminHandler, jwtSecret)
 
 	appPort := os.Getenv("APP_PORT")
 	if appPort == "" {
