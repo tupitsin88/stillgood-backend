@@ -474,6 +474,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Поиск по email, имени, телефону или id",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "Limit",
                         "name": "limit",

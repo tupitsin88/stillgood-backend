@@ -10,8 +10,10 @@
 					<option value="PARTNER" {{ if eq .Role "PARTNER" }}selected{{ end }}>PARTNER</option>
 				</select>
 			</label>
+			<label>Search <input type="search" name="q" value="{{ .Search }}" placeholder="email, name, phone, id"></label>
 			<label>Limit <input type="number" min="1" max="100" name="limit" value="{{ .Pagination.Limit }}"></label>
 			<button class="btn" type="submit">Apply</button>
+			<a class="btn secondary" href="/admin/users">Reset</a>
 		</form>
 	</div>
 </div>
