@@ -502,6 +502,11 @@ paths:
             type: string
             enum: [USER, PARTNER]
           description: Фильтр по роли
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Поиск по email, имени, телефону или id
         - $ref: '#/components/parameters/limit'
         - $ref: '#/components/parameters/offset'
       responses:

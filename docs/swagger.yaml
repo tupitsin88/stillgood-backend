@@ -1032,6 +1032,10 @@ paths:
         in: query
         name: role
         type: string
+      - description: Поиск по email, имени, телефону или id
+        in: query
+        name: q
+        type: string
       - description: Limit
         in: query
         name: limit
