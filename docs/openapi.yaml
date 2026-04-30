@@ -754,6 +754,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /admin/reviews:
+    get:
+      tags: [Admin]
+      summary: Общий список отзывов с данными авторов
+      operationId: getAdminReviews
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: restaurantId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Список отзывов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminReviewsResponse'
+        '400':
+          description: Некорректные параметры запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Недостаточно прав (только ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /admin/restaurants/{id}/reviews:
     get:
       tags: [Admin]
@@ -768,15 +804,21 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
       responses:
         '200':
           description: Список отзывов
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AdminReviewDto'
+                $ref: '#/components/schemas/AdminReviewsResponse'
+        '400':
+          description: Некорректные параметры запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Недостаточно прав (только ADMIN)
           content:
@@ -801,8 +843,20 @@ paths:
       responses:
         '204':
           description: Отзыв удалён
+        '400':
+          description: Некорректный id отзыва
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Недостаточно прав (только ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Отзыв не найден
           content:
             application/json:
               schema:
@@ -2137,11 +2191,24 @@ components:
         - $ref: '#/components/schemas/ReviewDto'
         - type: object
           properties:
+            restaurantId:
+              type: string
+              format: uuid
             userName:
               type: string
             userEmail:
               type: string
               format: email
+
+    AdminReviewsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminReviewDto'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
 
     RestaurantReviewsResponse:
       type: object
