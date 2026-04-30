@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"kursach_backend/internal/domain"
+	emaildelivery "kursach_backend/internal/email"
 	"log"
 	"math/big"
 	"net/http"
@@ -107,6 +108,7 @@ type service struct {
 	accessTTL      time.Duration
 	refreshTTL     time.Duration
 	googleClientID string
+	emailSender    emaildelivery.Sender
 
 	mu                     sync.Mutex
 	resetCodes             map[string]resetCodeEntry
@@ -115,13 +117,19 @@ type service struct {
 	revokedRT              map[string]int64
 }
 
-func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshTTL time.Duration, googleClientID string) Service {
+func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshTTL time.Duration, googleClientID string, emailSender ...emaildelivery.Sender) Service {
+	sender := emaildelivery.Sender(emaildelivery.LogSender{})
+	if len(emailSender) > 0 && emailSender[0] != nil {
+		sender = emailSender[0]
+	}
+
 	return &service{
 		repo:                   repo,
 		tokenManager:           tokenManager,
 		accessTTL:              accessTTL,
 		refreshTTL:             refreshTTL,
 		googleClientID:         googleClientID,
+		emailSender:            sender,
 		resetCodes:             make(map[string]resetCodeEntry),
 		emailVerificationCodes: make(map[string]emailVerificationCodeEntry),
 		resetTokens:            make(map[string]resetTokenEntry),
@@ -620,7 +628,15 @@ func (s *service) RequestEmailVerification(email string) (int, error) {
 	}
 	s.mu.Unlock()
 
-	log.Printf("Email verification code for %s: %s", normalizedEmail, code)
+	if err := s.emailSender.SendEmailVerificationCode(
+		context.Background(),
+		emaildelivery.Address{Email: normalizedEmail, Name: user.Name},
+		code,
+		emailVerificationCodeTTL,
+	); err != nil {
+		s.deleteEmailVerificationCodeIfMatches(normalizedEmail, code)
+		return 0, err
+	}
 
 	return int(emailVerificationCodeTTL.Seconds()), nil
 }
@@ -675,6 +691,10 @@ func (s *service) ForgotPassword(email string) (int, error) {
 	if !exists {
 		return int(passwordResetCodeTTL.Seconds()), nil
 	}
+	user, err := s.repo.GetUserByEmail(email)
+	if err != nil {
+		return 0, err
+	}
 
 	code, err := generateSixDigitCode()
 	if err != nil {
@@ -688,10 +708,37 @@ func (s *service) ForgotPassword(email string) (int, error) {
 	}
 	s.mu.Unlock()
 
-	// Для MVP выводим OTP в лог до интеграции email/SMS.
-	log.Printf("Password reset code for %s: %s", email, code)
+	if err := s.emailSender.SendPasswordResetCode(
+		context.Background(),
+		emaildelivery.Address{Email: email, Name: user.Name},
+		code,
+		passwordResetCodeTTL,
+	); err != nil {
+		s.deleteResetCodeIfMatches(email, code)
+		return 0, err
+	}
 
 	return int(passwordResetCodeTTL.Seconds()), nil
+}
+
+func (s *service) deleteEmailVerificationCodeIfMatches(email, code string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	entry, ok := s.emailVerificationCodes[email]
+	if ok && entry.Code == code {
+		delete(s.emailVerificationCodes, email)
+	}
+}
+
+func (s *service) deleteResetCodeIfMatches(email, code string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	entry, ok := s.resetCodes[email]
+	if ok && entry.Code == code {
+		delete(s.resetCodes, email)
+	}
 }
 
 func (s *service) VerifyResetCode(email, code string) (string, error) {
