@@ -19,26 +19,26 @@ concurrency:
 
 jobs:
   go-checks:
-    name: Go checks
+    name: Fast Go checks
     runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Download repository code
+        uses: actions/checkout@v6
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Install Go version from go.mod
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
 
-      - name: Download dependencies
+      - name: Download Go libraries
         run: go mod download
 
-      - name: Verify dependencies
+      - name: Check Go module checksums
         run: go mod verify
 
-      - name: Check formatting
+      - name: Check Go code for common mistakes
         run: |
           set -euo pipefail
           unformatted="$(gofmt -l .)"
@@ -48,11 +48,11 @@ jobs:
             exit 1
           fi
 
-      - name: Vet
+      - name: Run Go static checks
         run: go vet ./...
 
   integration-tests:
-    name: Integration tests
+    name: Tests with PostgreSQL and MinIO
     runs-on: ubuntu-24.04
     needs: go-checks
 
@@ -92,19 +92,19 @@ jobs:
       CI_MINIO_BUCKET: food-images
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Download repository code
+        uses: actions/checkout@v6
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Install Go version from go.mod
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
 
-      - name: Download dependencies
+      - name: Download Go libraries
         run: go mod download
 
-      - name: Wait for PostgreSQL
+      - name: Wait for test PostgreSQL
         run: |
           set -euo pipefail
           for i in {1..30}; do
@@ -115,7 +115,7 @@ jobs:
           done
           exit 1
 
-      - name: Wait for MinIO
+      - name: Wait for test MinIO
         run: |
           set -euo pipefail
           for i in {1..30}; do
@@ -142,11 +142,11 @@ jobs:
             mc anonymous set public \"local/$CI_MINIO_BUCKET\"
           "
 
-      - name: Run tests
+      - name: Run Go tests with race detector
         run: go test -race ./...
 
-  docker-smoke:
-    name: Docker smoke test
+  docker-compose-test:
+    name: Build and start Docker image
     runs-on: ubuntu-24.04
     needs: integration-tests
 
@@ -181,10 +181,10 @@ jobs:
       CI_IMAGE: stillgood-backend-ci:${{ github.sha }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Download repository code
+        uses: actions/checkout@v6
 
-      - name: Wait for PostgreSQL
+      - name: Wait for test PostgreSQL
         run: |
           set -euo pipefail
           for i in {1..30}; do
@@ -195,7 +195,7 @@ jobs:
           done
           exit 1
 
-      - name: Wait for MinIO
+      - name: Wait for test MinIO
         run: |
           set -euo pipefail
           for i in {1..30}; do
@@ -206,12 +206,12 @@ jobs:
           done
           exit 1
 
-      - name: Create app smoke database
+      - name: Create database for container start check
         run: |
           set -euo pipefail
           docker exec "${{ job.services.postgres.id }}" createdb -U postgres "$CI_APP_DB_NAME" || true
 
-      - name: Create smoke MinIO bucket
+      - name: Create MinIO bucket for container start check
         run: |
           set -euo pipefail
           docker run --rm --network host --entrypoint /bin/sh minio/mc:latest -c "
@@ -223,7 +223,7 @@ jobs:
       - name: Build Docker image
         run: docker build -t "$CI_IMAGE" .
 
-      - name: Smoke test Docker container
+      - name: Start container and check health endpoint
         run: |
           set -euo pipefail
 
