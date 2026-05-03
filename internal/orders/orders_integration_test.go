@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -34,21 +35,12 @@ func setupTestDB(t *testing.T) *gorm.DB {
 
 	db, err := postgres.NewDB(cfg.dsn())
 	if err != nil {
-		t.Fatalf("DB connection failed (%s:%s/%s): %v", cfg.host, cfg.port, cfg.name, err)
+		t.Fatalf("DB connection failed: %v", err)
 	}
-
-	err = db.AutoMigrate(
-		&domain.User{},
-		&domain.Restaurant{},
-		&domain.Category{},
-		&domain.Offer{},
-		&domain.Order{},
-		&domain.OrderStatusHistory{},
-		&domain.Notification{},
-		&domain.Review{},
-	)
-	if err != nil {
-		t.Fatalf("DB migration failed: %v", err)
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	if err := goose.Up(sqlDB, "../../migrations"); err != nil {
+		t.Fatalf("Goose migration failed: %v", err)
 	}
 
 	return db
@@ -265,9 +257,14 @@ func TestOrder_PartnerSecurity(t *testing.T) {
 	userID := uuid.New()
 	require.NoError(t, db.Create(&domain.User{ID: userID, Email: "c-" + testRunID + "@t.com", Role: "USER"}).Error)
 
+	p1 := &domain.User{ID: uuid.New(), Email: "p1-" + testRunID + "@t.com", Role: "PARTNER"}
+	p2 := &domain.User{ID: uuid.New(), Email: "p2-" + testRunID + "@t.com", Role: "PARTNER"}
+	require.NoError(t, db.Create(p1).Error)
+	require.NoError(t, db.Create(p2).Error)
+
 	r1ID, r2ID := uuid.New(), uuid.New()
-	require.NoError(t, db.Create(&domain.Restaurant{ID: r1ID, Name: "Rest 1 " + testRunID}).Error)
-	require.NoError(t, db.Create(&domain.Restaurant{ID: r2ID, Name: "Rest 2 " + testRunID}).Error)
+	require.NoError(t, db.Create(&domain.Restaurant{ID: r1ID, PartnerID: p1.ID, Name: "Rest 1"}).Error)
+	require.NoError(t, db.Create(&domain.Restaurant{ID: r2ID, PartnerID: p2.ID, Name: "Rest 2"}).Error)
 
 	offerID := uuid.New()
 	require.NoError(t, db.Create(&domain.Offer{
@@ -294,8 +291,14 @@ func TestOrder_ForbiddenComplete(t *testing.T) {
 	catID := uuid.New()
 	require.NoError(t, db.Create(&domain.Category{ID: catID, Name: "Forbidden Cat " + testRunID}).Error)
 
+	partner := &domain.User{ID: uuid.New(), Email: "partner-" + testRunID + "@t.com", Role: "PARTNER"}
+	require.NoError(t, db.Create(partner).Error)
 	restID := uuid.New()
-	require.NoError(t, db.Create(&domain.Restaurant{ID: restID, Name: "NoPay Rest " + testRunID}).Error)
+	require.NoError(t, db.Create(&domain.Restaurant{
+		ID:        restID,
+		PartnerID: partner.ID,
+		Name:      "Test Rest " + testRunID,
+	}).Error)
 
 	userID := uuid.New()
 	require.NoError(t, db.Create(&domain.User{ID: userID, Email: "customer-" + testRunID + "@t.com", Role: "USER"}).Error)
@@ -331,8 +334,14 @@ func TestOrder_PayAfterCancel(t *testing.T) {
 	catID := uuid.New()
 	require.NoError(t, db.Create(&domain.Category{ID: catID, Name: "Cancel Cat " + testRunID}).Error)
 
+	partner := &domain.User{ID: uuid.New(), Email: "partner-" + testRunID + "@t.com", Role: "PARTNER"}
+	require.NoError(t, db.Create(partner).Error)
 	restID := uuid.New()
-	require.NoError(t, db.Create(&domain.Restaurant{ID: restID, Name: "Cancel Rest " + testRunID}).Error)
+	require.NoError(t, db.Create(&domain.Restaurant{
+		ID:        restID,
+		PartnerID: partner.ID,
+		Name:      "Test Rest " + testRunID,
+	}).Error)
 
 	offerID := uuid.New()
 	require.NoError(t, db.Create(&domain.Offer{
@@ -363,8 +372,14 @@ func TestOrder_OfferAutoDeactivation(t *testing.T) {
 	catID := uuid.New()
 	require.NoError(t, db.Create(&domain.Category{ID: catID, Name: "Deactivation Cat " + testRunID}).Error)
 
+	partner := &domain.User{ID: uuid.New(), Email: "partner-" + testRunID + "@t.com", Role: "PARTNER"}
+	require.NoError(t, db.Create(partner).Error)
 	restID := uuid.New()
-	require.NoError(t, db.Create(&domain.Restaurant{ID: restID, Name: "Auto-Off Rest " + testRunID}).Error)
+	require.NoError(t, db.Create(&domain.Restaurant{
+		ID:        restID,
+		PartnerID: partner.ID,
+		Name:      "Test Rest " + testRunID,
+	}).Error)
 
 	userID := uuid.New()
 	require.NoError(t, db.Create(&domain.User{ID: userID, Email: "auto-buyer-" + testRunID + "@t.com"}).Error)
@@ -401,8 +416,14 @@ func TestOrder_CancellationWindow(t *testing.T) {
 	catID := uuid.New()
 	require.NoError(t, db.Create(&domain.Category{ID: catID, Name: "Refund Cat " + testRunID}).Error)
 
+	partner := &domain.User{ID: uuid.New(), Email: "partner-" + testRunID + "@t.com", Role: "PARTNER"}
+	require.NoError(t, db.Create(partner).Error)
 	restID := uuid.New()
-	require.NoError(t, db.Create(&domain.Restaurant{ID: restID, Name: "Refund Rest " + testRunID}).Error)
+	require.NoError(t, db.Create(&domain.Restaurant{
+		ID:        restID,
+		PartnerID: partner.ID,
+		Name:      "Test Rest " + testRunID,
+	}).Error)
 
 	userID := uuid.New()
 	require.NoError(t, db.Create(&domain.User{ID: userID, Email: "refunder-" + testRunID + "@t.com"}).Error)
@@ -448,8 +469,14 @@ func TestOrder_PaymentExpiration(t *testing.T) {
 	catID := uuid.New()
 	require.NoError(t, db.Create(&domain.Category{ID: catID, Name: "Exp Cat " + testRunID}).Error)
 
+	partner := &domain.User{ID: uuid.New(), Email: "partner-" + testRunID + "@t.com", Role: "PARTNER"}
+	require.NoError(t, db.Create(partner).Error)
 	restID := uuid.New()
-	require.NoError(t, db.Create(&domain.Restaurant{ID: restID, Name: "Exp Rest " + testRunID}).Error)
+	require.NoError(t, db.Create(&domain.Restaurant{
+		ID:        restID,
+		PartnerID: partner.ID,
+		Name:      "Test Rest " + testRunID,
+	}).Error)
 
 	offerID := uuid.New()
 	require.NoError(t, db.Create(&domain.Offer{ID: offerID, RestaurantID: restID, CategoryID: catID, Title: "Old Food"}).Error)

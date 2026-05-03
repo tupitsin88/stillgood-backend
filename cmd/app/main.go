@@ -9,10 +9,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pressly/goose/v3"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"kursach_backend/internal/domain"
 	"kursach_backend/internal/notifications"
 	"kursach_backend/internal/offers"
 	"kursach_backend/internal/orders"
@@ -61,29 +62,21 @@ func main() {
 		log.Fatal("JWT_SECRET is required")
 	}
 
-	if err := postgres.EnsurePostGIS(db); err != nil {
-		log.Fatal("PostGIS setup failed:", err)
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal("Failed to get sql.DB:", err)
 	}
 
-	// 2. Авто-миграции
-	log.Println("Running migrations...")
-	err = db.AutoMigrate(
-		&domain.User{},
-		&domain.Restaurant{},
-		&domain.Offer{},
-		&domain.Order{},
-		&domain.OrderStatusHistory{},
-		&domain.Category{},
-		&domain.DailyAnalytics{},
-		&domain.Notification{},
-		&domain.Review{},
-	)
+	log.Println("Running migrations via Goose...")
+	err = goose.SetDialect("postgres")
 	if err != nil {
+		return
+	}
+
+	if err := goose.Up(sqlDB, "migrations"); err != nil {
 		log.Fatal("Migration failed:", err)
 	}
-	if err := postgres.EnsureRestaurantGeoLayer(db); err != nil {
-		log.Fatal("Restaurant geo setup failed:", err)
-	}
+
 	log.Println("Migrations completed successfully")
 
 	// 3. Инициализация слоев
