@@ -1,18 +1,15 @@
 -- +goose Up
 -- +goose StatementBegin
 
--- 1. Расширения
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "postgis";
 
--- 2. Таблица Категорий
 CREATE TABLE IF NOT EXISTS categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     icon_url TEXT
     );
 
--- 3. Таблица Пользователей
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT UNIQUE NOT NULL,
@@ -32,7 +29,6 @@ CREATE TABLE IF NOT EXISTS users (
     );
 CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users(deleted_at);
 
--- 4. Таблица Ресторанов
 CREATE TABLE IF NOT EXISTS restaurants (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     partner_id UUID NOT NULL REFERENCES users(id),
@@ -61,7 +57,6 @@ CREATE TABLE IF NOT EXISTS restaurants (
     );
 CREATE INDEX IF NOT EXISTS idx_restaurants_location_geog ON restaurants USING GIST (location);
 
--- 5. Таблица Предложений
 CREATE TABLE IF NOT EXISTS offers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     restaurant_id UUID NOT NULL REFERENCES restaurants(id),
@@ -79,7 +74,6 @@ CREATE TABLE IF NOT EXISTS offers (
     is_active BOOLEAN NOT NULL DEFAULT true
     );
 
--- 6. Таблица Заказов
 CREATE TABLE IF NOT EXISTS orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id),
@@ -99,7 +93,6 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_offer_id ON orders(offer_id);
 
--- 7. История статусов
 CREATE TABLE IF NOT EXISTS order_status_histories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id UUID NOT NULL REFERENCES orders(id),
@@ -107,7 +100,6 @@ CREATE TABLE IF NOT EXISTS order_status_histories (
     changed_at TIMESTAMPTZ NOT NULL
     );
 
--- 8. Уведомления
 CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id),
@@ -118,7 +110,6 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at TIMESTAMPTZ NOT NULL
     );
 
--- 9. Отзывы
 CREATE TABLE IF NOT EXISTS reviews (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id UUID UNIQUE NOT NULL REFERENCES orders(id),
@@ -129,7 +120,6 @@ CREATE TABLE IF NOT EXISTS reviews (
     created_at TIMESTAMPTZ NOT NULL
     );
 
--- 10. Аналитика
 CREATE TABLE IF NOT EXISTS daily_analytics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     restaurant_id UUID NOT NULL REFERENCES restaurants(id),
@@ -149,4 +139,3 @@ CREATE TABLE IF NOT EXISTS daily_analytics (
 -- +goose StatementEnd
 
 -- +goose Down
--- (Здесь можно прописать DROP TABLE, если захочешь чистить базу)
