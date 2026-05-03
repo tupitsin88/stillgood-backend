@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"time"
 
 	"kursach_backend/internal/domain"
@@ -46,6 +47,7 @@ func main() {
 	if err != nil {
 		log.Fatal("failed to get sql.db:", err)
 	}
+	defer sqlDB.Close()
 	log.Println("Applying migrations before seeding...")
 	goose.SetDialect("postgres")
 	if err := goose.Up(sqlDB, "../../migrations"); err != nil {
@@ -57,7 +59,8 @@ func main() {
 		log.Fatalf("build demo data: %v", err)
 	}
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 	if err := seed(ctx, db, data); err != nil {
 		log.Fatalf("seed demo data: %v", err)
 	}

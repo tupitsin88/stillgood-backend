@@ -2,12 +2,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"kursach_backend/internal/adminui"
 	"kursach_backend/internal/analytics"
 	emaildelivery "kursach_backend/internal/email"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/pressly/goose/v3"
@@ -167,11 +172,34 @@ func main() {
 
 	notificationsHandler := notifications.NewNotificationsHandler(notificationService)
 
-	// Cron-worker
-	go analyticsService.StartAnalyticsWorker(context.Background())
-	go orderService.StartExpirationWorker(context.Background())
-	go orderService.StartNotificationWorker(context.Background())
-	go notificationService.Start(context.Background())
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		analyticsService.StartAnalyticsWorker(ctx)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		notificationService.Start(ctx)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		orderService.StartExpirationWorker(ctx)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		orderService.StartNotificationWorker(ctx)
+	}()
 
 	// 4. Роутер
 	router := gin.Default()
@@ -182,11 +210,30 @@ func main() {
 	if appPort == "" {
 		appPort = "8080"
 	}
-
-	log.Printf("Server starting on :%s", appPort)
-	if err := router.Run(":" + appPort); err != nil {
-		log.Fatal("Server start failed:", err)
+	srv := &http.Server{
+		Addr:    ":" + appPort,
+		Handler: router,
 	}
+	go func() {
+		log.Printf("Server starting on :%s", appPort)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
+	<-ctx.Done()
+	log.Println("Shutdown signal received, starting graceful shutdown...")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+	wg.Wait()
+	log.Println("All background workers stopped")
+	if sqlDB, err := db.DB(); err == nil {
+		sqlDB.Close()
+		log.Println("Database connection closed")
+	}
+	log.Println("Server exiting")
 }
 
 func durationFromEnv(key string, fallback time.Duration) (time.Duration, error) {
