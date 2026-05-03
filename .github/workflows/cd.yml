@@ -1,0 +1,111 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-production:
+    name: Deploy production
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on:
+      - self-hosted
+      - stillgood-production
+    environment: production
+
+    env:
+      PROJECT_DIR: /opt/stillgood
+
+    steps:
+      - name: Check production project directory
+        run: |
+          set -euo pipefail
+          test -d "$PROJECT_DIR/.git"
+          test -f "$PROJECT_DIR/.env"
+          test -f "$PROJECT_DIR/docker-compose.yaml"
+
+      - name: Back up database before deploy
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          mkdir -p backups
+
+          if [ -n "$(docker compose ps -q postgres)" ] && docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'; then
+            backup_path="backups/pre-deploy-$(date -u +%Y%m%dT%H%M%SZ).sql"
+            docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > "$backup_path"
+            echo "Database backup written to $backup_path"
+          else
+            echo "PostgreSQL is not running yet; skipping pre-deploy backup"
+          fi
+
+      - name: Update server repository to main
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Rebuild and restart containers
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          docker compose up -d --build
+
+      - name: Check production containers
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          docker compose ps
+
+          for service in app postgres minio; do
+            container_id="$(docker compose ps -q "$service")"
+            if [ -z "$container_id" ]; then
+              echo "Service $service does not have a container"
+              exit 1
+            fi
+
+            if [ "$(docker inspect -f '{{.State.Running}}' "$container_id")" != "true" ]; then
+              echo "Service $service is not running"
+              docker compose logs --tail=100 "$service" || true
+              exit 1
+            fi
+          done
+
+      - name: Check production health endpoint
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+
+          app_port="$(docker compose port app 8080 | tail -n 1 | awk -F: '{print $NF}')"
+          if [ -z "$app_port" ]; then
+            echo "Cannot detect published app port"
+            docker compose ps app
+            exit 1
+          fi
+
+          for i in {1..30}; do
+            if curl -fsS "http://127.0.0.1:${app_port}/health" >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker compose logs --tail=100 app || true
+          exit 1
+
+      - name: Remove unused Docker images
+        run: docker image prune -f
