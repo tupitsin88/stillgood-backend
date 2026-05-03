@@ -11,6 +11,7 @@ import (
 	"kursach_backend/pkg/postgres"
 
 	"github.com/google/uuid"
+	"github.com/pressly/goose/v3"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -41,15 +42,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("connect database: %v", err)
 	}
-
-	if err := postgres.EnsurePostGIS(db); err != nil {
-		log.Fatalf("ensure postgis: %v", err)
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal("failed to get sql.db:", err)
 	}
-	if err := migrate(db); err != nil {
-		log.Fatalf("migrate: %v", err)
-	}
-	if err := postgres.EnsureRestaurantGeoLayer(db); err != nil {
-		log.Fatalf("ensure restaurant geo layer: %v", err)
+	log.Println("Applying migrations before seeding...")
+	goose.SetDialect("postgres")
+	if err := goose.Up(sqlDB, "../../migrations"); err != nil {
+		log.Fatalf("migration failed: %v", err)
 	}
 
 	data, err := buildDemoData(time.Now().UTC())
@@ -86,20 +86,6 @@ func openDB() (*gorm.DB, error) {
 		" sslmode=disable"
 
 	return postgres.NewDB(dsn)
-}
-
-func migrate(db *gorm.DB) error {
-	return db.AutoMigrate(
-		&domain.User{},
-		&domain.Restaurant{},
-		&domain.Offer{},
-		&domain.Order{},
-		&domain.OrderStatusHistory{},
-		&domain.Category{},
-		&domain.DailyAnalytics{},
-		&domain.Notification{},
-		&domain.Review{},
-	)
 }
 
 func seed(ctx context.Context, db *gorm.DB, data demoData) error {
