@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"kursach_backend/internal/domain"
+	"sync"
 	"testing"
 	"time"
 
@@ -38,6 +39,7 @@ func (s *fakeStore) CleanupOld(ctx context.Context, olderThan time.Time) error {
 }
 
 type fakePushProvider struct {
+	mu          sync.Mutex
 	err         error
 	deviceToken string
 	payload     Payload
@@ -45,12 +47,26 @@ type fakePushProvider struct {
 }
 
 func (p *fakePushProvider) SendBatch(ctx context.Context, tokens []string, payload Payload) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	if len(tokens) > 0 {
 		p.deviceToken = tokens[0]
 	}
 	p.payload = payload
 	p.sendCount++
 	return p.err
+}
+
+func (p *fakePushProvider) count() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.sendCount
+}
+
+func (p *fakePushProvider) snapshot() (int, string, Payload) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.sendCount, p.deviceToken, p.payload
 }
 
 func TestServiceSendToUserStoresNotificationAndSendsPush(t *testing.T) {
@@ -70,15 +86,18 @@ func TestServiceSendToUserStoresNotificationAndSendsPush(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, store.notifications, 1)
-	time.Sleep(50 * time.Millisecond)
+	assert.Eventually(t, func() bool {
+		return push.count() == 1
+	}, time.Second, 10*time.Millisecond)
 
 	assert.Equal(t, userID, store.notifications[0].UserID)
 	assert.Equal(t, "Заказ оплачен", store.notifications[0].Title)
 	assert.Equal(t, "Ваш заказ успешно оплачен", store.notifications[0].Body)
 	assert.Equal(t, "/orders/123", store.notifications[0].DeepLink)
-	assert.Equal(t, 1, push.sendCount)
-	assert.Equal(t, "device-token", push.deviceToken)
-	assert.Equal(t, "/orders/123", push.payload.DeepLink)
+	sendCount, deviceToken, payload := push.snapshot()
+	assert.Equal(t, 1, sendCount)
+	assert.Equal(t, "device-token", deviceToken)
+	assert.Equal(t, "/orders/123", payload.DeepLink)
 }
 
 func TestServiceSendToUserSkipsPushWithoutDeviceToken(t *testing.T) {
@@ -94,7 +113,7 @@ func TestServiceSendToUserSkipsPushWithoutDeviceToken(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, store.notifications, 1)
 	time.Sleep(50 * time.Millisecond)
-	assert.Equal(t, 0, push.sendCount)
+	assert.Equal(t, 0, push.count())
 }
 
 func TestServiceSendToUserDoesNotFailOnPushError(t *testing.T) {
@@ -108,7 +127,8 @@ func TestServiceSendToUserDoesNotFailOnPushError(t *testing.T) {
 	err := s.SendToUser(ctx, uuid.New(), Payload{Body: "Message"})
 
 	require.NoError(t, err)
-	time.Sleep(50 * time.Millisecond)
-	assert.Equal(t, 1, push.sendCount)
+	assert.Eventually(t, func() bool {
+		return push.count() == 1
+	}, time.Second, 10*time.Millisecond)
 	require.Len(t, store.notifications, 1)
 }

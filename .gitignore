@@ -1,6 +1,6 @@
-main
-app
-server
+/main
+/app
+/server
 *.exe
 *.exe~
 *.dll

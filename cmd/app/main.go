@@ -4,6 +4,7 @@ import (
 	"context"
 	"kursach_backend/internal/adminui"
 	"kursach_backend/internal/analytics"
+	emaildelivery "kursach_backend/internal/email"
 	"log"
 	"os"
 	"strconv"
@@ -109,8 +110,12 @@ func main() {
 
 	// --- Auth ---
 	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
+	emailSender, err := emaildelivery.NewSenderFromEnv()
+	if err != nil {
+		log.Fatalf("failed to init email sender: %v", err)
+	}
 	authRepo := auth.NewRepository(db)
-	authService := auth.NewService(authRepo, tokenManager, accessTTL, refreshTTL, googleClientID)
+	authService := auth.NewService(authRepo, tokenManager, accessTTL, refreshTTL, googleClientID, emailSender)
 	authHandler := auth.NewHandler(authService)
 
 	// File Storage

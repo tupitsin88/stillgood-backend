@@ -1,6 +1,8 @@
 package app
 
 import (
+	"net/http"
+
 	"kursach_backend/internal/adminui"
 	"kursach_backend/internal/analytics"
 	"kursach_backend/internal/notifications"
@@ -21,6 +23,7 @@ import (
 func NewRouter(handler *gin.Engine, authService auth.Service, authHandler *auth.Handler, restaurantsHandler *restaurants.Handler, categoriesHandler *categories.Handler, orderHandler *orders.OrderHandler, offerHandler *offers.OfferHandler, analyticsHandler *analytics.AnalyticsHandler, notificationsHandler *notifications.NotificationsHandler, adminHandler *adminui.Handler, jwtSecret string) {
 	// Options
 	handler.Use(gin.Recovery())
+	RegisterHealthRoutes(handler)
 
 	// Swagger UI
 	handler.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -38,4 +41,10 @@ func NewRouter(handler *gin.Engine, authService auth.Service, authHandler *auth.
 	offers.RegisterRoutes(handler, offerHandler, authMiddleware)
 	analytics.RegisterRoutes(handler, analyticsHandler, authMiddleware)
 	notifications.RegisterRoutes(handler, notificationsHandler, authMiddleware)
+}
+
+func RegisterHealthRoutes(handler *gin.Engine) {
+	handler.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
 }

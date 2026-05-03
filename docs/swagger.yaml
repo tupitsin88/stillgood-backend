@@ -96,7 +96,7 @@ definitions:
       provider:
         enum:
         - google
-        - apple
+        - yandex
         type: string
     required:
     - deviceToken
@@ -1319,7 +1319,7 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: OAuth вход (Google/Apple) — только USER
+      summary: OAuth вход (Google/Yandex) — только USER
       tags:
       - Auth
   /auth/refresh:
