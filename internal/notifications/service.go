@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"kursach_backend/internal/domain"
@@ -47,9 +48,15 @@ func NewService(store Store, push PushProvider) Service {
 
 func (s *service) Start(ctx context.Context) {
 	log.Println("[Notifications] Worker pool started")
+	var wg sync.WaitGroup
 	for i := 0; i < 3; i++ {
-		go s.worker(ctx)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.worker(ctx)
+		}()
 	}
+	wg.Wait()
 }
 
 func (s *service) worker(ctx context.Context) {
