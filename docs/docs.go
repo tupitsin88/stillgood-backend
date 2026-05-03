@@ -873,7 +873,7 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "OAuth вход (Google/Apple) — только USER",
+                "summary": "OAuth вход (Google/Yandex) — только USER",
                 "parameters": [
                     {
                         "description": "OAuth provider и idToken",
@@ -2724,7 +2724,7 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "google",
-                        "apple"
+                        "yandex"
                     ]
                 }
             }

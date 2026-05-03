@@ -1,0 +1,276 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+  pull_request:
+    branches:
+      - dev
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go-checks:
+    name: Go checks
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Check formatting
+        run: |
+          set -euo pipefail
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "Go files are not formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+  integration-tests:
+    name: Integration tests
+    runs-on: ubuntu-24.04
+    needs: go-checks
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.5-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      minio:
+        image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+        command: server /data --console-address ":9001"
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
+          - 9001:9001
+
+    env:
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: 5432
+      TEST_DB_USER: postgres
+      TEST_DB_PASSWORD: postgres
+      TEST_DB_ADMIN_NAME: postgres
+      TEST_DB_NAME: foodsharing_test_db
+      TEST_GEO_DB_NAME: foodsharing_geo_test_db
+      CI_MINIO_BUCKET: food-images
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Wait for PostgreSQL
+        run: |
+          set -euo pipefail
+          for i in {1..30}; do
+            if docker exec "${{ job.services.postgres.id }}" pg_isready -U postgres -d postgres; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Wait for MinIO
+        run: |
+          set -euo pipefail
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:9000/minio/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Create test databases
+        run: |
+          set -euo pipefail
+          docker exec "${{ job.services.postgres.id }}" createdb -U postgres "$TEST_DB_NAME" || true
+          docker exec "${{ job.services.postgres.id }}" createdb -U postgres "$TEST_GEO_DB_NAME" || true
+          docker exec "${{ job.services.postgres.id }}" psql -U postgres -d "$TEST_GEO_DB_NAME" -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+
+      - name: Create test MinIO bucket
+        run: |
+          set -euo pipefail
+          docker run --rm --network host --entrypoint /bin/sh minio/mc:latest -c "
+            mc alias set local http://127.0.0.1:9000 minioadmin minioadmin &&
+            mc mb --ignore-existing \"local/$CI_MINIO_BUCKET\" &&
+            mc anonymous set public \"local/$CI_MINIO_BUCKET\"
+          "
+
+      - name: Run tests
+        run: go test -race ./...
+
+  docker-smoke:
+    name: Docker smoke test
+    runs-on: ubuntu-24.04
+    needs: integration-tests
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.5-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      minio:
+        image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+        command: server /data --console-address ":9001"
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
+          - 9001:9001
+
+    env:
+      CI_APP_DB_NAME: stillgood_ci_app
+      CI_MINIO_BUCKET: food-images
+      CI_IMAGE: stillgood-backend-ci:${{ github.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Wait for PostgreSQL
+        run: |
+          set -euo pipefail
+          for i in {1..30}; do
+            if docker exec "${{ job.services.postgres.id }}" pg_isready -U postgres -d postgres; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Wait for MinIO
+        run: |
+          set -euo pipefail
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:9000/minio/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Create app smoke database
+        run: |
+          set -euo pipefail
+          docker exec "${{ job.services.postgres.id }}" createdb -U postgres "$CI_APP_DB_NAME" || true
+
+      - name: Create smoke MinIO bucket
+        run: |
+          set -euo pipefail
+          docker run --rm --network host --entrypoint /bin/sh minio/mc:latest -c "
+            mc alias set local http://127.0.0.1:9000 minioadmin minioadmin &&
+            mc mb --ignore-existing \"local/$CI_MINIO_BUCKET\" &&
+            mc anonymous set public \"local/$CI_MINIO_BUCKET\"
+          "
+
+      - name: Build Docker image
+        run: docker build -t "$CI_IMAGE" .
+
+      - name: Smoke test Docker container
+        run: |
+          set -euo pipefail
+
+          container_name="stillgood-backend-ci"
+          cleanup() {
+            status=$?
+            if [ "$status" -ne 0 ]; then
+              docker logs "$container_name" || true
+            fi
+            docker stop "$container_name" >/dev/null 2>&1 || true
+            exit "$status"
+          }
+          trap cleanup EXIT
+
+          docker rm -f "$container_name" >/dev/null 2>&1 || true
+          docker run --rm -d \
+            --name "$container_name" \
+            --network host \
+            -e DB_HOST=127.0.0.1 \
+            -e DB_PORT=5432 \
+            -e DB_USER=postgres \
+            -e DB_PASSWORD=postgres \
+            -e DB_NAME="$CI_APP_DB_NAME" \
+            -e JWT_SECRET=ci-jwt-secret \
+            -e ACCESS_TOKEN_TTL=168h \
+            -e REFRESH_TOKEN_TTL=336h \
+            -e MINIO_ENDPOINT=127.0.0.1:9000 \
+            -e MINIO_ACCESS_KEY=minioadmin \
+            -e MINIO_SECRET_KEY=minioadmin \
+            -e MINIO_BUCKET="$CI_MINIO_BUCKET" \
+            -e MINIO_USE_SSL=false \
+            -e MINIO_PUBLIC_BASE_URL=http://127.0.0.1:9000 \
+            -e FCM_ENABLED=false \
+            -e EMAIL_PROVIDER=log \
+            -e APP_PORT=18080 \
+            "$CI_IMAGE"
+
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:18080/health >/dev/null; then
+              exit 0
+            fi
+            if ! docker ps --format '{{.Names}}' | grep -qx "$container_name"; then
+              echo "Container exited before the smoke check passed"
+              exit 1
+            fi
+            sleep 2
+          done
+
+          echo "Container did not become ready"
+          exit 1
