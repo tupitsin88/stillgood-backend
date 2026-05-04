@@ -151,10 +151,10 @@ func (h *Handler) requirePartner(c *gin.Context) (string, bool) {
 // @Param image formData file true "Image file (JPG, PNG, HEIC/HEIF, max 10MB)"
 // @Param kind formData string true "Image kind: logo or cover"
 // @Success 200 {object} UploadRestaurantImageResponse
-// @Failure 400 {object} map[string]string
-// @Failure 413 {object} map[string]string
-// @Failure 503 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Failure 400 {object} map[string]string "No file uploaded, invalid kind, invalid image format or undecodable image"
+// @Failure 413 {object} map[string]string "Image is too large"
+// @Failure 503 {object} map[string]string "Storage is unavailable"
+// @Failure 500 {object} map[string]string "Unexpected upload failure"
 // @Router /restaurants/upload [post]
 func (h *Handler) UploadImage(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUploadRequestBodyBytes)
@@ -178,7 +178,7 @@ func (h *Handler) UploadImage(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image kind", "message": "kind must be logo or cover"})
 			return
 		}
-		if errors.Is(err, ErrInvalidImageFormat) {
+		if errors.Is(err, ErrInvalidImageFormat) || errors.Is(err, ErrImageProcessingFailed) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image format"})
 			return
 		}
