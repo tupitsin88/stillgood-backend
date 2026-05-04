@@ -49,19 +49,18 @@ type OfferDetailDTO struct {
 }
 
 type OfferPreviewDTO struct {
-	ID                string      `json:"id"`
-	Title             string      `json:"title"`
-	Price             float64     `json:"price"`
-	OriginalPrice     float64     `json:"originalPrice"`
-	Discount          int         `json:"discount"`
-	ImageURL          *string     `json:"imageUrl,omitempty"`
-	RestaurantID      string      `json:"restaurantId"`
-	RestaurantName    string      `json:"restaurantName"`
-	Distance          *int        `json:"distance,omitempty"`
-	PickupStart       time.Time   `json:"pickupStart"`
-	PickupEnd         time.Time   `json:"pickupEnd"`
-	QuantityAvailable int         `json:"quantityAvailable"`
-	Category          CategoryDTO `json:"category"`
+	ID                string             `json:"id"`
+	Title             string             `json:"title"`
+	Price             float64            `json:"price"`
+	OriginalPrice     float64            `json:"originalPrice"`
+	Discount          int                `json:"discount"`
+	ImageURL          *string            `json:"imageUrl,omitempty"`
+	Distance          *int               `json:"distance,omitempty"`
+	PickupStart       time.Time          `json:"pickupStart"`
+	PickupEnd         time.Time          `json:"pickupEnd"`
+	QuantityAvailable int                `json:"quantityAvailable"`
+	Category          CategoryDTO        `json:"category"`
+	Restaurant        RestaurantShortDTO `json:"restaurant"`
 }
 
 type CategoryDTO struct {
