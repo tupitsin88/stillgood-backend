@@ -96,8 +96,11 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 	}
 
 	hasGeoPoint := params.Lat != nil && params.Lng != nil
-	if hasGeoPoint && params.Radius != nil {
-		query = query.Where("ST_DWithin(restaurants.location, "+postgisPointSQL+", ?)", *params.Lng, *params.Lat, *params.Radius)
+	if hasGeoPoint {
+		query = query.Select("offers.*, ROUND("+restaurantDistanceSQL+")::int AS distance", *params.Lng, *params.Lat)
+		if params.Radius != nil {
+			query = query.Where("ST_DWithin(restaurants.location, "+postgisPointSQL+", ?)", *params.Lng, *params.Lat, *params.Radius)
+		}
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -119,9 +122,6 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 		}
 	default:
 		query = query.Order("offers.pickup_time_start ASC")
-	}
-	if hasGeoPoint {
-		query = query.Select("offers.*, ROUND("+restaurantDistanceSQL+")::int AS distance_meters", *params.Lng, *params.Lat)
 	}
 
 	err := query.

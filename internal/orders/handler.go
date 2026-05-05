@@ -155,6 +155,8 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	order, refund, err := h.service.CancelOrder(c.Request.Context(), orderID, actorID, role, req.Reason)
 	if err != nil {
 		switch err.Error() {
+		case "not found":
+			errorResponse(c, 404, "ORDER_NOT_FOUND", "Order not found")
 		case "CANNOT_CANCEL":
 			errorResponse(c, 400, "CANNOT_CANCEL", "Order status does not allow cancellation")
 		case "CANCELLATION_WINDOW_CLOSED":
@@ -462,6 +464,8 @@ func (h *OrderHandler) CreateReview(c *gin.Context) {
 	review, err := h.service.CreateReview(c.Request.Context(), orderID, userID, req)
 	if err != nil {
 		switch err.Error() {
+		case "not found":
+			errorResponse(c, 404, "ORDER_NOT_FOUND", "Order not found")
 		case "ORDER_NOT_COMPLETED":
 			errorResponse(c, 400, "ORDER_NOT_COMPLETED", "You can only review completed orders")
 		case "unauthorized":

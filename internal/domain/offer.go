@@ -9,6 +9,7 @@ type Offer struct {
 	Restaurant        Restaurant `gorm:"foreignKey:RestaurantID" json:"restaurant"`
 	Title             string     `json:"title"`
 	Description       string     `json:"description"`
+	Distance          *int       `gorm:"->;-:migration" json:"distance,omitempty"`
 	CategoryID        uuid.UUID  `gorm:"type:uuid" json:"category_id"`
 	Category          Category   `gorm:"foreignKey:CategoryID" json:"category"`
 	ImageURL          *string    `json:"image_url"`
@@ -20,6 +21,4 @@ type Offer struct {
 	PickupEnd         time.Time  `json:"pickup_time_end" gorm:"column:pickup_time_end"`
 	CreatedAt         time.Time  `json:"created_at"`
 	IsActive          bool       `json:"is_active"`
-
-	DistanceMeters *int `gorm:"column:distance_meters;->;-:migration" json:"-"`
 }

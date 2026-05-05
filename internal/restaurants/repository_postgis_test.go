@@ -277,8 +277,8 @@ func TestOfferRepositoryGetPublicOffersUsesPostGISRadiusAndDistanceOrder(t *test
 	assert.Equal(t, int64(2), total)
 	assert.Equal(t, "Closest Offer", got[0].Title)
 	assert.Equal(t, "Farther Offer", got[1].Title)
-	require.NotNil(t, got[0].DistanceMeters)
-	require.NotNil(t, got[1].DistanceMeters)
-	assert.Equal(t, 0, *got[0].DistanceMeters)
-	assert.Greater(t, *got[1].DistanceMeters, 0)
+	require.NotNil(t, got[0].Distance)
+	require.NotNil(t, got[1].Distance)
+	assert.Equal(t, 0, *got[0].Distance)
+	assert.Greater(t, *got[1].Distance, 0)
 }

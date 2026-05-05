@@ -2,6 +2,7 @@ package orders
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"kursach_backend/internal/domain"
 	"kursach_backend/internal/notifications"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type OrderService struct {
@@ -126,7 +128,11 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID uuid.UUID, req Cr
 		if err := txRepo.SaveHistory(ctx, history); err != nil {
 			return err
 		}
-		finalOrder = order
+		fullOrder, err := txRepo.GetByIDWithDetails(ctx, order.ID)
+		if err != nil {
+			return err
+		}
+		finalOrder = fullOrder
 		return nil
 	})
 	return finalOrder, err
@@ -135,7 +141,10 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID uuid.UUID, req Cr
 func (s *OrderService) PayOrder(ctx context.Context, orderID, userID uuid.UUID) (*domain.Order, error) {
 	order, err := s.repo.GetByIDWithDetails(ctx, orderID)
 	if err != nil {
-		return nil, fmt.Errorf("not found")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("not found")
+		}
+		return nil, err
 	}
 
 	if order.UserID != userID {
@@ -177,7 +186,10 @@ func (s *OrderService) PayOrder(ctx context.Context, orderID, userID uuid.UUID) 
 func (s *OrderService) CancelOrder(ctx context.Context, orderID, actorID uuid.UUID, role string, reason string) (*domain.Order, float64, error) {
 	order, err := s.repo.GetByIDWithDetails(ctx, orderID)
 	if err != nil {
-		return nil, 0, fmt.Errorf("not found")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, 0, fmt.Errorf("not found")
+		}
+		return nil, 0, err
 	}
 	switch role {
 	case "USER":
@@ -232,7 +244,10 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID, actorID uuid.UU
 func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID, restaurantID uuid.UUID) (*domain.Order, error) {
 	order, err := s.repo.GetByIDWithDetails(ctx, orderID)
 	if err != nil {
-		return nil, fmt.Errorf("not found")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("not found")
+		}
+		return nil, err
 	}
 
 	if order.Offer.RestaurantID != restaurantID {
@@ -277,7 +292,10 @@ func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID, res
 func (s *OrderService) GetOrderById(ctx context.Context, orderID, userID uuid.UUID) (*domain.Order, error) {
 	order, err := s.repo.GetByIDWithDetails(ctx, orderID)
 	if err != nil {
-		return nil, fmt.Errorf("not found")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("not found")
+		}
+		return nil, err
 	}
 	if order.UserID != userID {
 		return nil, fmt.Errorf("unauthorized")
@@ -304,6 +322,9 @@ func (s *OrderService) sendNotification(ctx context.Context, userID uuid.UUID, p
 func (s *OrderService) CreateReview(ctx context.Context, orderID, userID uuid.UUID, req CreateReviewRequest) (*domain.Review, error) {
 	order, err := s.repo.GetByIDWithDetails(ctx, orderID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("not found")
+		}
 		return nil, err
 	}
 	if order.UserID != userID {
