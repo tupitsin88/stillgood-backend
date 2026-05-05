@@ -170,7 +170,7 @@ func TestRequestEmailVerificationRemovesCodeWhenSendFails(t *testing.T) {
 
 	_, err := service.RequestEmailVerification("user@example.com")
 
-	require.Error(t, err)
+	require.ErrorIs(t, err, ErrEmailDeliveryFailed)
 	require.Len(t, sender.verification, 1)
 	err = service.VerifyEmail("user@example.com", sender.verification[0].code)
 	assert.ErrorIs(t, err, ErrInvalidVerificationCode)
@@ -195,4 +195,17 @@ func TestForgotPasswordSendsResetCode(t *testing.T) {
 	resetToken, err := service.VerifyResetCode("user@example.com", sender.reset[0].code)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resetToken)
+}
+
+func TestForgotPasswordRemovesResetCodeWhenSendFails(t *testing.T) {
+	repo := newAuthEmailRepoStub(&domain.User{Email: "user@example.com"})
+	sender := &emailSenderSpy{err: errors.New("resend unavailable")}
+	service := NewService(repo, nil, time.Minute, time.Hour, "", sender)
+
+	_, err := service.ForgotPassword("user@example.com")
+
+	require.ErrorIs(t, err, ErrEmailDeliveryFailed)
+	require.Len(t, sender.reset, 1)
+	_, err = service.VerifyResetCode("user@example.com", sender.reset[0].code)
+	assert.ErrorIs(t, err, ErrInvalidResetCode)
 }

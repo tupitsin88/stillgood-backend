@@ -48,6 +48,7 @@ var ErrInvalidVerificationCode = errors.New("invalid verification code")
 var ErrEmailChangeNotAllowed = errors.New("email change is allowed only for email auth provider")
 var ErrInvalidName = errors.New("invalid name")
 var ErrEmptyProfileUpdate = errors.New("at least one profile field must be provided")
+var ErrEmailDeliveryFailed = errors.New("email delivery failed")
 
 const (
 	emailVerificationCodeTTL = 10 * time.Minute
@@ -635,7 +636,7 @@ func (s *service) RequestEmailVerification(email string) (int, error) {
 		emailVerificationCodeTTL,
 	); err != nil {
 		s.deleteEmailVerificationCodeIfMatches(normalizedEmail, code)
-		return 0, err
+		return 0, fmt.Errorf("%w: %v", ErrEmailDeliveryFailed, err)
 	}
 
 	return int(emailVerificationCodeTTL.Seconds()), nil
@@ -715,7 +716,7 @@ func (s *service) ForgotPassword(email string) (int, error) {
 		passwordResetCodeTTL,
 	); err != nil {
 		s.deleteResetCodeIfMatches(email, code)
-		return 0, err
+		return 0, fmt.Errorf("%w: %v", ErrEmailDeliveryFailed, err)
 	}
 
 	return int(passwordResetCodeTTL.Seconds()), nil

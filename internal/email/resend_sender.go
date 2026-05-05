@@ -54,7 +54,7 @@ func NewResendSender(cfg ResendConfig) (*ResendSender, error) {
 
 func (s *ResendSender) SendEmailVerificationCode(ctx context.Context, to Address, code string, ttl time.Duration) error {
 	return s.send(ctx, to, &resend.SendEmailRequest{
-		Subject: "Код подтверждения FoodSharing",
+		Subject: "Код подтверждения " + defaultSenderName,
 		Html:    codeEmailHTML("Подтверждение email", "Введите этот код в приложении, чтобы подтвердить email.", code, ttl),
 		Tags:    []resend.Tag{{Name: "type", Value: "email_verification"}},
 	})
@@ -62,7 +62,7 @@ func (s *ResendSender) SendEmailVerificationCode(ctx context.Context, to Address
 
 func (s *ResendSender) SendPasswordResetCode(ctx context.Context, to Address, code string, ttl time.Duration) error {
 	return s.send(ctx, to, &resend.SendEmailRequest{
-		Subject: "Код для сброса пароля FoodSharing",
+		Subject: "Код для сброса пароля " + defaultSenderName,
 		Html:    codeEmailHTML("Сброс пароля", "Введите этот код в приложении, чтобы сбросить пароль.", code, ttl),
 		Tags:    []resend.Tag{{Name: "type", Value: "password_reset"}},
 	})

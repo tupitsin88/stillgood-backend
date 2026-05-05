@@ -12,7 +12,7 @@ import (
 const (
 	defaultProvider            = "log"
 	defaultEmailRequestTimeout = 10 * time.Second
-	defaultSenderName          = "FoodSharing"
+	defaultSenderName          = "StillGood"
 )
 
 func NewSenderFromEnv() (Sender, error) {

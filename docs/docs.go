@@ -729,6 +729,33 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/auth.ForgotPasswordResponse"
                         }
+                    },
+                    "400": {
+                        "description": "Invalid email or request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected forgot password failure",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Email delivery failed",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
@@ -1172,6 +1199,33 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/auth.RequestEmailVerificationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid email or request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected verification request failure",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Email delivery failed",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -2336,7 +2390,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "No file uploaded, invalid kind, invalid image format or undecodable image",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2345,7 +2399,7 @@ const docTemplate = `{
                         }
                     },
                     "413": {
-                        "description": "Request Entity Too Large",
+                        "description": "Image is too large",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2354,7 +2408,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Unexpected upload failure",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2363,7 +2417,7 @@ const docTemplate = `{
                         }
                     },
                     "503": {
-                        "description": "Service Unavailable",
+                        "description": "Storage is unavailable",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
