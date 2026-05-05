@@ -48,6 +48,7 @@ var ErrInvalidVerificationCode = errors.New("invalid verification code")
 var ErrEmailChangeNotAllowed = errors.New("email change is allowed only for email auth provider")
 var ErrInvalidName = errors.New("invalid name")
 var ErrEmptyProfileUpdate = errors.New("at least one profile field must be provided")
+var ErrEmailDeliveryFailed = errors.New("email delivery failed")
 
 const (
 	emailVerificationCodeTTL = 10 * time.Minute
@@ -114,7 +115,6 @@ type service struct {
 	resetCodes             map[string]resetCodeEntry
 	emailVerificationCodes map[string]emailVerificationCodeEntry
 	resetTokens            map[string]resetTokenEntry
-	revokedRT              map[string]int64
 }
 
 func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshTTL time.Duration, googleClientID string, emailSender ...emaildelivery.Sender) Service {
@@ -133,7 +133,6 @@ func NewService(repo Repository, tokenManager *TokenManager, accessTTL, refreshT
 		resetCodes:             make(map[string]resetCodeEntry),
 		emailVerificationCodes: make(map[string]emailVerificationCodeEntry),
 		resetTokens:            make(map[string]resetTokenEntry),
-		revokedRT:              make(map[string]int64),
 	}
 }
 
@@ -359,11 +358,8 @@ func (s *service) OAuthLogin(provider, idToken, deviceToken string) (Tokens, *do
 }
 
 func (s *service) RefreshTokens(refreshToken string) (Tokens, error) {
-	if strings.TrimSpace(refreshToken) == "" {
-		return Tokens{}, ErrInvalidRefreshToken
-	}
-
-	if s.isRefreshTokenRevoked(refreshToken) {
+	refreshToken = strings.TrimSpace(refreshToken)
+	if refreshToken == "" {
 		return Tokens{}, ErrInvalidRefreshToken
 	}
 
@@ -372,15 +368,26 @@ func (s *service) RefreshTokens(refreshToken string) (Tokens, error) {
 		return Tokens{}, ErrInvalidRefreshToken
 	}
 
-	sub, ok := claims["sub"].(string)
-	if !ok {
+	sessionID, userID, err := extractRefreshClaims(claims)
+	if err != nil {
+		return Tokens{}, ErrInvalidRefreshToken
+	}
+
+	active, err := s.repo.IsRefreshSessionActive(sessionID, userID, time.Now().UTC())
+	if err != nil {
+		return Tokens{}, err
+	}
+	if !active {
 		return Tokens{}, ErrInvalidRefreshToken
 	}
 
 	// Security check: Verify user exists and is active in DB
-	user, err := s.GetUserByID(sub)
+	user, err := s.repo.GetByID(userID)
 	if err != nil {
-		return Tokens{}, err // User probably deleted or ID changed
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return Tokens{}, ErrInvalidRefreshToken
+		}
+		return Tokens{}, err
 	}
 	if user.IsBlocked {
 		return Tokens{}, ErrUserBlocked
@@ -635,7 +642,7 @@ func (s *service) RequestEmailVerification(email string) (int, error) {
 		emailVerificationCodeTTL,
 	); err != nil {
 		s.deleteEmailVerificationCodeIfMatches(normalizedEmail, code)
-		return 0, err
+		return 0, fmt.Errorf("%w: %v", ErrEmailDeliveryFailed, err)
 	}
 
 	return int(emailVerificationCodeTTL.Seconds()), nil
@@ -715,7 +722,7 @@ func (s *service) ForgotPassword(email string) (int, error) {
 		passwordResetCodeTTL,
 	); err != nil {
 		s.deleteResetCodeIfMatches(email, code)
-		return 0, err
+		return 0, fmt.Errorf("%w: %v", ErrEmailDeliveryFailed, err)
 	}
 
 	return int(passwordResetCodeTTL.Seconds()), nil
@@ -851,15 +858,17 @@ func (s *service) Logout(refreshToken string) error {
 		return ErrInvalidRefreshToken
 	}
 
-	expUnix, err := extractExpUnix(claims)
+	sessionID, _, err := extractRefreshClaims(claims)
 	if err != nil {
 		return ErrInvalidRefreshToken
 	}
 
-	s.mu.Lock()
-	s.cleanupRevokedTokensLocked(time.Now().Unix())
-	s.revokedRT[refreshToken] = expUnix
-	s.mu.Unlock()
+	if err := s.repo.RevokeRefreshSession(sessionID, time.Now().UTC()); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrInvalidRefreshToken
+		}
+		return err
+	}
 
 	return nil
 }
@@ -883,13 +892,30 @@ func (s *service) IsUserBlocked(id string) (bool, error) {
 }
 
 func (s *service) generateTokens(userID, role, restaurantID, partnerStatus string) (Tokens, error) {
+	parsedUserID, err := uuid.Parse(userID)
+	if err != nil {
+		return Tokens{}, err
+	}
+
 	accessToken, err := s.tokenManager.NewAccessToken(userID, role, restaurantID, partnerStatus, s.accessTTL)
 	if err != nil {
 		return Tokens{}, err
 	}
 
-	refreshToken, err := s.tokenManager.NewRefreshToken(userID, s.refreshTTL)
+	now := time.Now().UTC()
+	sessionID := uuid.New()
+	refreshExpiresAt := now.Add(s.refreshTTL)
+	refreshToken, err := s.tokenManager.NewRefreshToken(userID, sessionID.String(), refreshExpiresAt)
 	if err != nil {
+		return Tokens{}, err
+	}
+
+	if err := s.repo.CreateRefreshSession(&domain.RefreshSession{
+		JTI:       sessionID,
+		UserID:    parsedUserID,
+		ExpiresAt: refreshExpiresAt,
+		CreatedAt: now,
+	}); err != nil {
 		return Tokens{}, err
 	}
 
@@ -908,41 +934,31 @@ func generateSixDigitCode() (string, error) {
 	return fmt.Sprintf("%06d", n.Int64()), nil
 }
 
-func extractExpUnix(claims map[string]interface{}) (int64, error) {
-	rawExp, ok := claims["exp"]
-	if !ok {
-		return 0, ErrInvalidRefreshToken
+func extractRefreshClaims(claims map[string]interface{}) (uuid.UUID, uuid.UUID, error) {
+	tokenType, ok := claims["typ"].(string)
+	if !ok || tokenType != "refresh" {
+		return uuid.Nil, uuid.Nil, ErrInvalidRefreshToken
 	}
 
-	switch v := rawExp.(type) {
-	case float64:
-		return int64(v), nil
-	case int64:
-		return v, nil
-	case int:
-		return int64(v), nil
-	default:
-		return 0, ErrInvalidRefreshToken
+	rawJTI, ok := claims["jti"].(string)
+	if !ok || strings.TrimSpace(rawJTI) == "" {
+		return uuid.Nil, uuid.Nil, ErrInvalidRefreshToken
 	}
-}
-
-func (s *service) isRefreshTokenRevoked(refreshToken string) bool {
-	nowUnix := time.Now().Unix()
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.cleanupRevokedTokensLocked(nowUnix)
-	exp, exists := s.revokedRT[refreshToken]
-	return exists && exp > nowUnix
-}
-
-func (s *service) cleanupRevokedTokensLocked(nowUnix int64) {
-	for token, exp := range s.revokedRT {
-		if exp <= nowUnix {
-			delete(s.revokedRT, token)
-		}
+	sessionID, err := uuid.Parse(rawJTI)
+	if err != nil {
+		return uuid.Nil, uuid.Nil, ErrInvalidRefreshToken
 	}
+
+	rawSub, ok := claims["sub"].(string)
+	if !ok || strings.TrimSpace(rawSub) == "" {
+		return uuid.Nil, uuid.Nil, ErrInvalidRefreshToken
+	}
+	userID, err := uuid.Parse(rawSub)
+	if err != nil {
+		return uuid.Nil, uuid.Nil, ErrInvalidRefreshToken
+	}
+
+	return sessionID, userID, nil
 }
 
 func (s *service) extractOAuthIdentity(provider, idToken string) (string, string, error) {

@@ -436,6 +436,9 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 // @Produce json
 // @Param input body RequestEmailVerificationRequest true "Email для верификации"
 // @Success 200 {object} RequestEmailVerificationResponse
+// @Failure 400 {object} map[string]string "Invalid email or request body"
+// @Failure 503 {object} map[string]string "Email delivery failed"
+// @Failure 500 {object} map[string]string "Unexpected verification request failure"
 // @Router /auth/verify-email/request [post]
 func (h *Handler) RequestEmailVerification(c *gin.Context) {
 	var input RequestEmailVerificationRequest
@@ -448,6 +451,13 @@ func (h *Handler) RequestEmailVerification(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, ErrInvalidEmail) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format (RFC 5322 expected)"})
+			return
+		}
+		if errors.Is(err, ErrEmailDeliveryFailed) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error":   "EMAIL_DELIVERY_FAILED",
+				"message": "Failed to send verification code",
+			})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to request email verification"})
@@ -499,6 +509,9 @@ func (h *Handler) VerifyEmail(c *gin.Context) {
 // @Produce json
 // @Param input body ForgotPasswordRequest true "Email для сброса"
 // @Success 200 {object} ForgotPasswordResponse
+// @Failure 400 {object} map[string]string "Invalid email or request body"
+// @Failure 503 {object} map[string]string "Email delivery failed"
+// @Failure 500 {object} map[string]string "Unexpected forgot password failure"
 // @Router /auth/forgot-password [post]
 func (h *Handler) ForgotPassword(c *gin.Context) {
 	var input ForgotPasswordRequest
@@ -511,6 +524,13 @@ func (h *Handler) ForgotPassword(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, ErrInvalidEmail) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format (RFC 5322 expected)"})
+			return
+		}
+		if errors.Is(err, ErrEmailDeliveryFailed) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error":   "EMAIL_DELIVERY_FAILED",
+				"message": "Failed to send password reset code",
+			})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process forgot password"})
@@ -617,7 +637,11 @@ func (h *Handler) Refresh(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Account is blocked"})
 			return
 		}
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
+		if errors.Is(err, ErrInvalidRefreshToken) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to refresh tokens"})
 		return
 	}
 

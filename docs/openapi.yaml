@@ -297,6 +297,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Не удалось доставить письмо с кодом верификации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Неожиданная ошибка запроса верификации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /auth/verify-email/confirm:
     post:
@@ -353,6 +365,24 @@ paths:
                     type: integer
                     description: Секунды до истечения кода
                     example: 600
+        '400':
+          description: Невалидный email или тело запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Не удалось доставить письмо с кодом сброса пароля
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Неожиданная ошибка запроса сброса пароля
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /auth/verify-reset-code:
     post:
@@ -1357,7 +1387,7 @@ paths:
                     type: string
                     example: https://cdn.feedex.ru/food-images/restaurants/logos/0f3d3f95-0e2b-4b5c-9ce9-7f4ef0b6a312.jpg
         '400':
-          description: Невалидный формат файла или пустой файл
+          description: Файл отсутствует, kind не logo/cover, формат не поддержан или изображение повреждено/не декодируется
           content:
             application/json:
               schema:
@@ -1370,6 +1400,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Хранилище временно недоступно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Неожиданная ошибка загрузки
           content:
             application/json:
               schema:

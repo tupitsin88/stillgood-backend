@@ -226,15 +226,18 @@ func (s *OfferService) mapToPreviewDTO(o *domain.Offer) OfferPreviewDTO {
 		OriginalPrice:     o.OriginalPrice,
 		Discount:          discount,
 		ImageURL:          o.ImageURL,
-		RestaurantID:      o.RestaurantID.String(),
-		RestaurantName:    o.Restaurant.Name,
-		Distance:          o.DistanceMeters,
+		Distance:          o.Distance,
 		PickupStart:       o.PickupStart,
 		PickupEnd:         o.PickupEnd,
 		QuantityAvailable: o.QuantityAvailable,
-		Category: CategoryDTO{
-			ID:   o.CategoryID.String(),
-			Name: o.Category.Name,
+		Category:          CategoryDTO{ID: o.CategoryID.String(), Name: o.Category.Name},
+		Restaurant: RestaurantShortDTO{
+			ID:        o.Restaurant.ID.String(),
+			Name:      o.Restaurant.Name,
+			Address:   o.Restaurant.Address,
+			Latitude:  o.Restaurant.Latitude,
+			Longitude: o.Restaurant.Longitude,
+			Phone:     o.Restaurant.Phone,
 		},
 	}
 }

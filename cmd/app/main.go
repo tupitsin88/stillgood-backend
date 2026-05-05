@@ -2,18 +2,24 @@ package main
 
 import (
 	"context"
+	"errors"
 	"kursach_backend/internal/adminui"
 	"kursach_backend/internal/analytics"
 	emaildelivery "kursach_backend/internal/email"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"sync"
+	"syscall"
 	"time"
+
+	"github.com/pressly/goose/v3"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"kursach_backend/internal/domain"
 	"kursach_backend/internal/notifications"
 	"kursach_backend/internal/offers"
 	"kursach_backend/internal/orders"
@@ -62,29 +68,21 @@ func main() {
 		log.Fatal("JWT_SECRET is required")
 	}
 
-	if err := postgres.EnsurePostGIS(db); err != nil {
-		log.Fatal("PostGIS setup failed:", err)
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal("Failed to get sql.DB:", err)
 	}
 
-	// 2. Авто-миграции
-	log.Println("Running migrations...")
-	err = db.AutoMigrate(
-		&domain.User{},
-		&domain.Restaurant{},
-		&domain.Offer{},
-		&domain.Order{},
-		&domain.OrderStatusHistory{},
-		&domain.Category{},
-		&domain.DailyAnalytics{},
-		&domain.Notification{},
-		&domain.Review{},
-	)
+	log.Println("Running migrations via Goose...")
+	err = goose.SetDialect("postgres")
 	if err != nil {
+		return
+	}
+
+	if err := goose.Up(sqlDB, migrationsDir()); err != nil {
 		log.Fatal("Migration failed:", err)
 	}
-	if err := postgres.EnsureRestaurantGeoLayer(db); err != nil {
-		log.Fatal("Restaurant geo setup failed:", err)
-	}
+
 	log.Println("Migrations completed successfully")
 
 	// 3. Инициализация слоев
@@ -102,7 +100,7 @@ func main() {
 		log.Fatalf("invalid REFRESH_TOKEN_TTL: %v", err)
 	}
 
-	// --- Orders ---
+	// Orders
 	orderRepo := orders.NewOrderRepository(db)
 	notificationRepo := notifications.NewRepository(db)
 	pushProvider := notifications.NewPushProviderFromEnv(context.Background())
@@ -110,12 +108,12 @@ func main() {
 	orderService := orders.NewOrderService(orderRepo, notificationService)
 	orderHandler := orders.NewOrderHandler(orderService)
 
-	// --- Offers ---
+	// Offers
 	offerRepo := offers.NewOfferRepository(db)
 	offerService := offers.NewOfferService(offerRepo)
 	offerHandler := offers.NewOfferHandler(offerService)
 
-	// --- Auth ---
+	// Auth
 	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
 	emailSender, err := emaildelivery.NewSenderFromEnv()
 	if err != nil {
@@ -156,29 +154,52 @@ func main() {
 	}
 	_ = fileStorage // Will be used in future handlers
 
-	// --- Restaurants ---
+	// Restaurants
 	restaurantsRepo := restaurants.NewRepository(db)
 	restaurantsService := restaurants.NewService(restaurantsRepo, fileStorage)
 	restaurantsHandler := restaurants.NewHandler(restaurantsService)
 
-	// --- Categories ---
+	// Categories
 	categoriesRepo := categories.NewRepository(db)
 	categoriesService := categories.NewService(categoriesRepo)
 	categoriesHandler := categories.NewHandler(categoriesService)
 	adminHandler := adminui.NewHandler(authService, categoriesService, restaurantsService, jwtSecret)
 
-	// --- Analytics ---
+	// Analytics
 	analyticsRepo := analytics.NewAnalyticsRepository(db)
 	analyticsService := analytics.NewAnalyticsService(analyticsRepo)
 	analyticsHandler := analytics.NewAnalyticsHandler(analyticsService)
 
 	notificationsHandler := notifications.NewNotificationsHandler(notificationService)
 
-	// Cron-worker
-	go analyticsService.StartAnalyticsWorker(context.Background())
-	go orderService.StartExpirationWorker(context.Background())
-	go orderService.StartNotificationWorker(context.Background())
-	go notificationService.Start(context.Background())
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		analyticsService.StartAnalyticsWorker(ctx)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		notificationService.Start(ctx)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		orderService.StartExpirationWorker(ctx)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		orderService.StartNotificationWorker(ctx)
+	}()
 
 	// 4. Роутер
 	router := gin.Default()
@@ -189,11 +210,30 @@ func main() {
 	if appPort == "" {
 		appPort = "8080"
 	}
-
-	log.Printf("Server starting on :%s", appPort)
-	if err := router.Run(":" + appPort); err != nil {
-		log.Fatal("Server start failed:", err)
+	srv := &http.Server{
+		Addr:    ":" + appPort,
+		Handler: router,
 	}
+	go func() {
+		log.Printf("Server starting on :%s", appPort)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
+	<-ctx.Done()
+	log.Println("Shutdown signal received, starting graceful shutdown...")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+	wg.Wait()
+	log.Println("All background workers stopped")
+	if sqlDB, err := db.DB(); err == nil {
+		sqlDB.Close()
+		log.Println("Database connection closed")
+	}
+	log.Println("Server exiting")
 }
 
 func durationFromEnv(key string, fallback time.Duration) (time.Duration, error) {
@@ -206,4 +246,22 @@ func durationFromEnv(key string, fallback time.Duration) (time.Duration, error) 
 		return 0, err
 	}
 	return parsed, nil
+}
+
+func migrationsDir() string {
+	if dir := os.Getenv("MIGRATIONS_DIR"); dir != "" {
+		if _, err := os.Stat(dir); err != nil {
+			log.Fatalf("MIGRATIONS_DIR %q is not available: %v", dir, err)
+		}
+		return dir
+	}
+
+	for _, dir := range []string{"migrations", "../../migrations"} {
+		if _, err := os.Stat(dir); err == nil {
+			return dir
+		}
+	}
+
+	log.Fatal("migrations directory not found")
+	return ""
 }

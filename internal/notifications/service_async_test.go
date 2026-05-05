@@ -18,7 +18,8 @@ func TestService_SendToUser_Async(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s.Start(ctx)
+	go s.Start(ctx)
+	time.Sleep(10 * time.Millisecond)
 
 	userID := uuid.New()
 	err := s.SendToUser(ctx, userID, Payload{Title: "Test", Body: "Hello"})
@@ -42,7 +43,8 @@ func TestService_SendToUser_NoToken(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	s.Start(ctx)
+	go s.Start(ctx)
+	time.Sleep(10 * time.Millisecond)
 
 	err := s.SendToUser(ctx, uuid.New(), Payload{Body: "No token"})
 
@@ -58,7 +60,8 @@ func TestService_FirebaseError_DoesNotAffectFlow(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	s.Start(ctx)
+	go s.Start(ctx)
+	time.Sleep(10 * time.Millisecond)
 
 	err := s.SendToUser(ctx, uuid.New(), Payload{Body: "Failing push"})
 	assert.NoError(t, err, "Ошибка Firebase не должна прокидываться в бизнес-логику")
@@ -70,7 +73,8 @@ func TestService_SendToTokens_Async(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	s.Start(ctx)
+	go s.Start(ctx)
+	time.Sleep(10 * time.Millisecond)
 
 	tokens := []string{"token-1", "token-2", "token-3"}
 	payload := Payload{Title: "Broadcast", Body: "Hello everyone"}

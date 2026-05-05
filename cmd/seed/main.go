@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"time"
 
 	"kursach_backend/internal/domain"
 	"kursach_backend/pkg/postgres"
 
 	"github.com/google/uuid"
+	"github.com/pressly/goose/v3"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -41,15 +43,19 @@ func main() {
 	if err != nil {
 		log.Fatalf("connect database: %v", err)
 	}
-
-	if err := postgres.EnsurePostGIS(db); err != nil {
-		log.Fatalf("ensure postgis: %v", err)
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal("failed to get sql.db:", err)
 	}
-	if err := migrate(db); err != nil {
-		log.Fatalf("migrate: %v", err)
+	defer sqlDB.Close()
+	log.Println("Applying migrations before seeding...")
+	goose.SetDialect("postgres")
+	dir, err := migrationsDir()
+	if err != nil {
+		log.Fatal(err)
 	}
-	if err := postgres.EnsureRestaurantGeoLayer(db); err != nil {
-		log.Fatalf("ensure restaurant geo layer: %v", err)
+	if err := goose.Up(sqlDB, dir); err != nil {
+		log.Fatalf("migration failed: %v", err)
 	}
 
 	data, err := buildDemoData(time.Now().UTC())
@@ -57,7 +63,8 @@ func main() {
 		log.Fatalf("build demo data: %v", err)
 	}
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 	if err := seed(ctx, db, data); err != nil {
 		log.Fatalf("seed demo data: %v", err)
 	}
@@ -88,18 +95,21 @@ func openDB() (*gorm.DB, error) {
 	return postgres.NewDB(dsn)
 }
 
-func migrate(db *gorm.DB) error {
-	return db.AutoMigrate(
-		&domain.User{},
-		&domain.Restaurant{},
-		&domain.Offer{},
-		&domain.Order{},
-		&domain.OrderStatusHistory{},
-		&domain.Category{},
-		&domain.DailyAnalytics{},
-		&domain.Notification{},
-		&domain.Review{},
-	)
+func migrationsDir() (string, error) {
+	if dir := os.Getenv("MIGRATIONS_DIR"); dir != "" {
+		if _, err := os.Stat(dir); err != nil {
+			return "", fmt.Errorf("MIGRATIONS_DIR %q is not available: %w", dir, err)
+		}
+		return dir, nil
+	}
+
+	for _, dir := range []string{"migrations", "../../migrations"} {
+		if _, err := os.Stat(dir); err == nil {
+			return dir, nil
+		}
+	}
+
+	return "", fmt.Errorf("migrations directory not found")
 }
 
 func seed(ctx context.Context, db *gorm.DB, data demoData) error {

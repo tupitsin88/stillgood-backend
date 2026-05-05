@@ -1,6 +1,8 @@
 package restaurants
 
 import (
+	"bytes"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -93,4 +95,40 @@ func TestGetAdminReviewListRejectsInvalidRestaurantFilter(t *testing.T) {
 	assert.False(t, service.called)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.JSONEq(t, `{"error":"INVALID_RESTAURANT_ID"}`, rec.Body.String())
+}
+
+type uploadImageService struct {
+	Service
+	err error
+}
+
+func (s *uploadImageService) UploadImage(_ *multipart.FileHeader, _ string) (string, error) {
+	return "", s.err
+}
+
+func TestUploadImageReturnsBadRequestForProcessingFailure(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	service := &uploadImageService{err: ErrImageProcessingFailed}
+	handler := NewHandler(service)
+	router := gin.New()
+	router.POST("/restaurants/upload", handler.UploadImage)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	require.NoError(t, writer.WriteField("kind", "logo"))
+	fileWriter, err := writer.CreateFormFile("image", "tiny.png")
+	require.NoError(t, err)
+	_, err = fileWriter.Write([]byte("not a decodable png"))
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	req := httptest.NewRequest(http.MethodPost, "/restaurants/upload", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.JSONEq(t, `{"error":"Invalid image format"}`, rec.Body.String())
 }

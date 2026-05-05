@@ -89,6 +89,7 @@ jobs:
       TEST_DB_ADMIN_NAME: postgres
       TEST_DB_NAME: foodsharing_test_db
       TEST_GEO_DB_NAME: foodsharing_geo_test_db
+      CI_MIGRATION_DB_NAME: stillgood_ci_migrations
       CI_MINIO_BUCKET: food-images
 
     steps:
@@ -131,7 +132,23 @@ jobs:
           set -euo pipefail
           docker exec "${{ job.services.postgres.id }}" createdb -U postgres "$TEST_DB_NAME" || true
           docker exec "${{ job.services.postgres.id }}" createdb -U postgres "$TEST_GEO_DB_NAME" || true
+          docker exec "${{ job.services.postgres.id }}" createdb -U postgres "$CI_MIGRATION_DB_NAME" || true
           docker exec "${{ job.services.postgres.id }}" psql -U postgres -d "$TEST_GEO_DB_NAME" -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+
+      - name: Apply Goose migrations to clean database
+        run: |
+          set -euo pipefail
+
+          DB_HOST=127.0.0.1 \
+          DB_PORT=5432 \
+          DB_USER=postgres \
+          DB_PASSWORD=postgres \
+          DB_NAME="$CI_MIGRATION_DB_NAME" \
+          go run ./cmd/migrate
+
+          docker exec "${{ job.services.postgres.id }}" \
+            psql -U postgres -d "$CI_MIGRATION_DB_NAME" -tAc "SELECT to_regclass('public.refresh_sessions')" |
+            grep -qx refresh_sessions
 
       - name: Create test MinIO bucket
         run: |
@@ -263,7 +280,8 @@ jobs:
 
           for i in {1..30}; do
             if curl -fsS http://127.0.0.1:18080/health >/dev/null; then
-              exit 0
+              ready=true
+              break
             fi
             if ! docker ps --format '{{.Names}}' | grep -qx "$container_name"; then
               echo "Container exited before the smoke check passed"
@@ -272,5 +290,11 @@ jobs:
             sleep 2
           done
 
-          echo "Container did not become ready"
-          exit 1
+          if [ "${ready:-false}" != "true" ]; then
+            echo "Container did not become ready"
+            exit 1
+          fi
+
+          docker exec "${{ job.services.postgres.id }}" \
+            psql -U postgres -d "$CI_APP_DB_NAME" -tAc "SELECT to_regclass('public.refresh_sessions')" |
+            grep -qx refresh_sessions

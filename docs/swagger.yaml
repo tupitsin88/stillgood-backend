@@ -1200,6 +1200,24 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/auth.ForgotPasswordResponse'
+        "400":
+          description: Invalid email or request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Unexpected forgot password failure
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Email delivery failed
+          schema:
+            additionalProperties:
+              type: string
+            type: object
       summary: Запрос OTP для сброса пароля
       tags:
       - Auth
@@ -1485,6 +1503,24 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/auth.RequestEmailVerificationResponse'
+        "400":
+          description: Invalid email or request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Unexpected verification request failure
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Email delivery failed
+          schema:
+            additionalProperties:
+              type: string
+            type: object
       summary: Запрос OTP для верификации email
       tags:
       - Auth
@@ -2272,25 +2308,26 @@ paths:
           schema:
             $ref: '#/definitions/restaurants.UploadRestaurantImageResponse'
         "400":
-          description: Bad Request
+          description: No file uploaded, invalid kind, invalid image format or undecodable
+            image
           schema:
             additionalProperties:
               type: string
             type: object
         "413":
-          description: Request Entity Too Large
+          description: Image is too large
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal Server Error
+          description: Unexpected upload failure
           schema:
             additionalProperties:
               type: string
             type: object
         "503":
-          description: Service Unavailable
+          description: Storage is unavailable
           schema:
             additionalProperties:
               type: string

@@ -75,7 +75,8 @@ func TestServiceSendToUserStoresNotificationAndSendsPush(t *testing.T) {
 	s := NewService(store, push).(*service)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	s.Start(ctx)
+	go s.Start(ctx)
+	time.Sleep(10 * time.Millisecond)
 
 	userID := uuid.New()
 	err := s.SendToUser(ctx, userID, Payload{
@@ -107,7 +108,8 @@ func TestServiceSendToUserSkipsPushWithoutDeviceToken(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	s.Start(ctx)
+	go s.Start(ctx)
+	time.Sleep(10 * time.Millisecond)
 	err := s.SendToUser(ctx, uuid.New(), Payload{Body: "Message"})
 
 	require.NoError(t, err)
@@ -123,7 +125,8 @@ func TestServiceSendToUserDoesNotFailOnPushError(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	s.Start(ctx)
+	go s.Start(ctx)
+	time.Sleep(10 * time.Millisecond)
 	err := s.SendToUser(ctx, uuid.New(), Payload{Body: "Message"})
 
 	require.NoError(t, err)
