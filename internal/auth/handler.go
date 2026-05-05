@@ -637,7 +637,11 @@ func (h *Handler) Refresh(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Account is blocked"})
 			return
 		}
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
+		if errors.Is(err, ErrInvalidRefreshToken) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to refresh tokens"})
 		return
 	}
 

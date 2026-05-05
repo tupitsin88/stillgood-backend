@@ -28,6 +28,9 @@ type Repository interface {
 	CountActiveOrdersByUserID(userID uuid.UUID) (int64, error)
 	AnonymizeAccount(userID uuid.UUID) error
 	ExistsByEmail(email string) (bool, error)
+	CreateRefreshSession(session *domain.RefreshSession) error
+	IsRefreshSessionActive(jti, userID uuid.UUID, now time.Time) (bool, error)
+	RevokeRefreshSession(jti uuid.UUID, revokedAt time.Time) error
 }
 
 type repository struct {
@@ -247,4 +250,32 @@ func (r *repository) ExistsByEmail(email string) (bool, error) {
 		return false, err
 	}
 	return count > 0, nil
+}
+
+func (r *repository) CreateRefreshSession(session *domain.RefreshSession) error {
+	return r.db.Create(session).Error
+}
+
+func (r *repository) IsRefreshSessionActive(jti, userID uuid.UUID, now time.Time) (bool, error) {
+	var count int64
+	err := r.db.Model(&domain.RefreshSession{}).
+		Where("jti = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ?", jti, userID, now).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *repository) RevokeRefreshSession(jti uuid.UUID, revokedAt time.Time) error {
+	result := r.db.Model(&domain.RefreshSession{}).
+		Where("jti = ?", jti).
+		Update("revoked_at", revokedAt)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
