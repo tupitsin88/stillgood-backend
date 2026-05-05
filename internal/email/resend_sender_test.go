@@ -31,10 +31,11 @@ func TestResendSenderSendsVerificationPayload(t *testing.T) {
 	}))
 	defer server.Close()
 
+	from := Address{Email: "onboarding@resend.dev", Name: defaultSenderName}
 	sender, err := NewResendSender(ResendConfig{
 		APIKey:     "test-api-key",
 		BaseURL:    server.URL,
-		From:       Address{Email: "onboarding@resend.dev", Name: defaultSenderName},
+		From:       from,
 		HTTPClient: server.Client(),
 	})
 	require.NoError(t, err)
@@ -49,9 +50,9 @@ func TestResendSenderSendsVerificationPayload(t *testing.T) {
 
 	assert.Equal(t, "Bearer test-api-key", authHeader)
 	assert.Contains(t, userAgent, "resend-go/")
-	assert.Equal(t, "FoodSharing <onboarding@resend.dev>", captured.From)
+	assert.Equal(t, formatAddress(from), captured.From)
 	assert.Equal(t, []string{"user@example.com"}, captured.To)
-	assert.Equal(t, "Код подтверждения FoodSharing", captured.Subject)
+	assert.Equal(t, "Код подтверждения "+defaultSenderName, captured.Subject)
 	assert.Contains(t, captured.Html, "123456")
 	assert.Contains(t, captured.Html, "Код действует 10 минут")
 	assert.Equal(t, []resend.Tag{{Name: "type", Value: "email_verification"}}, captured.Tags)
