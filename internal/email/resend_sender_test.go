@@ -34,7 +34,7 @@ func TestResendSenderSendsVerificationPayload(t *testing.T) {
 	sender, err := NewResendSender(ResendConfig{
 		APIKey:     "test-api-key",
 		BaseURL:    server.URL,
-		From:       Address{Email: "onboarding@resend.dev", Name: "FoodSharing"},
+		From:       Address{Email: "onboarding@resend.dev", Name: defaultSenderName},
 		HTTPClient: server.Client(),
 	})
 	require.NoError(t, err)
