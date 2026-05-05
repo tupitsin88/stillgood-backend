@@ -128,6 +128,18 @@ func (r *authEmailRepoStub) ExistsByEmail(email string) (bool, error) {
 	return ok, nil
 }
 
+func (r *authEmailRepoStub) CreateRefreshSession(session *domain.RefreshSession) error {
+	return errors.New("not implemented")
+}
+
+func (r *authEmailRepoStub) IsRefreshSessionActive(jti, userID uuid.UUID, now time.Time) (bool, error) {
+	return false, errors.New("not implemented")
+}
+
+func (r *authEmailRepoStub) RevokeRefreshSession(jti uuid.UUID, revokedAt time.Time) error {
+	return errors.New("not implemented")
+}
+
 func TestRequestEmailVerificationSendsCodeAndAllowsVerification(t *testing.T) {
 	repo := newAuthEmailRepoStub(&domain.User{
 		Email: "user@example.com",

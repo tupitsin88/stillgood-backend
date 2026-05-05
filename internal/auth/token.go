@@ -34,10 +34,12 @@ func (m *TokenManager) NewAccessToken(userID, role, restaurantID, partnerStatus 
 	return token.SignedString(m.signingKey)
 }
 
-func (m *TokenManager) NewRefreshToken(userID string, ttl time.Duration) (string, error) {
+func (m *TokenManager) NewRefreshToken(userID, jti string, expiresAt time.Time) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": userID,
-		"exp": time.Now().Add(ttl).Unix(),
+		"jti": jti,
+		"typ": "refresh",
+		"exp": expiresAt.Unix(),
 	})
 
 	return token.SignedString(m.signingKey)
