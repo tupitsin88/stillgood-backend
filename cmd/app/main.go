@@ -79,7 +79,7 @@ func main() {
 		return
 	}
 
-	if err := goose.Up(sqlDB, "migrations"); err != nil {
+	if err := goose.Up(sqlDB, migrationsDir()); err != nil {
 		log.Fatal("Migration failed:", err)
 	}
 
@@ -100,7 +100,7 @@ func main() {
 		log.Fatalf("invalid REFRESH_TOKEN_TTL: %v", err)
 	}
 
-	// --- Orders ---
+	// Orders
 	orderRepo := orders.NewOrderRepository(db)
 	notificationRepo := notifications.NewRepository(db)
 	pushProvider := notifications.NewPushProviderFromEnv(context.Background())
@@ -108,12 +108,12 @@ func main() {
 	orderService := orders.NewOrderService(orderRepo, notificationService)
 	orderHandler := orders.NewOrderHandler(orderService)
 
-	// --- Offers ---
+	// Offers
 	offerRepo := offers.NewOfferRepository(db)
 	offerService := offers.NewOfferService(offerRepo)
 	offerHandler := offers.NewOfferHandler(offerService)
 
-	// --- Auth ---
+	// Auth
 	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
 	emailSender, err := emaildelivery.NewSenderFromEnv()
 	if err != nil {
@@ -154,18 +154,18 @@ func main() {
 	}
 	_ = fileStorage // Will be used in future handlers
 
-	// --- Restaurants ---
+	// Restaurants
 	restaurantsRepo := restaurants.NewRepository(db)
 	restaurantsService := restaurants.NewService(restaurantsRepo, fileStorage)
 	restaurantsHandler := restaurants.NewHandler(restaurantsService)
 
-	// --- Categories ---
+	// Categories
 	categoriesRepo := categories.NewRepository(db)
 	categoriesService := categories.NewService(categoriesRepo)
 	categoriesHandler := categories.NewHandler(categoriesService)
 	adminHandler := adminui.NewHandler(authService, categoriesService, restaurantsService, jwtSecret)
 
-	// --- Analytics ---
+	// Analytics
 	analyticsRepo := analytics.NewAnalyticsRepository(db)
 	analyticsService := analytics.NewAnalyticsService(analyticsRepo)
 	analyticsHandler := analytics.NewAnalyticsHandler(analyticsService)
@@ -246,4 +246,22 @@ func durationFromEnv(key string, fallback time.Duration) (time.Duration, error) 
 		return 0, err
 	}
 	return parsed, nil
+}
+
+func migrationsDir() string {
+	if dir := os.Getenv("MIGRATIONS_DIR"); dir != "" {
+		if _, err := os.Stat(dir); err != nil {
+			log.Fatalf("MIGRATIONS_DIR %q is not available: %v", dir, err)
+		}
+		return dir
+	}
+
+	for _, dir := range []string{"migrations", "../../migrations"} {
+		if _, err := os.Stat(dir); err == nil {
+			return dir
+		}
+	}
+
+	log.Fatal("migrations directory not found")
+	return ""
 }

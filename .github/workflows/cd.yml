@@ -59,11 +59,39 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
 
-      - name: Rebuild and restart containers
+      - name: Build app image
         run: |
           set -euo pipefail
           cd "$PROJECT_DIR"
-          docker compose up -d --build
+          docker compose build app
+
+      - name: Ensure database services are running
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          docker compose up -d postgres minio createbuckets
+
+          for i in {1..30}; do
+            if docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker compose logs --tail=100 postgres || true
+          exit 1
+
+      - name: Apply production migrations
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          docker compose run --rm --no-deps app go run ./cmd/migrate
+
+      - name: Restart containers
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          docker compose up -d
 
       - name: Check production containers
         run: |

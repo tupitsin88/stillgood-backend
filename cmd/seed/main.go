@@ -50,7 +50,11 @@ func main() {
 	defer sqlDB.Close()
 	log.Println("Applying migrations before seeding...")
 	goose.SetDialect("postgres")
-	if err := goose.Up(sqlDB, "../../migrations"); err != nil {
+	dir, err := migrationsDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := goose.Up(sqlDB, dir); err != nil {
 		log.Fatalf("migration failed: %v", err)
 	}
 
@@ -89,6 +93,23 @@ func openDB() (*gorm.DB, error) {
 		" sslmode=disable"
 
 	return postgres.NewDB(dsn)
+}
+
+func migrationsDir() (string, error) {
+	if dir := os.Getenv("MIGRATIONS_DIR"); dir != "" {
+		if _, err := os.Stat(dir); err != nil {
+			return "", fmt.Errorf("MIGRATIONS_DIR %q is not available: %w", dir, err)
+		}
+		return dir, nil
+	}
+
+	for _, dir := range []string{"migrations", "../../migrations"} {
+		if _, err := os.Stat(dir); err == nil {
+			return dir, nil
+		}
+	}
+
+	return "", fmt.Errorf("migrations directory not found")
 }
 
 func seed(ctx context.Context, db *gorm.DB, data demoData) error {
