@@ -101,6 +101,7 @@ type resetTokenEntry struct {
 type emailVerificationCodeEntry struct {
 	Code      string
 	ExpiresAt time.Time
+	SentAt    time.Time
 }
 
 type service struct {
@@ -381,7 +382,6 @@ func (s *service) RefreshTokens(refreshToken string) (Tokens, error) {
 		return Tokens{}, ErrInvalidRefreshToken
 	}
 
-	// Security check: Verify user exists and is active in DB
 	user, err := s.repo.GetByID(userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -629,9 +629,17 @@ func (s *service) RequestEmailVerification(email string) (int, error) {
 	}
 
 	s.mu.Lock()
+	if entry, ok := s.emailVerificationCodes[normalizedEmail]; ok {
+		if time.Since(entry.SentAt) < time.Minute {
+			s.mu.Unlock()
+			return int(emailVerificationCodeTTL.Seconds()), nil
+		}
+	}
+
 	s.emailVerificationCodes[normalizedEmail] = emailVerificationCodeEntry{
 		Code:      code,
 		ExpiresAt: time.Now().Add(emailVerificationCodeTTL),
+		SentAt:    time.Now(),
 	}
 	s.mu.Unlock()
 
@@ -824,8 +832,6 @@ func (s *service) DeleteAccount(userID, password string) error {
 	if err != nil {
 		return err
 	}
-
-	// Для email-аккаунтов требуем пароль, чтобы подтвердить владение аккаунтом.
 	if user.AuthProvider == "email" {
 		if strings.TrimSpace(password) == "" {
 			return ErrPasswordRequired
@@ -966,7 +972,7 @@ func (s *service) extractOAuthIdentity(provider, idToken string) (string, string
 	if idToken == "" {
 		return "", "", ErrInvalidOAuthToken
 	}
-	// MVP-режим
+
 	if strings.Contains(idToken, "@") && !strings.Contains(idToken, " ") {
 		email, err := normalizeAndValidateEmail(idToken)
 		if err != nil {

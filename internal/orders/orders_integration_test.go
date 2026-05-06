@@ -37,6 +37,8 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("DB connection failed: %v", err)
 	}
+	err = db.Exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;").Error
+	require.NoError(t, err)
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
 	if err := goose.Up(sqlDB, "../../migrations"); err != nil {
