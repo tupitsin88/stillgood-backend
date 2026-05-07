@@ -1,21 +1,44 @@
 package offers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/jpeg"
+	"image/png"
+	"io"
 	"kursach_backend/internal/domain"
+	"kursach_backend/internal/pkg/filestorage"
 	"math"
+	"mime/multipart"
+	"net/http"
+	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/gen2brain/heic"
 	"github.com/google/uuid"
 )
 
+const (
+	maxOfferImageSizeBytes = 10 << 20 // 10MB
+	jpegQuality            = 80
+	offerImagePrefix       = "offers/images"
+)
+
 type OfferService struct {
-	repo *OfferRepository
+	repo        *OfferRepository
+	fileStorage *filestorage.FileStorage
 }
 
-func NewOfferService(repo *OfferRepository) *OfferService {
-	return &OfferService{repo: repo}
+func NewOfferService(repo *OfferRepository, fileStorage *filestorage.FileStorage) *OfferService {
+	return &OfferService{
+		repo:        repo,
+		fileStorage: fileStorage,
+	}
 }
 
 func (s *OfferService) CreateOffer(ctx context.Context, partnerID uuid.UUID, req CreateOfferRequest) (*domain.Offer, error) {
@@ -240,4 +263,140 @@ func (s *OfferService) mapToPreviewDTO(o *domain.Offer) OfferPreviewDTO {
 			Phone:     o.Restaurant.Phone,
 		},
 	}
+}
+
+func (s *OfferService) UploadImage(file *multipart.FileHeader) (string, error) {
+	if s.fileStorage == nil {
+		return "", fmt.Errorf("file storage is unavailable")
+	}
+
+	if file == nil {
+		return "", fmt.Errorf("invalid image format")
+	}
+
+	if file.Size == 0 || file.Size > maxOfferImageSizeBytes {
+		return "", fmt.Errorf("image is too large")
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return "", err
+	}
+	defer src.Close()
+
+	content, err := io.ReadAll(io.LimitReader(src, maxOfferImageSizeBytes+1))
+	if err != nil {
+		return "", err
+	}
+	if int64(len(content)) > maxOfferImageSizeBytes {
+		return "", fmt.Errorf("image is too large")
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	normalizedExt, _, isHEIC := s.normalizeFormat(ext, content)
+	if normalizedExt == "" {
+		return "", fmt.Errorf("unsupported image format")
+	}
+
+	var processed []byte
+	var contentType string
+	if isHEIC {
+		processed, err = s.compressHEICToJPEG(content)
+		contentType = "image/jpeg"
+	} else if normalizedExt == ".png" {
+		var outExt string
+		processed, outExt, contentType, err = s.processPNG(content)
+		_ = outExt
+	} else {
+		processed, err = s.compressToJPEG(content)
+		contentType = "image/jpeg"
+	}
+	if err != nil {
+		return "", fmt.Errorf("image processing failed: %w", err)
+	}
+	return s.fileStorage.UploadBytesWithPrefix(processed, ".jpg", contentType, offerImagePrefix)
+}
+
+func (s *OfferService) normalizeFormat(ext string, content []byte) (string, string, bool) {
+	detectedType := http.DetectContentType(content)
+	switch detectedType {
+	case "image/jpeg":
+		return ".jpg", "image/jpeg", false
+	case "image/png":
+		return ".png", "image/png", false
+	}
+	if s.isHEICContent(content) || strings.Contains(detectedType, "heic") {
+		return ".heic", "image/heic", true
+	}
+	return "", "", false
+}
+
+func (s *OfferService) isHEICContent(content []byte) bool {
+	if len(content) < 12 {
+		return false
+	}
+	brand := string(content[8:12])
+	switch brand {
+	case "heic", "heix", "hevc", "hevx", "mif1", "msf1":
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *OfferService) compressToJPEG(content []byte) ([]byte, error) {
+	img, _, err := image.Decode(bytes.NewReader(content))
+	if err != nil {
+		return nil, err
+	}
+	return s.encodeToJPEG(img)
+}
+
+func (s *OfferService) compressHEICToJPEG(content []byte) ([]byte, error) {
+	img, err := heic.Decode(bytes.NewReader(content))
+	if err != nil {
+		return nil, err
+	}
+	return s.encodeToJPEG(img)
+}
+
+func (s *OfferService) processPNG(content []byte) ([]byte, string, string, error) {
+	img, _, err := image.Decode(bytes.NewReader(content))
+	if err != nil {
+		return nil, "", "", err
+	}
+	if s.hasTransparency(img) {
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, img); err != nil {
+			return nil, "", "", err
+		}
+		return buf.Bytes(), ".png", "image/png", nil
+	}
+	compressed, err := s.encodeToJPEG(img)
+	return compressed, ".jpg", "image/jpeg", err
+}
+
+func (s *OfferService) encodeToJPEG(img image.Image) ([]byte, error) {
+	bounds := img.Bounds()
+	background := image.NewRGBA(bounds)
+	draw.Draw(background, bounds, &image.Uniform{C: color.White}, image.Point{}, draw.Src)
+	draw.Draw(background, bounds, img, bounds.Min, draw.Over)
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, background, &jpeg.Options{Quality: jpegQuality}); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (s *OfferService) hasTransparency(img image.Image) bool {
+	bounds := img.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			_, _, _, a := img.At(x, y).RGBA()
+			if a != 0xffff {
+				return true
+			}
+		}
+	}
+	return false
 }

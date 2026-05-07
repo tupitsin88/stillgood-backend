@@ -1,15 +1,19 @@
 package offers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"kursach_backend/internal/pkg/geo"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
+
+const maxOfferUploadSize = 10 * 1024 * 1024
 
 type OfferHandler struct {
 	service *OfferService
@@ -293,4 +297,37 @@ func (h *OfferHandler) DeleteOffer(c *gin.Context) {
 		return
 	}
 	c.Status(204)
+}
+
+// UploadImage @Summary Загрузка изображения для предложения
+// @Tags Partner
+// @Security ApiKeyAuth
+// @Accept multipart/form-data
+// @Produce json
+// @Param image formData file true "Image file (JPG, PNG, HEIC/HEIF, max 10MB)"
+// @Success 200 {object} UploadOfferImageResponse
+// @Failure 400 {object} map[string]string
+// @Failure 413 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /partner/offers/upload [post]
+func (h *OfferHandler) UploadImage(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxOfferUploadSize)
+	file, err := c.FormFile("image")
+	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) || strings.Contains(strings.ToLower(err.Error()), "request body too large") {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "IMAGE_TOO_LARGE", "message": "Max size is 10MB"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_FILE", "message": "No file uploaded"})
+		return
+	}
+	url, err := h.service.UploadImage(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "UPLOAD_FAILED", "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, UploadOfferImageResponse{
+		URL: url,
+	})
 }
