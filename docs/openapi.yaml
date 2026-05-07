@@ -1108,6 +1108,69 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /partner/offers/upload:
+    post:
+      tags: [Partner]
+      summary: Загрузка изображения предложения
+      operationId: uploadOfferImage
+      security:
+        - bearerAuth: []
+      description: Доступно только пользователям с ролью PARTNER. Загруженный файл обрабатывается и сохраняется в S3-совместимом хранилище, в ответ возвращается ссылка для поля imageUrl предложения.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: JPG/PNG/HEIC(HEIF), максимум 10MB
+      responses:
+        '200':
+          description: Изображение предложения загружено
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    description: URL изображения, который передается в imageUrl при создании или обновлении предложения.
+                    example: https://cdn.feedex.ru/food-images/offers/0f3d3f95-0e2b-4b5c-9ce9-7f4ef0b6a312.jpg
+        '400':
+          description: Файл отсутствует, формат не поддержан или изображение повреждено/не декодируется
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не передан или недействителен JWT access-токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Недостаточно прав. Требуется роль PARTNER
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Файл слишком большой
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка загрузки изображения
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /partner/offers/{id}:
     patch:
       tags: [Partner]
@@ -1358,6 +1421,9 @@ paths:
       tags: [Restaurants]
       summary: Загрузка изображения
       operationId: uploadRestaurantImage
+      security:
+        - bearerAuth: []
+      description: Доступно только пользователям с ролью PARTNER.
       requestBody:
         required: true
         content:
@@ -1394,6 +1460,18 @@ paths:
                     example: https://cdn.feedex.ru/food-images/restaurants/logos/0f3d3f95-0e2b-4b5c-9ce9-7f4ef0b6a312.jpg
         '400':
           description: Файл отсутствует, kind не logo/cover, формат не поддержан или изображение повреждено/не декодируется
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не передан или недействителен JWT access-токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Недостаточно прав. Требуется роль PARTNER
           content:
             application/json:
               schema:
