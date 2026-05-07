@@ -27,15 +27,6 @@ func errorResponse(c *gin.Context, code int, errorCode string, message string) {
 }
 
 // CreateOrder @Summary Создание заказа
-// @Tags Orders
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param input body CreateOrderRequest true "Данные заказа"
-// @Success 201 {object} CreateOrderResponse
-// @Failure 400 {object} map[string]string
-// @Failure 422 {object} map[string]string
-// @Router /orders [post]
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	var req CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -82,13 +73,6 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 }
 
 // PayOrder @Summary Оплата заказа
-// @Tags Orders
-// @Security ApiKeyAuth
-// @Produce json
-// @Param id path string true "Order ID"
-// @Success 200 {object} PayOrderResponse
-// @Failure 401 {object} map[string]string
-// @Router /orders/{id}/pay [post]
 func (h *OrderHandler) PayOrder(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -128,14 +112,6 @@ func (h *OrderHandler) PayOrder(c *gin.Context) {
 }
 
 // CancelOrder @Summary Отмена заказа
-// @Tags Orders
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param id path string true "Order ID"
-// @Param input body CancelOrderRequest false "Причина отмены"
-// @Success 200 {object} CancelOrderResponse
-// @Router /orders/{id}/cancel [post]
 func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	orderID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -188,12 +164,6 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 }
 
 // CompleteOrder @Summary Подтверждение выдачи
-// @Tags Partner
-// @Security ApiKeyAuth
-// @Produce json
-// @Param id path string true "Order ID"
-// @Success 200 {object} CompleteOrderResponse
-// @Router /partner/orders/{id}/complete [post]
 func (h *OrderHandler) CompleteOrder(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -229,14 +199,6 @@ func (h *OrderHandler) CompleteOrder(c *gin.Context) {
 }
 
 // GetUserOrders @Summary Заказы пользователя
-// @Tags Orders
-// @Security ApiKeyAuth
-// @Produce json
-// @Param status query string false "Status"
-// @Param limit query integer false "Limit"
-// @Param offset query integer false "Offset"
-// @Success 200 {object} map[string]interface{}
-// @Router /orders [get]
 func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 	uidStr := c.GetString("user_id")
 	userID, err := uuid.Parse(uidStr)
@@ -295,12 +257,6 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 }
 
 // GetUserStats @Summary Статистика пользователя
-// @Description Получение количества спасенных боксов и сэкономленных денег
-// @Tags Profile
-// @Security ApiKeyAuth
-// @Produce json
-// @Success 200 {object} UserStatsResponse
-// @Router /orders/me/stats [get]
 func (h *OrderHandler) GetUserStats(c *gin.Context) {
 	uidStr := c.GetString("user_id")
 	userID, _ := uuid.Parse(uidStr)
@@ -316,14 +272,6 @@ func (h *OrderHandler) GetUserStats(c *gin.Context) {
 }
 
 // GetPartnerOrders @Summary Заказы партнёра
-// @Tags Partner
-// @Security ApiKeyAuth
-// @Produce json
-// @Param status query string false "Status" Enums(CREATED, PAID, COMPLETED, CANCELLED)
-// @Param limit query integer false "Limit"
-// @Param offset query integer false "Offset"
-// @Success 200 {object} map[string]interface{}
-// @Router /partner/orders [get]
 func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 	restIDStr := c.GetString("restaurant_id")
 	restaurantID, _ := uuid.Parse(restIDStr)
@@ -376,13 +324,6 @@ func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 }
 
 // GetOrderById @Summary Детали заказа
-// @Tags Orders
-// @Security ApiKeyAuth
-// @Produce json
-// @Param id path string true "Order ID"
-// @Success 200 {object} OrderDetailDTO
-// @Failure 404 {object} map[string]string
-// @Router /orders/{id} [get]
 func (h *OrderHandler) GetOrderById(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -445,14 +386,6 @@ func (h *OrderHandler) GetOrderById(c *gin.Context) {
 }
 
 // CreateReview @Summary Оставить отзыв
-// @Tags Orders
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param id path string true "Order ID"
-// @Param input body CreateReviewRequest true "Данные отзыва"
-// @Success 201 {object} ReviewDTO
-// @Router /orders/{id}/review [post]
 func (h *OrderHandler) CreateReview(c *gin.Context) {
 	orderID, err := uuid.Parse(c.Param("id"))
 	if err != nil {

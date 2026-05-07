@@ -54,15 +54,6 @@ func (h *Handler) requireAdmin(c *gin.Context) bool {
 	return true
 }
 
-// Register godoc
-// @Summary Регистрация USER
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param input body RegisterRequest true "Данные для регистрации"
-// @Success 201 {object} AuthResponse
-// @Failure 409 {object} map[string]string
-// @Router /auth/register [post]
 func (h *Handler) Register(c *gin.Context) {
 	var input RegisterRequest
 
@@ -103,15 +94,6 @@ func (h *Handler) Register(c *gin.Context) {
 	})
 }
 
-// RegisterPartner godoc
-// @Summary Регистрация PARTNER (заявка)
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param input body PartnerRegisterRequest true "Данные заявки партнера"
-// @Success 201 {object} AuthResponse
-// @Failure 409 {object} map[string]string
-// @Router /auth/register/partner [post]
 func (h *Handler) RegisterPartner(c *gin.Context) {
 	var input PartnerRegisterRequest
 
@@ -152,17 +134,6 @@ func (h *Handler) RegisterPartner(c *gin.Context) {
 	})
 }
 
-// Login godoc
-// @Summary Вход (USER/PARTNER)
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param input body LoginRequest true "Данные для входа"
-// @Success 200 {object} AuthResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Router /auth/login [post]
 func (h *Handler) Login(c *gin.Context) {
 	var input LoginRequest
 
@@ -199,17 +170,6 @@ func (h *Handler) Login(c *gin.Context) {
 	})
 }
 
-// OAuth godoc
-// @Summary OAuth вход (Google/Yandex) — только USER
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param input body OAuthRequest true "OAuth provider и idToken"
-// @Success 200 {object} OAuthResponse
-// @Success 201 {object} OAuthResponse
-// @Failure 403 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Router /auth/oauth [post]
 func (h *Handler) OAuth(c *gin.Context) {
 	var input OAuthRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -252,13 +212,6 @@ func (h *Handler) OAuth(c *gin.Context) {
 	})
 }
 
-// Me godoc
-// @Summary Текущий пользователь
-// @Tags Auth
-// @Security ApiKeyAuth
-// @Produce json
-// @Success 200 {object} UserResponse
-// @Router /auth/me [get]
 func (h *Handler) Me(c *gin.Context) {
 	userID, exists := c.Get("userId")
 	if !exists {
@@ -281,18 +234,6 @@ func (h *Handler) Me(c *gin.Context) {
 	c.JSON(http.StatusOK, toUserResponse(user))
 }
 
-// UpdateProfile godoc
-// @Summary Редактирование профиля (name, phone, email)
-// @Tags Users
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param input body UpdateProfileRequest true "Поля профиля для обновления"
-// @Success 200 {object} UserResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /users/me [patch]
 func (h *Handler) UpdateProfile(c *gin.Context) {
 	userID, exists := c.Get("userId")
 	if !exists {
@@ -336,15 +277,6 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, toUserResponse(user))
 }
 
-// DeleteAccount godoc
-// @Summary Удаление аккаунта (GDPR)
-// @Tags Users
-// @Security ApiKeyAuth
-// @Accept json
-// @Param input body DeleteAccountRequest false "Пароль (только для email-аккаунтов)"
-// @Success 204
-// @Failure 400 {object} map[string]string
-// @Router /users/me [delete]
 func (h *Handler) DeleteAccount(c *gin.Context) {
 	userID, exists := c.Get("userId")
 	if !exists {
@@ -382,17 +314,6 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// ChangePassword godoc
-// @Summary Смена пароля (авторизован)
-// @Tags Auth
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param input body ChangePasswordRequest true "Текущий и новый пароль"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Router /auth/change-password [post]
 func (h *Handler) ChangePassword(c *gin.Context) {
 	userID, exists := c.Get("userId")
 	if !exists {
@@ -429,17 +350,6 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
 }
 
-// RequestEmailVerification godoc
-// @Summary Запрос OTP для верификации email
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param input body RequestEmailVerificationRequest true "Email для верификации"
-// @Success 200 {object} RequestEmailVerificationResponse
-// @Failure 400 {object} map[string]string "Invalid email or request body"
-// @Failure 503 {object} map[string]string "Email delivery failed"
-// @Failure 500 {object} map[string]string "Unexpected verification request failure"
-// @Router /auth/verify-email/request [post]
 func (h *Handler) RequestEmailVerification(c *gin.Context) {
 	var input RequestEmailVerificationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -477,15 +387,6 @@ func (h *Handler) RequestEmailVerification(c *gin.Context) {
 	})
 }
 
-// VerifyEmail godoc
-// @Summary Подтверждение email по OTP-коду
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param input body VerifyEmailRequest true "Email и OTP-код"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Router /auth/verify-email/confirm [post]
 func (h *Handler) VerifyEmail(c *gin.Context) {
 	var input VerifyEmailRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -509,17 +410,6 @@ func (h *Handler) VerifyEmail(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully"})
 }
 
-// ForgotPassword godoc
-// @Summary Запрос OTP для сброса пароля
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param input body ForgotPasswordRequest true "Email для сброса"
-// @Success 200 {object} ForgotPasswordResponse
-// @Failure 400 {object} map[string]string "Invalid email or request body"
-// @Failure 503 {object} map[string]string "Email delivery failed"
-// @Failure 500 {object} map[string]string "Unexpected forgot password failure"
-// @Router /auth/forgot-password [post]
 func (h *Handler) ForgotPassword(c *gin.Context) {
 	var input ForgotPasswordRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -550,15 +440,6 @@ func (h *Handler) ForgotPassword(c *gin.Context) {
 	})
 }
 
-// VerifyResetCode godoc
-// @Summary Проверка OTP-кода
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param input body VerifyResetCodeRequest true "Email и OTP-код"
-// @Success 200 {object} VerifyResetCodeResponse
-// @Failure 400 {object} map[string]string
-// @Router /auth/verify-reset-code [post]
 func (h *Handler) VerifyResetCode(c *gin.Context) {
 	var input VerifyResetCodeRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -583,15 +464,6 @@ func (h *Handler) VerifyResetCode(c *gin.Context) {
 	c.JSON(http.StatusOK, VerifyResetCodeResponse{ResetToken: resetToken})
 }
 
-// ResetPassword godoc
-// @Summary Установка нового пароля
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param input body ResetPasswordRequest true "Reset token и новый пароль"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Router /auth/reset-password [post]
 func (h *Handler) ResetPassword(c *gin.Context) {
 	var input ResetPasswordRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -616,16 +488,6 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
 }
 
-// Refresh godoc
-// @Summary Обновление токенов
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param input body RefreshRequest true "Refresh token"
-// @Success 200 {object} TokenResponse
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Router /auth/refresh [post]
 func (h *Handler) Refresh(c *gin.Context) {
 	var input RefreshRequest
 
@@ -659,19 +521,6 @@ func (h *Handler) Refresh(c *gin.Context) {
 	})
 }
 
-// GetUsers godoc
-// @Summary Список пользователей/партнёров
-// @Tags Auth
-// @Security ApiKeyAuth
-// @Produce json
-// @Param role query string false "Фильтр роли: USER или PARTNER"
-// @Param q query string false "Поиск по email, имени, телефону или id"
-// @Param limit query int false "Limit"
-// @Param offset query int false "Offset"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Router /admin/users [get]
 func (h *Handler) GetUsers(c *gin.Context) {
 	if !h.requireAdmin(c) {
 		return
@@ -716,15 +565,6 @@ func (h *Handler) GetUsers(c *gin.Context) {
 	})
 }
 
-// Logout godoc
-// @Summary Выход (инвалидация refresh token)
-// @Tags Auth
-// @Accept json
-// @Param input body RefreshRequest true "Refresh token"
-// @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Router /auth/logout [post]
 func (h *Handler) Logout(c *gin.Context) {
 	var input RefreshRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -748,16 +588,6 @@ func (h *Handler) Logout(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// GetPendingPartners godoc
-// @Summary Список заявок партнёров со статусом PENDING
-// @Tags Auth
-// @Security ApiKeyAuth
-// @Produce json
-// @Param limit query int false "Limit"
-// @Param offset query int false "Offset"
-// @Success 200 {object} map[string]interface{}
-// @Failure 403 {object} map[string]string
-// @Router /admin/partners/pending [get]
 func (h *Handler) GetPendingPartners(c *gin.Context) {
 	if !h.requireAdmin(c) {
 		return
@@ -798,17 +628,6 @@ func (h *Handler) GetPendingPartners(c *gin.Context) {
 	})
 }
 
-// ApprovePartner godoc
-// @Summary Одобрить партнёрскую заявку (PENDING -> APPROVED)
-// @Tags Auth
-// @Security ApiKeyAuth
-// @Produce json
-// @Param id path string true "Partner user ID"
-// @Success 200 {object} UserResponse
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /admin/partners/{id}/approve [post]
 func (h *Handler) ApprovePartner(c *gin.Context) {
 	if !h.requireAdmin(c) {
 		return
@@ -830,17 +649,6 @@ func (h *Handler) ApprovePartner(c *gin.Context) {
 	c.JSON(http.StatusOK, toUserResponse(user))
 }
 
-// RejectPartner godoc
-// @Summary Отклонить партнёрскую заявку (PENDING -> REJECTED)
-// @Tags Auth
-// @Security ApiKeyAuth
-// @Produce json
-// @Param id path string true "Partner user ID"
-// @Success 200 {object} UserResponse
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /admin/partners/{id}/reject [post]
 func (h *Handler) RejectPartner(c *gin.Context) {
 	if !h.requireAdmin(c) {
 		return
@@ -862,17 +670,6 @@ func (h *Handler) RejectPartner(c *gin.Context) {
 	c.JSON(http.StatusOK, toUserResponse(user))
 }
 
-// BlockUser godoc
-// @Summary Заблокировать пользователя/партнёра
-// @Tags Auth
-// @Security ApiKeyAuth
-// @Produce json
-// @Param id path string true "User ID"
-// @Success 200 {object} UserResponse
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /admin/users/{id}/block [post]
 func (h *Handler) BlockUser(c *gin.Context) {
 	if !h.requireAdmin(c) {
 		return
@@ -896,17 +693,6 @@ func (h *Handler) BlockUser(c *gin.Context) {
 	c.JSON(http.StatusOK, toUserResponse(user))
 }
 
-// UnblockUser godoc
-// @Summary Разблокировать пользователя/партнёра
-// @Tags Auth
-// @Security ApiKeyAuth
-// @Produce json
-// @Param id path string true "User ID"
-// @Success 200 {object} UserResponse
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /admin/users/{id}/unblock [post]
 func (h *Handler) UnblockUser(c *gin.Context) {
 	if !h.requireAdmin(c) {
 		return

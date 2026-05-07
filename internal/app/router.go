@@ -11,7 +11,6 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
-	_ "kursach_backend/docs"
 	"kursach_backend/internal/auth"
 	"kursach_backend/internal/categories"
 	"kursach_backend/internal/offers"
@@ -21,12 +20,12 @@ import (
 )
 
 func NewRouter(handler *gin.Engine, authService auth.Service, authHandler *auth.Handler, restaurantsHandler *restaurants.Handler, categoriesHandler *categories.Handler, orderHandler *orders.OrderHandler, offerHandler *offers.OfferHandler, analyticsHandler *analytics.AnalyticsHandler, notificationsHandler *notifications.NotificationsHandler, adminHandler *adminui.Handler, jwtSecret string) {
-	// Options
 	handler.Use(gin.Recovery())
 	RegisterHealthRoutes(handler)
 
 	// Swagger UI
-	handler.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	handler.StaticFile("/openapi.yaml", "docs/openapi.yaml")
+	handler.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, ginSwagger.URL("/openapi.yaml")))
 
 	authMiddleware := middleware.AuthMiddleware(jwtSecret, func(userID string) (bool, error) {
 		return authService.IsUserBlocked(userID)
