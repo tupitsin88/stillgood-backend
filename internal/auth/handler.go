@@ -449,6 +449,13 @@ func (h *Handler) RequestEmailVerification(c *gin.Context) {
 
 	expiresIn, err := h.service.RequestEmailVerification(input.Email)
 	if err != nil {
+		if errors.Is(err, ErrVerificationCodeTooFrequent) {
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":   "TOO_MANY_REQUESTS",
+				"message": "Please wait at least 1 minute before requesting a new code",
+			})
+			return
+		}
 		if errors.Is(err, ErrInvalidEmail) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format (RFC 5322 expected)"})
 			return
