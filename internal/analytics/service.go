@@ -11,11 +11,18 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-type AnalyticsService struct {
-	repo *AnalyticsRepository
+type Repository interface {
+	AggregateDailyStats(ctx context.Context, date time.Time) ([]domain.DailyAnalytics, error)
+	SaveStats(ctx context.Context, stats []domain.DailyAnalytics) error
+	GetStats(ctx context.Context, restaurantID uuid.UUID, start, end time.Time) ([]domain.DailyAnalytics, error)
+	GetRestaurantByPartnerID(ctx context.Context, partnerID uuid.UUID) (*domain.Restaurant, error)
 }
 
-func NewAnalyticsService(repo *AnalyticsRepository) *AnalyticsService {
+type AnalyticsService struct {
+	repo Repository
+}
+
+func NewAnalyticsService(repo Repository) *AnalyticsService {
 	return &AnalyticsService{repo: repo}
 }
 

@@ -29,12 +29,23 @@ const (
 	offerImagePrefix       = "offers/images"
 )
 
+type Repository interface {
+	GetPartnerByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	GetRestaurantByPartnerID(ctx context.Context, partnerID uuid.UUID) (*domain.Restaurant, error)
+	Create(ctx context.Context, offer *domain.Offer) error
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Offer, error)
+	Update(ctx context.Context, offer *domain.Offer) error
+	GetPartnerOffers(ctx context.Context, restaurantID uuid.UUID, limit, offset int) ([]domain.Offer, int64, error)
+	GetPublicOffers(ctx context.Context, params FilterParams) ([]domain.Offer, int64, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
 type OfferService struct {
-	repo        *OfferRepository
+	repo        Repository
 	fileStorage *filestorage.FileStorage
 }
 
-func NewOfferService(repo *OfferRepository, fileStorage *filestorage.FileStorage) *OfferService {
+func NewOfferService(repo Repository, fileStorage *filestorage.FileStorage) *OfferService {
 	return &OfferService{
 		repo:        repo,
 		fileStorage: fileStorage,
