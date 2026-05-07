@@ -1,6 +1,7 @@
 package orders
 
 import (
+	"io"
 	"kursach_backend/internal/domain"
 	"strconv"
 	"strings"
@@ -33,6 +34,7 @@ func errorResponse(c *gin.Context, code int, errorCode string, message string) {
 // @Param input body CreateOrderRequest true "Данные заказа"
 // @Success 201 {object} CreateOrderResponse
 // @Failure 400 {object} map[string]string
+// @Failure 422 {object} map[string]string
 // @Router /orders [post]
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	var req CreateOrderRequest
@@ -49,9 +51,12 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	order, err := h.service.CreateOrder(c.Request.Context(), userID, req)
 	if err != nil {
-		if err.Error() == "OFFER_NOT_FOUND" {
+		switch err.Error() {
+		case "OFFER_NOT_FOUND":
 			errorResponse(c, 404, "OFFER_NOT_FOUND", "The requested offer does not exist")
-		} else {
+		case "OFFER_OUT_OF_STOCK", "OFFER_NOT_ACTIVE", "PICKUP_PERIOD_EXPIRED":
+			errorResponse(c, 422, err.Error(), "Offer is unavailable for booking")
+		default:
 			errorResponse(c, 400, "CREATION_FAILED", err.Error())
 		}
 		return
@@ -128,7 +133,7 @@ func (h *OrderHandler) PayOrder(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "Order ID"
-// @Param input body CancelOrderRequest true "Причина отмены"
+// @Param input body CancelOrderRequest false "Причина отмены"
 // @Success 200 {object} CancelOrderResponse
 // @Router /orders/{id}/cancel [post]
 func (h *OrderHandler) CancelOrder(c *gin.Context) {
@@ -149,22 +154,24 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	}
 	var req CancelOrderRequest
 	err = c.ShouldBindJSON(&req)
-	if err != nil {
+	if err != nil && err != io.EOF {
+		errorResponse(c, 400, "INVALID_REQUEST", err.Error())
 		return
 	}
 	order, refund, err := h.service.CancelOrder(c.Request.Context(), orderID, actorID, role, req.Reason)
 	if err != nil {
-		switch err.Error() {
-		case "not found":
+		errText := err.Error()
+		switch {
+		case errText == "not found":
 			errorResponse(c, 404, "ORDER_NOT_FOUND", "Order not found")
-		case "CANNOT_CANCEL":
+		case errText == "CANNOT_CANCEL":
 			errorResponse(c, 400, "CANNOT_CANCEL", "Order status does not allow cancellation")
-		case "CANCELLATION_WINDOW_CLOSED":
+		case errText == "CANCELLATION_WINDOW_CLOSED":
 			errorResponse(c, 400, "CANCELLATION_WINDOW_CLOSED", "Cancellation period has passed")
-		case "unauthorized":
+		case strings.HasPrefix(errText, "unauthorized"):
 			errorResponse(c, 403, "FORBIDDEN", "You do not own this order")
 		default:
-			errorResponse(c, 400, "CANCELLATION_FAILED", err.Error())
+			errorResponse(c, 400, "CANCELLATION_FAILED", errText)
 		}
 		return
 	}

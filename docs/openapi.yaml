@@ -43,6 +43,8 @@ tags:
     description: Категории предложений
   - name: Admin
     description: Модерация и администрирование
+  - name: Notifications
+    description: История push-уведомлений пользователя
 
 paths:
   # ==================== AUTH ====================
@@ -64,8 +66,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Невалидный email, слабый пароль, отсутствует deviceToken или тело запроса некорректно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Email уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка регистрации
           content:
             application/json:
               schema:
@@ -89,8 +103,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Невалидный email, слабый пароль, отсутствует deviceToken или тело запроса некорректно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Email уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка регистрации партнёра
           content:
             application/json:
               schema:
@@ -114,8 +140,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Невалидный email, отсутствует deviceToken или тело запроса некорректно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Неверные учётные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Аккаунт заблокирован
           content:
             application/json:
               schema:
@@ -124,7 +162,7 @@ paths:
   /auth/oauth:
     post:
       tags: [Auth]
-      summary: OAuth вход (Google/Apple) — только USER
+      summary: OAuth вход (Google/Yandex) — только USER
       operationId: oauthLogin
       requestBody:
         required: true
@@ -157,8 +195,26 @@ paths:
                       isNewUser:
                         type: boolean
                         example: true
+        '400':
+          description: Невалидный OAuth-провайдер, токен провайдера, deviceToken или тело запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Аккаунт заблокирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Email занят другим провайдером
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка OAuth-входа
           content:
             application/json:
               schema:
@@ -186,8 +242,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Невалидное тело запроса или отсутствует refreshToken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Невалидный refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Аккаунт заблокирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка обновления токенов
           content:
             application/json:
               schema:
@@ -223,6 +297,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка выхода из системы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /auth/me:
     get:
@@ -238,6 +318,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserDto'
+        '401':
+          description: Не передан или недействителен JWT access-токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /auth/change-password:
     post:
@@ -268,6 +354,12 @@ paths:
                 $ref: '#/components/schemas/MessageResponse'
         '400':
           description: Неверный текущий пароль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не передан или недействителен JWT access-токен
           content:
             application/json:
               schema:
@@ -492,6 +584,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email уже используется другим аккаунтом
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Пользователь не найден
           content:
@@ -500,7 +598,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
     delete:
       tags: [Users]
-      summary: Удаление аккаунта (GDPR)
+      summary: Обезличивание и блокировка аккаунта
       operationId: deleteAccount
       security:
         - bearerAuth: []
@@ -515,7 +613,7 @@ paths:
                   description: Только для email-регистрации
       responses:
         '204':
-          description: Аккаунт удалён
+          description: Персональные данные обезличены, учётная запись заблокирована, технические идентификаторы сохранены для целостности данных
         '400':
           description: Есть активные заказы
           content:
@@ -930,6 +1028,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Ресторан партнёра не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка получения ресторана партнёра
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     patch:
       tags: [Partner]
       summary: Обновление профиля заведения
@@ -937,6 +1047,7 @@ paths:
       security:
         - bearerAuth: []
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -948,8 +1059,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RestaurantDetailDto'
+        '400':
+          description: Невалидное тело запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Партнер не одобрен (PARTNER_NOT_APPROVED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Ресторан партнёра не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка обновления ресторана партнёра
           content:
             application/json:
               schema:
@@ -1022,6 +1151,7 @@ paths:
     post:
       tags: [Partner]
       summary: Подтверждение выдачи
+      description: Тело запроса не передаётся. Партнёр визуально сверяет шестизначный orderNumber, предъявленный клиентом, и завершает оплаченный заказ по id заказа.
       operationId: completeOrder
       security:
         - bearerAuth: []
@@ -1046,7 +1176,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Партнер не одобрен (PARTNER_NOT_APPROVED)
+          description: Недостаточно прав, партнёр не одобрен или заказ относится к другому ресторану
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Заказ не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка завершения заказа
           content:
             application/json:
               schema:
@@ -1103,6 +1245,69 @@ paths:
                 $ref: '#/components/schemas/OfferDetailDto'
         '403':
           description: Партнер не одобрен (PARTNER_NOT_APPROVED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /partner/offers/upload:
+    post:
+      tags: [Partner]
+      summary: Загрузка изображения предложения
+      operationId: uploadOfferImage
+      security:
+        - bearerAuth: []
+      description: Доступно только пользователям с ролью PARTNER. Загруженный файл обрабатывается и сохраняется в S3-совместимом хранилище, в ответ возвращается ссылка для поля imageUrl предложения.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: JPG/PNG/HEIC(HEIF), максимум 10MB
+      responses:
+        '200':
+          description: Изображение предложения загружено
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    description: URL изображения, который передается в imageUrl при создании или обновлении предложения.
+                    example: https://cdn.feedex.ru/food-images/offers/0f3d3f95-0e2b-4b5c-9ce9-7f4ef0b6a312.jpg
+        '400':
+          description: Файл отсутствует, формат не поддержан или изображение повреждено/не декодируется
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не передан или недействителен JWT access-токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Недостаточно прав. Требуется роль PARTNER
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Файл слишком большой
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка загрузки изображения
           content:
             application/json:
               schema:
@@ -1175,16 +1380,18 @@ paths:
       parameters:
         - name: startDate
           in: query
-          required: true
+          required: false
           schema:
             type: string
             format: date
+          description: Дата начала периода в формате YYYY-MM-DD. Если не передана или передана некорректно, используется период за последние 7 дней.
         - name: endDate
           in: query
-          required: true
+          required: false
           schema:
             type: string
             format: date
+          description: Дата конца периода в формате YYYY-MM-DD. Если не передана или передана некорректно, используется текущая дата.
         - name: groupBy
           in: query
           schema:
@@ -1200,6 +1407,18 @@ paths:
                 $ref: '#/components/schemas/AnalyticsResponse'
         '403':
           description: Партнер не одобрен (PARTNER_NOT_APPROVED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Недопустимое значение groupBy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка получения аналитики
           content:
             application/json:
               schema:
@@ -1358,6 +1577,9 @@ paths:
       tags: [Restaurants]
       summary: Загрузка изображения
       operationId: uploadRestaurantImage
+      security:
+        - bearerAuth: []
+      description: Доступно только пользователям с ролью PARTNER.
       requestBody:
         required: true
         content:
@@ -1394,6 +1616,18 @@ paths:
                     example: https://cdn.feedex.ru/food-images/restaurants/logos/0f3d3f95-0e2b-4b5c-9ce9-7f4ef0b6a312.jpg
         '400':
           description: Файл отсутствует, kind не logo/cover, формат не поддержан или изображение повреждено/не декодируется
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не передан или недействителен JWT access-токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Недостаточно прав. Требуется роль PARTNER
           content:
             application/json:
               schema:
@@ -1687,8 +1921,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreateOrderResponse'
+        '400':
+          description: Невалидное тело запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не передан или недействителен JWT access-токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Предложение не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '422':
-          description: Предложение недоступно
+          description: "Предложение недоступно для бронирования: нет остатков, предложение неактивно или период выдачи истёк"
           content:
             application/json:
               schema:
@@ -1715,6 +1967,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrderDetailDto'
+        '400':
+          description: Невалидный id заказа
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Заказ принадлежит другому пользователю
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Заказ не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /orders/me/stats:
     get:
@@ -1731,9 +2001,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserStatsResponse'
 
-  /orders/me/notifications:
+  /notifications:
     get:
-      tags: [Orders]
+      tags: [Notifications]
       summary: История уведомлений пользователя
       operationId: getUserNotifications
       security:
@@ -1747,14 +2017,37 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/NotificationDto'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NotificationDto'
+                  pagination:
+                    type: object
+                    properties:
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+        '401':
+          description: Не передан или недействителен JWT access-токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка получения уведомлений
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /orders/{id}/pay:
     post:
       tags: [Orders]
       summary: Оплата (Mock)
+      description: После успешной mock-оплаты заказ переводится в PAID и получает шестизначный orderNumber, который пользователь предъявляет партнёру при получении.
       operationId: payOrder
       security:
         - bearerAuth: []
@@ -1772,6 +2065,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PayOrderResponse'
+        '400':
+          description: Невалидный id заказа или заказ находится не в статусе CREATED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не передан или недействителен JWT access-токен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Заказ принадлежит другому пользователю
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Заказ не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '422':
           description: Время на оплату истекло
           content:
@@ -1794,6 +2111,8 @@ paths:
             type: string
             format: uuid
       requestBody:
+        required: false
+        description: Причина отмены необязательна. Body можно не передавать; если причина указывается, она передается в поле reason.
         content:
           application/json:
             schema:
@@ -1806,7 +2125,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/CancelOrderResponse'
         '400':
-          description: Нельзя отменить
+          description: Невалидный id заказа или заказ нельзя отменить по правилам жизненного цикла
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Заказ принадлежит другому пользователю или ресторану
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Заказ не найден
           content:
             application/json:
               schema:
@@ -1890,7 +2221,7 @@ components:
           type: string
         deviceToken:
           type: string
-          description: FCM/APNS token
+          description: FCM device token для push-уведомлений
 
     PartnerRegisterRequest:
       type: object
@@ -1921,7 +2252,7 @@ components:
           type: string
         deviceToken:
           type: string
-          description: FCM/APNS token
+          description: FCM device token для push-уведомлений
 
     LoginRequest:
       type: object
@@ -2036,7 +2367,7 @@ components:
           enum: [active, blocked, deleted]
         authProvider:
           type: string
-          enum: [email, google, apple]
+          enum: [email, google, yandex]
         partnerStatus:
           type: string
           enum: [PENDING, APPROVED, REJECTED]
@@ -2316,11 +2647,9 @@ components:
           description: Процент скидки
         imageUrl:
           type: string
-        restaurantId:
-          type: string
-          format: uuid
-        restaurantName:
-          type: string
+          nullable: true
+        restaurant:
+          $ref: '#/components/schemas/RestaurantShortDto'
         distance:
           type: integer
           nullable: true
@@ -2407,10 +2736,23 @@ components:
           type: string
         price:
           type: number
+        originalPrice:
+          type: number
         quantity:
           type: integer
         isActive:
           type: boolean
+        pickupStart:
+          type: string
+          format: date-time
+        pickupEnd:
+          type: string
+          format: date-time
+        categoryId:
+          type: string
+          format: uuid
+        imageUrl:
+          type: string
 
     # ==================== ORDERS ====================
     OrderStatus:
@@ -2515,6 +2857,8 @@ components:
         orderNumber:
           type: string
           nullable: true
+        customerName:
+          type: string
         offer:
           $ref: '#/components/schemas/OrderOfferDetailDto'
         restaurant:
@@ -2681,7 +3025,13 @@ components:
         user_id:
           type: string
           format: uuid
-        message:
+        title:
+          type: string
+        body:
+          type: string
+        deepLink:
+          type: string
+        type:
           type: string
         created_at:
           type: string
@@ -2714,7 +3064,7 @@ components:
               type: integer
             expiredOrders:
               type: integer
-            grossRevenue:
+            totalRevenue:
               type: number
             serviceFee:
               type: number
@@ -2738,7 +3088,7 @@ components:
       properties:
         name:
           type: string
-        grossRevenue:
+        totalRevenue:
           type: number
 
     DailyAnalyticsDto:
