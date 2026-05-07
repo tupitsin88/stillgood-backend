@@ -14,7 +14,7 @@ func RegisterRoutes(r *gin.Engine, h *Handler, authMiddleware gin.HandlerFunc) {
 		res.GET("", h.GetList)
 		res.GET("/:id", h.GetByID)
 		res.GET("/:id/reviews", h.GetReviews)
-		res.POST("/upload", h.UploadImage)
+		res.POST("/upload", authMiddleware, middleware.RoleMiddleware(auth.RolePartner), h.UploadImage)
 		res.Use(authMiddleware)
 		{
 			res.POST("", h.CreateRestaurant)

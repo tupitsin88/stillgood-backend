@@ -126,21 +126,10 @@ type RestaurantShortDTO struct {
 	Phone     *string `json:"phone,omitempty"`
 }
 
-// чё-то no usages
-type GetUserOrdersResponse struct {
-	Data       []OrderPreviewDTO `json:"data"`
-	Pagination Pagination        `json:"pagination"`
-}
-
 type Pagination struct {
 	Total  int64 `json:"total"`
 	Limit  int   `json:"limit"`
 	Offset int   `json:"offset"`
-}
-
-// чё-то no usages
-type GetPartnerOrdersResponse struct {
-	Data []PartnerOrderDTO `json:"data"`
 }
 
 type CompleteOrderResponse struct {
@@ -153,11 +142,6 @@ type UserStatsResponse struct {
 	SavedBoxes int     `json:"savedBoxes"`
 	SavedMoney float64 `json:"savedMoney"`
 }
-type NotificationDTO struct {
-	ID        string    `json:"id"`
-	Message   string    `json:"message"`
-	CreatedAt time.Time `json:"createdAt"`
-}
 
 type CreateReviewRequest struct {
 	Rating  int    `json:"rating" binding:"required,min=1,max=5"`
@@ -169,8 +153,4 @@ type ReviewDTO struct {
 	Rating    int       `json:"rating"`
 	Comment   string    `json:"comment"`
 	CreatedAt time.Time `json:"createdAt"`
-}
-
-type CompleteOrderRequest struct {
-	ConfirmationCode string `json:"confirmationCode" binding:"required"`
 }

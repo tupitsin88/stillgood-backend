@@ -1,6 +1,7 @@
 package adminui
 
 import (
+	"strconv"
 	"time"
 
 	"kursach_backend/internal/domain"
@@ -17,6 +18,7 @@ type viewData struct {
 	Base             baseData
 	Partners         []userRow
 	Users            []userRow
+	Restaurants      []restaurantRow
 	Reviews          []reviewRow
 	Categories       []categoryRow
 	Role             string
@@ -63,6 +65,18 @@ type reviewRow struct {
 	UserName     string
 	UserEmail    string
 	CreatedAt    string
+}
+
+type restaurantRow struct {
+	ID          string
+	PartnerID   string
+	Name        string
+	Address     string
+	Commission  string
+	IsActive    bool
+	Rating      string
+	ReviewCount int
+	CreatedAt   string
 }
 
 type categoryRow struct {
@@ -112,6 +126,24 @@ func reviewRows(reviews []domain.Review) []reviewRow {
 	return rows
 }
 
+func restaurantRows(restaurants []domain.Restaurant) []restaurantRow {
+	rows := make([]restaurantRow, 0, len(restaurants))
+	for _, restaurant := range restaurants {
+		rows = append(rows, restaurantRow{
+			ID:          restaurant.ID.String(),
+			PartnerID:   restaurant.PartnerID.String(),
+			Name:        restaurant.Name,
+			Address:     restaurant.Address,
+			Commission:  formatFloat(restaurant.Commission),
+			IsActive:    restaurant.IsActive,
+			Rating:      formatFloat(restaurant.Rating),
+			ReviewCount: restaurant.ReviewCount,
+			CreatedAt:   formatTime(restaurant.CreatedAt),
+		})
+	}
+	return rows
+}
+
 func categoryRows(categories []domain.Category) []categoryRow {
 	rows := make([]categoryRow, 0, len(categories))
 	for _, category := range categories {
@@ -144,4 +176,8 @@ func formatTime(value time.Time) string {
 		return ""
 	}
 	return value.Format("2006-01-02 15:04")
+}
+
+func formatFloat(value float64) string {
+	return strconv.FormatFloat(value, 'f', -1, 64)
 }

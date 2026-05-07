@@ -13,6 +13,7 @@ import (
 	"kursach_backend/internal/restaurants"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 const (
@@ -156,8 +157,12 @@ func actionError(err error) string {
 		return "Deleted accounts cannot be changed"
 	case errors.Is(err, auth.ErrInvalidPartnerStatusTransition):
 		return "Only pending partners can be approved or rejected"
-	case errors.Is(err, auth.ErrPartnerNotFound), errors.Is(err, auth.ErrUserNotFound):
+	case errors.Is(err, auth.ErrPartnerNotFound), errors.Is(err, auth.ErrUserNotFound), errors.Is(err, gorm.ErrRecordNotFound):
 		return "Record not found"
+	case errors.Is(err, restaurants.ErrInvalidCommission):
+		return "Commission must be between 0 and 100"
+	case errors.Is(err, restaurants.ErrInvalidRestaurantID):
+		return "Invalid restaurant id"
 	case errors.Is(err, restaurants.ErrInvalidReviewID):
 		return "Invalid review id"
 	case strings.Contains(err.Error(), "CANNOT_DELETE_CATEGORY_WITH_ACTIVE_OFFERS"):

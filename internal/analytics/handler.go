@@ -18,14 +18,6 @@ func NewAnalyticsHandler(service *AnalyticsService) *AnalyticsHandler {
 }
 
 // GetPartnerAnalytics @Summary Аналитика партнёра
-// @Description Получение статистики продаж, выручки и процента отмен за период с группировкой
-// @Tags Analytics
-// @Security ApiKeyAuth
-// @Param startDate query string false "Дата начала (YYYY-MM-DD), по умолчанию 7 дней назад"
-// @Param endDate query string false "Дата конца (YYYY-MM-DD), по умолчанию сегодня"
-// @Param groupBy query string false "Группировка данных" Enums(day, week, month) default(day)
-// @Success 200 {object} AnalyticsSummary
-// @Router /partner/analytics [get]
 func (h *AnalyticsHandler) GetPartnerAnalytics(c *gin.Context) {
 	uidValue, exists := c.Get("user_id")
 	if !exists {

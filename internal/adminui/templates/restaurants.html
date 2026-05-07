@@ -1,0 +1,46 @@
+{{ define "restaurants" }}
+{{ template "layout_start" . }}
+<div class="panel table-scroll">
+	<table>
+		<thead>
+			<tr>
+				<th>Name</th>
+				<th>Address</th>
+				<th>Partner ID</th>
+				<th>Rating</th>
+				<th>Created</th>
+				<th>Admin fields</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{ range .Restaurants }}
+			<tr>
+				<td>{{ .Name }}<br><span class="muted">{{ .ID }}</span></td>
+				<td>{{ .Address }}</td>
+				<td class="muted">{{ .PartnerID }}</td>
+				<td>{{ .Rating }}<br><span class="muted">{{ .ReviewCount }} reviews</span></td>
+				<td>{{ .CreatedAt }}</td>
+				<td class="actions">
+					<form class="inline-form restaurant-admin-form" method="post" action="/admin/restaurants/{{ .ID }}/update">
+						<label>Commission
+							<input type="number" name="commission" min="0" max="100" step="0.01" value="{{ .Commission }}" required>
+						</label>
+						<label>Status
+							<select name="isActive">
+								<option value="true" {{ if .IsActive }}selected{{ end }}>Active</option>
+								<option value="false" {{ if not .IsActive }}selected{{ end }}>Inactive</option>
+							</select>
+						</label>
+						<button class="btn" type="submit">Save</button>
+					</form>
+				</td>
+			</tr>
+			{{ else }}
+			<tr><td class="empty" colspan="6">No restaurants.</td></tr>
+			{{ end }}
+		</tbody>
+	</table>
+	{{ template "pagination" .Pagination }}
+</div>
+{{ template "layout_end" . }}
+{{ end }}

@@ -17,14 +17,6 @@ func NewNotificationsHandler(s Service) *NotificationsHandler {
 }
 
 // GetMyNotifications @Summary История уведомлений пользователя
-// @Description Получение списка всех уведомлений пользователя с пагинацией
-// @Tags Notifications
-// @Security ApiKeyAuth
-// @Produce json
-// @Param limit query integer false "Количество (default 20)"
-// @Param offset query integer false "Смещение (default 0)"
-// @Success 200 {object} map[string]interface{}
-// @Router /notifications [get]
 func (h *NotificationsHandler) GetMyNotifications(c *gin.Context) {
 	uidStr := c.GetString("user_id")
 	userID, _ := uuid.Parse(uidStr)
