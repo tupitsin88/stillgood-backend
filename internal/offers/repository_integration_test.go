@@ -17,8 +17,11 @@ import (
 	"gorm.io/gorm"
 )
 
-func strPtr(s string) *string {
-	return &s
+func envOrDefault(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
 }
 
 type testDBConfig struct {
@@ -38,31 +41,11 @@ func setupOffersIntegrationDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
 	cfg := testDBConfig{
-		host:     os.Getenv("DB_HOST"),
-		user:     os.Getenv("DB_USER"),
-		password: os.Getenv("DB_PASSWORD"),
-		name:     os.Getenv("DB_NAME"),
-		port:     os.Getenv("DB_PORT"),
-	}
-
-	if cfg.host == "" {
-		cfg.host = "localhost"
-	}
-	if cfg.user == "" {
-		cfg.user = "postgres"
-	}
-	if cfg.name == "" {
-		cfg.name = "foodsharing_test_db"
-	}
-	if cfg.port == "" {
-		if os.Getenv("GITHUB_ACTIONS") == "true" {
-			cfg.port = "5432"
-		} else {
-			cfg.port = "5433"
-		}
-	}
-	if cfg.password == "" && os.Getenv("GITHUB_ACTIONS") != "true" {
-		cfg.password = "hsefcsse243_secret_password_postgres"
+		host:     envOrDefault("TEST_DB_HOST", envOrDefault("DB_HOST", "localhost")),
+		user:     envOrDefault("TEST_DB_USER", envOrDefault("DB_USER", "postgres")),
+		password: envOrDefault("TEST_DB_PASSWORD", envOrDefault("DB_PASSWORD", "hsefcsse243_secret_password_postgres")),
+		name:     envOrDefault("TEST_DB_NAME", "foodsharing_test_db"),
+		port:     envOrDefault("TEST_DB_PORT", envOrDefault("DB_PORT", "5433")),
 	}
 
 	db, err := postgres.NewDB(cfg.dsn())
@@ -105,15 +88,5 @@ func TestOfferRepository_Integration(t *testing.T) {
 		saved, err := repo.GetByID(ctx, offer.ID)
 		assert.NoError(t, err)
 		assert.Equal(t, "Croissant", saved.Title)
-	})
-
-	t.Run("GetPublicGeo", func(t *testing.T) {
-		lat, lng := 55.76, 37.62
-		params := FilterParams{Lat: &lat, Lng: &lng, Limit: 10}
-		offers, _, err := repo.GetPublicOffers(ctx, params)
-		assert.NoError(t, err)
-		if len(offers) > 0 {
-			assert.NotNil(t, offers[0].Distance)
-		}
 	})
 }

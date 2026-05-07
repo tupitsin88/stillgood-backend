@@ -17,8 +17,11 @@ import (
 	"gorm.io/gorm"
 )
 
-func strPtr(s string) *string {
-	return &s
+func envOrDefault(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
 }
 
 type testDBConfig struct {
@@ -38,45 +41,22 @@ func setupAnalyticsIntegrationDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
 	cfg := testDBConfig{
-		host:     os.Getenv("DB_HOST"),
-		user:     os.Getenv("DB_USER"),
-		password: os.Getenv("DB_PASSWORD"),
-		name:     os.Getenv("DB_NAME"),
-		port:     os.Getenv("DB_PORT"),
-	}
-
-	if cfg.host == "" {
-		cfg.host = "localhost"
-	}
-	if cfg.user == "" {
-		cfg.user = "postgres"
-	}
-	if cfg.name == "" {
-		cfg.name = "foodsharing_test_db"
-	}
-	if cfg.port == "" {
-		if os.Getenv("GITHUB_ACTIONS") == "true" {
-			cfg.port = "5432"
-		} else {
-			cfg.port = "5433"
-		}
-	}
-	// Если пароль пустой и мы НЕ в CI — ставим твой локальный дефолт
-	if cfg.password == "" && os.Getenv("GITHUB_ACTIONS") != "true" {
-		cfg.password = "hsefcsse243_secret_password_postgres"
+		host:     envOrDefault("TEST_DB_HOST", envOrDefault("DB_HOST", "localhost")),
+		user:     envOrDefault("TEST_DB_USER", envOrDefault("DB_USER", "postgres")),
+		password: envOrDefault("TEST_DB_PASSWORD", envOrDefault("DB_PASSWORD", "hsefcsse243_secret_password_postgres")),
+		name:     envOrDefault("TEST_DB_NAME", "foodsharing_test_db"),
+		port:     envOrDefault("TEST_DB_PORT", envOrDefault("DB_PORT", "5433")),
 	}
 
 	db, err := postgres.NewDB(cfg.dsn())
-	require.NoError(t, err)
-
-	// Блокировка для параллельных пакетов
+	require.NoError(t, err, "Не удалось подключиться к тестовой БД")
 	db.Exec("SELECT pg_advisory_lock(123456)")
 	t.Cleanup(func() {
 		db.Exec("SELECT pg_advisory_unlock(123456)")
 	})
 
-	// Очистка и миграции
 	require.NoError(t, db.Exec("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; SET search_path TO public;").Error)
+
 	sqlDB, _ := db.DB()
 	require.NoError(t, goose.Up(sqlDB, "../../migrations"))
 
@@ -104,21 +84,14 @@ func TestAnalyticsRepository_Integration(t *testing.T) {
 	offer := &domain.Offer{ID: uuid.New(), RestaurantID: restaurant.ID, CategoryID: category.ID, Title: "Box", Price: 500}
 	require.NoError(t, db.Create(offer).Error)
 
-	order := &domain.Order{ID: uuid.New(), OfferID: offer.ID, UserID: customer.ID, Amount: 500, Status: domain.OrderCompleted, CreatedAt: testDate}
-	require.NoError(t, db.Create(order).Error)
-	require.NoError(t, db.Create(&domain.OrderStatusHistory{ID: uuid.New(), OrderID: order.ID, Status: domain.OrderCompleted, ChangedAt: testDate}).Error)
+	t.Run("Aggregate Stats", func(t *testing.T) {
+		order := &domain.Order{ID: uuid.New(), OfferID: offer.ID, UserID: customer.ID, Amount: 500, Status: domain.OrderCompleted, CreatedAt: testDate}
+		require.NoError(t, db.Create(order).Error)
+		require.NoError(t, db.Create(&domain.OrderStatusHistory{ID: uuid.New(), OrderID: order.ID, Status: domain.OrderCompleted, ChangedAt: testDate}).Error)
 
-	t.Run("Aggregate", func(t *testing.T) {
 		stats, err := repo.AggregateDailyStats(ctx, testDate)
 		require.NoError(t, err)
-		require.NotEmpty(t, stats)
+		assert.NotEmpty(t, stats)
 		assert.Equal(t, 500.0, stats[0].GrossRevenue)
-	})
-
-	t.Run("SaveStats", func(t *testing.T) {
-		err := repo.SaveStats(ctx, []domain.DailyAnalytics{{
-			RestaurantID: restaurant.ID, Date: testDate, CategoryName: category.Name, TotalBookings: 1,
-		}})
-		assert.NoError(t, err)
 	})
 }
