@@ -3,6 +3,7 @@ package analytics
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -22,15 +23,35 @@ func strPtr(s string) *string {
 
 func setupAnalyticsTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
+	host := os.Getenv("DB_HOST")
+	if host == "" {
+		host = "localhost"
+	}
+	port := os.Getenv("DB_PORT")
+	if port == "" {
+		port = "5433"
+	}
+	user := os.Getenv("DB_USER")
+	if user == "" {
+		user = "postgres"
+	}
+	pass := os.Getenv("DB_PASSWORD")
+	if pass == "" {
+		pass = "hsefcsse243_secret_password_postgres"
+	}
+	dbname := os.Getenv("DB_NAME")
+	if dbname == "" {
+		dbname = "foodsharing_test_db"
+	}
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		"localhost", "postgres", "hsefcsse243_secret_password_postgres", "foodsharing_test_db", "5433")
-
+		host, user, pass, dbname, port)
 	db, err := postgres.NewDB(dsn)
 	require.NoError(t, err)
 	require.NoError(t, db.Exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;").Error)
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
 	require.NoError(t, goose.Up(sqlDB, "../../migrations"))
+
 	return db
 }
 
