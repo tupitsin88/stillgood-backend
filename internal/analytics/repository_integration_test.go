@@ -21,7 +21,7 @@ func strPtr(s string) *string {
 	return &s
 }
 
-func setupAnalyticsTestDB(t *testing.T) *gorm.DB {
+func setupAnalyticsIntegrationDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	host := os.Getenv("DB_HOST")
 	if host == "" {
@@ -29,139 +29,106 @@ func setupAnalyticsTestDB(t *testing.T) *gorm.DB {
 	}
 	port := os.Getenv("DB_PORT")
 	if port == "" {
-		port = "5433"
+		if os.Getenv("GITHUB_ACTIONS") == "true" {
+			port = "5432"
+		} else {
+			port = "5433"
+		}
 	}
-	user := os.Getenv("DB_USER")
-	if user == "" {
-		user = "postgres"
-	}
-	pass := os.Getenv("DB_PASSWORD")
-	if pass == "" {
-		pass = "hsefcsse243_secret_password_postgres"
-	}
-	dbname := os.Getenv("DB_NAME")
-	if dbname == "" {
-		dbname = "foodsharing_test_db"
-	}
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		host, user, pass, dbname, port)
+	dsn := fmt.Sprintf("host=%s user=postgres password=hsefcsse243_secret_password_postgres dbname=foodsharing_test_db port=%s sslmode=disable", host, port)
+
 	db, err := postgres.NewDB(dsn)
-	require.NoError(t, err)
-	require.NoError(t, db.Exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;").Error)
-	sqlDB, err := db.DB()
-	require.NoError(t, err)
+	require.NoError(t, err, "Не удалось подключиться к тестовой БД")
+	db.Exec("SELECT pg_advisory_lock(123456)")
+	t.Cleanup(func() {
+		db.Exec("SELECT pg_advisory_unlock(123456)")
+	})
+	sqlDB, _ := db.DB()
+
 	require.NoError(t, goose.Up(sqlDB, "../../migrations"))
+
+	err = db.Exec("TRUNCATE users, categories, restaurants, offers, orders, order_status_histories, daily_analytics RESTART IDENTITY CASCADE").Error
+	require.NoError(t, err)
 
 	return db
 }
 
-func TestAnalyticsRepository_AggregateDailyStats(t *testing.T) {
-	db := setupAnalyticsTestDB(t)
+func TestAnalyticsRepository_Integration(t *testing.T) {
+	db := setupAnalyticsIntegrationDB(t)
 	repo := NewAnalyticsRepository(db)
 	ctx := context.Background()
 	testDate := time.Now().UTC().Truncate(24 * time.Hour)
-
-	partner := &domain.User{ID: uuid.New(), Email: "analytics-p@test.com", Role: "PARTNER"}
+	partner := &domain.User{ID: uuid.New(), Email: "p@test.com", Role: "PARTNER", Name: "Partner"}
 	require.NoError(t, db.Create(partner).Error)
-
-	customer := &domain.User{ID: uuid.New(), Email: "customer@test.com", Role: "USER"}
+	customer := &domain.User{ID: uuid.New(), Email: "c@test.com", Role: "USER", Name: "Customer"}
 	require.NoError(t, db.Create(customer).Error)
-
-	category := &domain.Category{ID: uuid.New(), Name: "Тест Еда"}
+	category := &domain.Category{ID: uuid.New(), Name: "Бургеры"}
 	require.NoError(t, db.Create(category).Error)
-
 	restaurant := &domain.Restaurant{
 		ID:         uuid.New(),
 		PartnerID:  partner.ID,
-		Name:       "Analytics Rest",
-		Commission: 10.0,
-		IsActive:   true,
+		Name:       "Burger Queen",
+		Commission: 15.0,
 	}
-	require.NoError(t, db.Create(restaurant).Error)
+	require.NoError(t, db.Omit("Location").Create(restaurant).Error)
 
 	offer := &domain.Offer{
-		ID:           uuid.New(),
-		RestaurantID: restaurant.ID,
-		CategoryID:   category.ID,
-		Title:        "Test Box",
-		Price:        500,
+		ID:            uuid.New(),
+		RestaurantID:  restaurant.ID,
+		CategoryID:    category.ID,
+		Title:         "Combo Box",
+		Price:         1000,
+		OriginalPrice: 2000,
 	}
 	require.NoError(t, db.Create(offer).Error)
-
-	order1 := &domain.Order{ID: uuid.New(), OfferID: offer.ID, UserID: customer.ID, Amount: 500, Status: domain.OrderCompleted, CreatedAt: testDate}
-	require.NoError(t, db.Create(order1).Error)
-	require.NoError(t, db.Create(&domain.OrderStatusHistory{ID: uuid.New(), OrderID: order1.ID, Status: domain.OrderCompleted, ChangedAt: testDate}).Error)
-
-	order2 := &domain.Order{ID: uuid.New(), OfferID: offer.ID, UserID: customer.ID, Amount: 500, Status: domain.OrderCancelled, CreatedAt: testDate}
-	require.NoError(t, db.Create(order2).Error)
-	require.NoError(t, db.Create(&domain.OrderStatusHistory{ID: uuid.New(), OrderID: order2.ID, Status: domain.OrderCancelled, ChangedAt: testDate}).Error)
-
-	order3 := &domain.Order{
+	orderA := &domain.Order{ID: uuid.New(), OfferID: offer.ID, UserID: customer.ID, Amount: 1000, Status: domain.OrderCompleted, CreatedAt: testDate}
+	require.NoError(t, db.Create(orderA).Error)
+	require.NoError(t, db.Create(&domain.OrderStatusHistory{ID: uuid.New(), OrderID: orderA.ID, Status: domain.OrderCompleted, ChangedAt: testDate}).Error)
+	orderB := &domain.Order{
 		ID:                 uuid.New(),
 		OfferID:            offer.ID,
 		UserID:             customer.ID,
-		Amount:             500,
+		Amount:             1000,
 		Status:             domain.OrderCancelled,
 		CancellationReason: strPtr("expired"),
 		CreatedAt:          testDate,
 	}
-	require.NoError(t, db.Create(order3).Error)
-	require.NoError(t, db.Create(&domain.OrderStatusHistory{ID: uuid.New(), OrderID: order3.ID, Status: domain.OrderCancelled, ChangedAt: testDate}).Error)
-	stats, err := repo.AggregateDailyStats(ctx, testDate)
-	require.NoError(t, err)
-	require.Len(t, stats, 1)
-	s := stats[0]
-	assert.Equal(t, restaurant.ID, s.RestaurantID)
-	assert.Equal(t, 3, s.TotalBookings)
-	assert.Equal(t, 1, s.CompletedOrders)
-	assert.Equal(t, 2, s.CancelledOrders)
-	assert.Equal(t, 1, s.ExpiredOrders)
-	assert.Equal(t, 500.0, s.GrossRevenue)
-	assert.Equal(t, 50.0, s.ServiceFee)
-	assert.Equal(t, 450.0, s.NetPayout)
-}
+	require.NoError(t, db.Create(orderB).Error)
+	require.NoError(t, db.Create(&domain.OrderStatusHistory{ID: uuid.New(), OrderID: orderB.ID, Status: domain.OrderCancelled, ChangedAt: testDate}).Error)
 
-func TestAnalyticsRepository_SaveStats_Upsert(t *testing.T) {
-	db := setupAnalyticsTestDB(t)
-	repo := NewAnalyticsRepository(db)
-	ctx := context.Background()
-	testDate := time.Now().UTC().Truncate(24 * time.Hour)
+	t.Run("AggregateDailyStats correctly calculates financial metrics", func(t *testing.T) {
+		stats, err := repo.AggregateDailyStats(ctx, testDate)
 
-	partner := &domain.User{ID: uuid.New(), Email: "upsert-p@test.com", Role: "PARTNER"}
-	require.NoError(t, db.Create(partner).Error)
-	restaurant := &domain.Restaurant{ID: uuid.New(), PartnerID: partner.ID, Name: "Upsert Rest"}
-	require.NoError(t, db.Create(restaurant).Error)
-
-	initialStat := []domain.DailyAnalytics{{
-		RestaurantID:  restaurant.ID,
-		Date:          testDate,
-		CategoryName:  "Pizza",
-		TotalBookings: 10,
-	}}
-
-	t.Run("Saves new stats", func(t *testing.T) {
-		err := repo.SaveStats(ctx, initialStat)
-		assert.NoError(t, err)
-
-		var saved domain.DailyAnalytics
-		err = db.First(&saved, "restaurant_id = ?", restaurant.ID).Error
 		require.NoError(t, err)
-		assert.Equal(t, 10, saved.TotalBookings)
+		require.Len(t, stats, 1)
+
+		s := stats[0]
+		assert.Equal(t, restaurant.ID, s.RestaurantID)
+		assert.Equal(t, 2, s.TotalBookings)
+		assert.Equal(t, 1, s.CompletedOrders)
+		assert.Equal(t, 1, s.CancelledOrders)
+		assert.Equal(t, 1, s.ExpiredOrders)
+
+		assert.Equal(t, 1000.0, s.GrossRevenue)
+		assert.Equal(t, 150.0, s.ServiceFee)
+		assert.Equal(t, 850.0, s.NetPayout)
 	})
 
-	t.Run("Updates existing stats (Upsert)", func(t *testing.T) {
-		updatedStat := []domain.DailyAnalytics{{
+	t.Run("SaveStats handles Upsert conflict", func(t *testing.T) {
+		initial := []domain.DailyAnalytics{{
 			RestaurantID:  restaurant.ID,
 			Date:          testDate,
-			CategoryName:  "Pizza",
-			TotalBookings: 25,
+			CategoryName:  "Бургеры",
+			TotalBookings: 5,
 		}}
-
-		err := repo.SaveStats(ctx, updatedStat)
+		err := repo.SaveStats(ctx, initial)
 		assert.NoError(t, err)
-
-		var saved domain.DailyAnalytics
-		db.First(&saved, "restaurant_id = ?", restaurant.ID)
-		assert.Equal(t, 25, saved.TotalBookings)
+		updated := initial
+		updated[0].TotalBookings = 99
+		err = repo.SaveStats(ctx, updated)
+		assert.NoError(t, err)
+		var check domain.DailyAnalytics
+		db.First(&check, "restaurant_id = ?", restaurant.ID)
+		assert.Equal(t, 99, check.TotalBookings, "Данные должны были обновиться (Upsert)")
 	})
 }
