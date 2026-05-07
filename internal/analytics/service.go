@@ -8,13 +8,21 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/robfig/cron/v3"
 )
 
-type AnalyticsService struct {
-	repo *AnalyticsRepository
+type Repository interface {
+	AggregateDailyStats(ctx context.Context, date time.Time) ([]domain.DailyAnalytics, error)
+	SaveStats(ctx context.Context, stats []domain.DailyAnalytics) error
+	GetStats(ctx context.Context, restaurantID uuid.UUID, start, end time.Time) ([]domain.DailyAnalytics, error)
+	GetRestaurantByPartnerID(ctx context.Context, partnerID uuid.UUID) (*domain.Restaurant, error)
 }
 
-func NewAnalyticsService(repo *AnalyticsRepository) *AnalyticsService {
+type AnalyticsService struct {
+	repo Repository
+}
+
+func NewAnalyticsService(repo Repository) *AnalyticsService {
 	return &AnalyticsService{repo: repo}
 }
 
@@ -39,21 +47,19 @@ func (s *AnalyticsService) RunDailyAggregation(ctx context.Context) {
 }
 
 func (s *AnalyticsService) StartAnalyticsWorker(ctx context.Context) {
-	for {
-		now := time.Now()
-		nextRun := time.Date(now.Year(), now.Month(), now.Day(), 2, 0, 0, 0, now.Location())
-		if now.After(nextRun) {
-			nextRun = nextRun.AddDate(0, 0, 1)
-		}
-		durationUntilNextRun := time.Until(nextRun)
-		log.Printf("[Analytics Worker] Next run scheduled at %s (in %v)", nextRun.Format("15:04:05"), durationUntilNextRun)
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(durationUntilNextRun):
-			s.RunDailyAggregation(ctx)
-		}
+	c := cron.New(cron.WithLocation(time.Local))
+	_, err := c.AddFunc("0 2 * * *", func() {
+		s.RunDailyAggregation(context.Background())
+	})
+	if err != nil {
+		log.Printf("[Analytics Cron] Error scheduling job: %v", err)
+		return
 	}
+	c.Start()
+	log.Printf("[Analytics Worker] Professional Cron Scheduler started. Next run at 02:00 daily.")
+	<-ctx.Done()
+	log.Printf("[Analytics Worker] Stopping scheduler...")
+	c.Stop()
 }
 
 type AnalyticsSummary struct {

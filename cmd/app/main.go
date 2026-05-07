@@ -108,11 +108,6 @@ func main() {
 	orderService := orders.NewOrderService(orderRepo, notificationService)
 	orderHandler := orders.NewOrderHandler(orderService)
 
-	// Offers
-	offerRepo := offers.NewOfferRepository(db)
-	offerService := offers.NewOfferService(offerRepo)
-	offerHandler := offers.NewOfferHandler(offerService)
-
 	// Auth
 	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
 	emailSender, err := emaildelivery.NewSenderFromEnv()
@@ -158,6 +153,11 @@ func main() {
 	restaurantsRepo := restaurants.NewRepository(db)
 	restaurantsService := restaurants.NewService(restaurantsRepo, fileStorage)
 	restaurantsHandler := restaurants.NewHandler(restaurantsService)
+
+	// Offers
+	offerRepo := offers.NewOfferRepository(db)
+	offerService := offers.NewOfferService(offerRepo, fileStorage)
+	offerHandler := offers.NewOfferHandler(offerService)
 
 	// Categories
 	categoriesRepo := categories.NewRepository(db)

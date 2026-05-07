@@ -49,6 +49,7 @@ var ErrEmailChangeNotAllowed = errors.New("email change is allowed only for emai
 var ErrInvalidName = errors.New("invalid name")
 var ErrEmptyProfileUpdate = errors.New("at least one profile field must be provided")
 var ErrEmailDeliveryFailed = errors.New("email delivery failed")
+var ErrVerificationCodeTooFrequent = errors.New("verification code requested too frequently")
 
 const (
 	emailVerificationCodeTTL = 10 * time.Minute
@@ -632,7 +633,7 @@ func (s *service) RequestEmailVerification(email string) (int, error) {
 	if entry, ok := s.emailVerificationCodes[normalizedEmail]; ok {
 		if time.Since(entry.SentAt) < time.Minute {
 			s.mu.Unlock()
-			return int(emailVerificationCodeTTL.Seconds()), nil
+			return 0, ErrVerificationCodeTooFrequent
 		}
 	}
 

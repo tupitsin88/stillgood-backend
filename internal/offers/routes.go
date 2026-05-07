@@ -27,6 +27,7 @@ func RegisterRoutes(r *gin.Engine, h *OfferHandler, authMiddleware gin.HandlerFu
 	{
 		partner.GET("/offers", h.GetPartnerOffers)
 		partner.POST("/offers", h.CreateOffer)
+		partner.POST("/offers/upload", h.UploadImage)
 		partner.PATCH("/offers/:id", h.UpdateOffer)
 		partner.DELETE("/offers/:id", h.DeleteOffer)
 	}

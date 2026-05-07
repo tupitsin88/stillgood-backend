@@ -391,6 +391,11 @@ definitions:
       title:
         type: string
     type: object
+  offers.UploadOfferImageResponse:
+    properties:
+      url:
+        type: string
+    type: object
   orders.CancelOrderRequest:
     properties:
       reason:
@@ -2023,6 +2028,45 @@ paths:
             $ref: '#/definitions/offers.OfferDetailDTO'
         "403":
           description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      tags:
+      - Partner
+  /partner/offers/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Image file (JPG, PNG, HEIC/HEIF, max 10MB)
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/offers.UploadOfferImageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "413":
+          description: Request Entity Too Large
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
           schema:
             additionalProperties:
               type: string

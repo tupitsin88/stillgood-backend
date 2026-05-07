@@ -32,6 +32,8 @@ func (r *OfferRepository) Update(ctx context.Context, offer *domain.Offer) error
 func (r *OfferRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Offer, error) {
 	var offer domain.Offer
 	err := r.db.WithContext(ctx).
+		Model(&domain.Offer{}).
+		Select("offers.*").
 		Preload("Restaurant").
 		Preload("Category").
 		First(&offer, "id = ?", id).Error
@@ -47,15 +49,17 @@ func (r *OfferRepository) GetPartnerOffers(ctx context.Context, restaurantID uui
 
 	query := r.db.WithContext(ctx).
 		Model(&domain.Offer{}).
-		Where("restaurant_id = ?", restaurantID).
-		Preload("Restaurant").
-		Preload("Category")
+		Where("restaurant_id = ?", restaurantID)
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	err := query.Order("created_at DESC").
+	err := query.
+		Select("offers.*").
+		Preload("Restaurant").
+		Preload("Category").
+		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&offers).Error
@@ -96,15 +100,16 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 	}
 
 	hasGeoPoint := params.Lat != nil && params.Lng != nil
-	if hasGeoPoint {
-		query = query.Select("offers.*, ROUND("+restaurantDistanceSQL+")::int AS distance", *params.Lng, *params.Lat)
-		if params.Radius != nil {
-			query = query.Where("ST_DWithin(restaurants.location, "+postgisPointSQL+", ?)", *params.Lng, *params.Lat, *params.Radius)
-		}
+	if hasGeoPoint && params.Radius != nil {
+		query = query.Where("ST_DWithin(restaurants.location, "+postgisPointSQL+", ?)", *params.Lng, *params.Lat, *params.Radius)
 	}
-
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
+	}
+	if hasGeoPoint {
+		query = query.Select("offers.*, ROUND("+restaurantDistanceSQL+")::int AS distance", *params.Lng, *params.Lat)
+	} else {
+		query = query.Select("offers.*")
 	}
 
 	switch params.SortBy {
