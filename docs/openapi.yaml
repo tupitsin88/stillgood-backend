@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: Food-Sharing App API
+  title: StillGood App API
   description: |
-    API для приложения Food-Sharing.
+    API для приложения StillGood.
 
     ## Роли
     - **USER** — поиск, бронирование, заказы
@@ -15,11 +15,18 @@ info:
     - JWT Bearer token в заголовке Authorization
   version: 1.0.0
   contact:
-    name: Tech Lead
-    email: dmitry@feedex.ru
+    name: StillGood Development Team
+    email: team@stillgood.tech
+  x-team:
+    - role: Tech Lead, Android Developer
+      email: dmitry@stillgood.tech
+    - role: Backend Developer
+      email: timofey@stillgood.tech
+    - role: Backend Developer
+      email: artem@stillgood.tech
 
 servers:
-  - url: https://api.feedex.ru/api/v1
+  - url: https://api.stillgood.tech/api/v1
     description: Production
   - url: http://localhost:8080/api/v1
     description: Development

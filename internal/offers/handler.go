@@ -24,13 +24,6 @@ func NewOfferHandler(service *OfferService) *OfferHandler {
 }
 
 // CreateOffer @Summary Создание предложения
-// @Tags Partner
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param input body CreateOfferRequest true "Данные предложения"
-// @Success 201 {object} OfferDetailDTO
-// @Router /partner/offers [post]
 func (h *OfferHandler) CreateOffer(c *gin.Context) {
 	var req CreateOfferRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -67,15 +60,6 @@ func (h *OfferHandler) CreateOffer(c *gin.Context) {
 }
 
 // UpdateOffer @Summary Обновление предложения
-// @Tags Partner
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param id path string true "Offer ID"
-// @Param input body UpdateOfferRequest true "Данные для обновления"
-// @Success 200 {object} OfferDetailDTO
-// @Failure 403 {object} map[string]string
-// @Router /partner/offers/{id} [patch]
 func (h *OfferHandler) UpdateOffer(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -109,13 +93,6 @@ func (h *OfferHandler) UpdateOffer(c *gin.Context) {
 }
 
 // GetPartnerOffers @Summary Предложения партнёра
-// @Tags Partner
-// @Security ApiKeyAuth
-// @Produce json
-// @Param limit query integer false "Limit"
-// @Param offset query integer false "Offset"
-// @Success 200 {object} map[string]interface{}
-// @Router /partner/offers [get]
 func (h *OfferHandler) GetPartnerOffers(c *gin.Context) {
 	uidStr := c.GetString("user_id")
 	partnerID, _ := uuid.Parse(uidStr)
@@ -135,20 +112,6 @@ func (h *OfferHandler) GetPartnerOffers(c *gin.Context) {
 }
 
 // GetPublicOffers @Summary Список предложений
-// @Tags Offers
-// @Produce json
-// @Param lat query number false "Latitude"
-// @Param lng query number false "Longitude"
-// @Param radius query integer false "Radius"
-// @Param restaurantId query string false "Restaurant ID"
-// @Param categoryId query string false "Category ID"
-// @Param minPrice query number false "Min Price"
-// @Param maxPrice query number false "Max Price"
-// @Param sortBy query string false "Sort By" Enums(distance, price, pickupTime, rating)
-// @Param limit query integer false "Limit"
-// @Param offset query integer false "Offset"
-// @Success 200 {object} map[string]interface{}
-// @Router /offers [get]
 func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -255,12 +218,6 @@ func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 }
 
 // GetOfferByID @Summary Детали предложения
-// @Tags Offers
-// @Produce json
-// @Param id path string true "Offer ID"
-// @Success 200 {object} OfferDetailDTO
-// @Failure 404 {object} map[string]string
-// @Router /offers/{id} [get]
 func (h *OfferHandler) GetOfferByID(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 
@@ -274,12 +231,6 @@ func (h *OfferHandler) GetOfferByID(c *gin.Context) {
 }
 
 // DeleteOffer @Summary Удаление предложения
-// @Tags Partner
-// @Security ApiKeyAuth
-// @Param id path string true "Offer ID"
-// @Success 204 "No Content"
-// @Failure 403 {object} map[string]string
-// @Router /partner/offers/{id} [delete]
 func (h *OfferHandler) DeleteOffer(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -300,16 +251,6 @@ func (h *OfferHandler) DeleteOffer(c *gin.Context) {
 }
 
 // UploadImage @Summary Загрузка изображения для предложения
-// @Tags Partner
-// @Security ApiKeyAuth
-// @Accept multipart/form-data
-// @Produce json
-// @Param image formData file true "Image file (JPG, PNG, HEIC/HEIF, max 10MB)"
-// @Success 200 {object} UploadOfferImageResponse
-// @Failure 400 {object} map[string]string
-// @Failure 413 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /partner/offers/upload [post]
 func (h *OfferHandler) UploadImage(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxOfferUploadSize)
 	file, err := c.FormFile("image")

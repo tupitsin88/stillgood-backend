@@ -16,10 +16,6 @@ func NewHandler(service Service) *Handler {
 }
 
 // GetList @Summary Список категорий
-// @Tags Categories
-// @Produce json
-// @Success 200 {object} map[string]interface{}
-// @Router /categories [get]
 func (h *Handler) GetList(c *gin.Context) {
 	categories, err := h.service.GetAll()
 	if err != nil {
@@ -40,13 +36,6 @@ func (h *Handler) GetList(c *gin.Context) {
 }
 
 // Create @Summary Создание категории (Admin Only)
-// @Tags Admin
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param input body CreateCategoryRequest true "Данные новой категории"
-// @Success 201 {object} domain.Category
-// @Router /categories [post]
 func (h *Handler) Create(c *gin.Context) {
 	var req CreateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -62,14 +51,6 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 // Update @Summary Обновление категории (Admin Only)
-// @Tags Admin
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param id path string true "Category ID"
-// @Param input body CreateCategoryRequest true "Новые данные"
-// @Success 200 {object} domain.Category
-// @Router /categories/{id} [patch]
 func (h *Handler) Update(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -94,12 +75,6 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 // Delete @Summary Удаление категории (Admin Only)
-// @Description Нельзя удалить категорию, если в ней есть офферы
-// @Tags Admin
-// @Security ApiKeyAuth
-// @Param id path string true "Category ID"
-// @Success 204 "Успешное удаление без тела ответа"
-// @Router /categories/{id} [delete]
 func (h *Handler) Delete(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {

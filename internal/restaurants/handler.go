@@ -23,16 +23,6 @@ func NewHandler(service Service) *Handler {
 }
 
 // CreateRestaurant @Summary Создание карточки ресторана
-// @Tags Restaurants
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param input body CreateRestaurantRequest true "Данные ресторана"
-// @Success 201 {object} RestaurantResponse
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Router /restaurants [post]
 func (h *Handler) CreateRestaurant(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -145,17 +135,6 @@ func (h *Handler) requirePartner(c *gin.Context) (string, bool) {
 }
 
 // UploadImage @Summary Загрузка изображения
-// @Tags Restaurants
-// @Accept multipart/form-data
-// @Produce json
-// @Param image formData file true "Image file (JPG, PNG, HEIC/HEIF, max 10MB)"
-// @Param kind formData string true "Image kind: logo or cover"
-// @Success 200 {object} UploadRestaurantImageResponse
-// @Failure 400 {object} map[string]string "No file uploaded, invalid kind, invalid image format or undecodable image"
-// @Failure 413 {object} map[string]string "Image is too large"
-// @Failure 503 {object} map[string]string "Storage is unavailable"
-// @Failure 500 {object} map[string]string "Unexpected upload failure"
-// @Router /restaurants/upload [post]
 func (h *Handler) UploadImage(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUploadRequestBodyBytes)
 	kind := strings.ToLower(strings.TrimSpace(c.PostForm("kind")))
@@ -206,16 +185,6 @@ func (h *Handler) UploadImage(c *gin.Context) {
 }
 
 // GetList @Summary Список ресторанов
-// @Tags Restaurants
-// @Produce json
-// @Param lat query number false "Latitude"
-// @Param lng query number false "Longitude"
-// @Param radius query integer false "Радиус в метрах"
-// @Param categoryId query string false "Category ID"
-// @Param limit query integer false "Limit"
-// @Param offset query integer false "Offset"
-// @Success 200 {object} RestaurantListResponse
-// @Router /restaurants [get]
 func (h *Handler) GetList(c *gin.Context) {
 	limit, err := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	if err != nil || limit <= 0 {
@@ -318,12 +287,6 @@ func (h *Handler) GetList(c *gin.Context) {
 }
 
 // GetByID @Summary Детали ресторана
-// @Tags Restaurants
-// @Produce json
-// @Param id path string true "Restaurant ID"
-// @Success 200 {object} RestaurantResponse
-// @Failure 404 {object} map[string]string
-// @Router /restaurants/{id} [get]
 func (h *Handler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 
@@ -361,13 +324,6 @@ func (h *Handler) GetByID(c *gin.Context) {
 }
 
 // GetPartnerRestaurant @Summary Профиль заведения партнёра
-// @Tags Partner
-// @Security ApiKeyAuth
-// @Produce json
-// @Success 200 {object} RestaurantResponse
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /partner/restaurant [get]
 func (h *Handler) GetPartnerRestaurant(c *gin.Context) {
 	partnerID, ok := h.requirePartner(c)
 	if !ok {
@@ -410,15 +366,6 @@ func (h *Handler) GetPartnerRestaurant(c *gin.Context) {
 }
 
 // UpdatePartnerRestaurant @Summary Обновление профиля заведения
-// @Tags Partner
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param input body PartnerRestaurantUpdateRequest false "Поля профиля"
-// @Success 200 {object} RestaurantResponse
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /partner/restaurant [patch]
 func (h *Handler) UpdatePartnerRestaurant(c *gin.Context) {
 	partnerID, ok := h.requirePartner(c)
 	if !ok {
@@ -467,17 +414,6 @@ func (h *Handler) UpdatePartnerRestaurant(c *gin.Context) {
 }
 
 // UpdateAdminRestaurant @Summary Обновление административных полей ресторана
-// @Tags Admin
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param id path string true "Restaurant ID"
-// @Param input body AdminRestaurantUpdateRequest true "Административные поля"
-// @Success 200 {object} AdminRestaurantResponse
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /admin/restaurants/{id} [patch]
 func (h *Handler) UpdateAdminRestaurant(c *gin.Context) {
 	var req AdminRestaurantUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -509,15 +445,6 @@ func (h *Handler) UpdateAdminRestaurant(c *gin.Context) {
 }
 
 // GetReviews @Summary Получить отзывы ресторана
-// @Tags Restaurants
-// @Produce json
-// @Param id path string true "Restaurant ID"
-// @Param limit query int false "Лимит" default(10)
-// @Param offset query int false "Сдвиг" default(0)
-// @Success 200 {object} RestaurantReviewsResponse
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /restaurants/{id}/reviews [get]
 func (h *Handler) GetReviews(c *gin.Context) {
 	restID := c.Param("id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
@@ -549,14 +476,6 @@ func (h *Handler) GetReviews(c *gin.Context) {
 }
 
 // DeleteReview @Summary Удалить отзыв (Admin)
-// @Tags Admin
-// @Security ApiKeyAuth
-// @Param id path string true "Review ID"
-// @Success 204 "No Content"
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /admin/reviews/{id} [delete]
 func (h *Handler) DeleteReview(c *gin.Context) {
 	reviewID := c.Param("id")
 	if err := h.service.DeleteReview(reviewID); err != nil {
@@ -574,17 +493,6 @@ func (h *Handler) DeleteReview(c *gin.Context) {
 }
 
 // GetAdminReviewList @Summary Общий список отзывов (Admin)
-// @Tags Admin
-// @Security ApiKeyAuth
-// @Produce json
-// @Param restaurantId query string false "Restaurant ID"
-// @Param limit query int false "Лимит" default(20)
-// @Param offset query int false "Сдвиг" default(0)
-// @Success 200 {object} AdminReviewsResponse
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /admin/reviews [get]
 func (h *Handler) GetAdminReviewList(c *gin.Context) {
 	limit, offset, ok := adminPaginationQuery(c, 20)
 	if !ok {
@@ -614,17 +522,6 @@ func (h *Handler) GetAdminReviewList(c *gin.Context) {
 }
 
 // GetAdminReviews @Summary Список отзывов с данными авторов (Admin)
-// @Tags Admin
-// @Security ApiKeyAuth
-// @Produce json
-// @Param id path string true "Restaurant ID"
-// @Param limit query int false "Лимит" default(20)
-// @Param offset query int false "Сдвиг" default(0)
-// @Success 200 {object} AdminReviewsResponse
-// @Failure 400 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /admin/restaurants/{id}/reviews [get]
 func (h *Handler) GetAdminReviews(c *gin.Context) {
 	restaurantID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -683,10 +580,6 @@ func adminPaginationQuery(c *gin.Context, defaultLimit int) (int, int, bool) {
 }
 
 // GetPartnerReviews @Summary Отзывы моего ресторана (Partner)
-// @Tags Partner
-// @Security ApiKeyAuth
-// @Produce json
-// @Router /partner/reviews [get]
 func (h *Handler) GetPartnerReviews(c *gin.Context) {
 	userID := c.GetString("user_id")
 	rest, err := h.service.GetPartnerRestaurant(userID)
