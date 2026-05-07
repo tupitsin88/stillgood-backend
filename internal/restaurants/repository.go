@@ -17,6 +17,7 @@ type OfferMeta struct {
 
 type Repository interface {
 	GetList(params ListParams) ([]domain.Restaurant, int64, error)
+	GetAdminList(limit, offset int) ([]domain.Restaurant, int64, error)
 	GetByID(id string) (*domain.Restaurant, error)
 	CreateForPartner(restaurant *domain.Restaurant) error
 	GetByPartnerID(partnerID uuid.UUID) (*domain.Restaurant, error)
@@ -80,6 +81,20 @@ func (r *repository) GetList(params ListParams) ([]domain.Restaurant, int64, err
 	}
 
 	if err := query.Limit(params.Limit).Offset(params.Offset).Find(&restaurants).Error; err != nil {
+		return nil, 0, err
+	}
+	return restaurants, total, nil
+}
+
+func (r *repository) GetAdminList(limit, offset int) ([]domain.Restaurant, int64, error) {
+	var restaurants []domain.Restaurant
+	var total int64
+
+	query := r.db.Model(&domain.Restaurant{})
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&restaurants).Error; err != nil {
 		return nil, 0, err
 	}
 	return restaurants, total, nil

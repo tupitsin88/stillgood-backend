@@ -54,6 +54,9 @@ func RegisterRoutes(r *gin.Engine, h *Handler) {
 		admin.POST("/users/:id/block", h.BlockUser)
 		admin.POST("/users/:id/unblock", h.UnblockUser)
 
+		admin.GET("/restaurants", h.RestaurantsPage)
+		admin.POST("/restaurants/:id/update", h.UpdateRestaurant)
+
 		admin.GET("/reviews", h.ReviewsPage)
 		admin.POST("/reviews/:id/delete", h.DeleteReview)
 

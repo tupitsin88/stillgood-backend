@@ -28,6 +28,7 @@ import (
 
 type Service interface {
 	GetList(params ListParams) ([]domain.Restaurant, int64, error)
+	GetAdminList(limit, offset int) ([]domain.Restaurant, int64, error)
 	GetByID(id string) (*domain.Restaurant, error)
 	CreateRestaurant(partnerID string, req CreateRestaurantRequest) (*domain.Restaurant, error)
 	GetPartnerRestaurant(partnerID string) (*domain.Restaurant, error)
@@ -82,6 +83,19 @@ func NewService(repo Repository, fileStorage *filestorage.FileStorage) Service {
 
 func (s *service) GetList(params ListParams) ([]domain.Restaurant, int64, error) {
 	return s.repo.GetList(params)
+}
+
+func (s *service) GetAdminList(limit, offset int) ([]domain.Restaurant, int64, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return s.repo.GetAdminList(limit, offset)
 }
 
 func (s *service) GetByID(id string) (*domain.Restaurant, error) {
