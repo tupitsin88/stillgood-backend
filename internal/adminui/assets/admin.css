@@ -170,6 +170,19 @@ td.actions {
 	width: max-content;
 }
 
+.restaurant-admin-form {
+	align-items: end;
+	flex-wrap: nowrap;
+}
+
+.restaurant-admin-form input {
+	width: 110px;
+}
+
+.restaurant-admin-form select {
+	width: 120px;
+}
+
 .action-row {
 	margin-top: 8px;
 }

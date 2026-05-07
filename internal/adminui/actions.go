@@ -1,7 +1,10 @@
 package adminui
 
 import (
+	"strconv"
 	"strings"
+
+	"kursach_backend/internal/restaurants"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -30,6 +33,26 @@ func (h *Handler) UnblockUser(c *gin.Context) {
 func (h *Handler) DeleteReview(c *gin.Context) {
 	err := h.restaurantsService.DeleteReview(c.Param("id"))
 	h.redirectBack(c, "/admin/reviews", "Review deleted", actionError(err))
+}
+
+func (h *Handler) UpdateRestaurant(c *gin.Context) {
+	commission, err := strconv.ParseFloat(strings.TrimSpace(c.PostForm("commission")), 64)
+	if err != nil {
+		h.redirectBack(c, "/admin/restaurants", "", "Invalid commission")
+		return
+	}
+
+	isActive, err := strconv.ParseBool(strings.TrimSpace(c.PostForm("isActive")))
+	if err != nil {
+		h.redirectBack(c, "/admin/restaurants", "", "Invalid active status")
+		return
+	}
+
+	_, err = h.restaurantsService.UpdateAdminRestaurant(c.Param("id"), restaurants.AdminRestaurantUpdateRequest{
+		Commission: &commission,
+		IsActive:   &isActive,
+	})
+	h.redirectBack(c, "/admin/restaurants", "Restaurant updated", actionError(err))
 }
 
 func (h *Handler) CreateCategory(c *gin.Context) {

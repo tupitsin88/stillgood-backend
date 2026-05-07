@@ -71,6 +71,20 @@ func (h *Handler) ReviewsPage(c *gin.Context) {
 	h.render(c, "reviews", data)
 }
 
+func (h *Handler) RestaurantsPage(c *gin.Context) {
+	limit, offset, pageErr := htmlPagination(c, 20)
+	restaurants, total, err := h.restaurantsService.GetAdminList(limit, offset)
+
+	data := viewData{
+		Base:        h.base(c, "Restaurants", "restaurants"),
+		Restaurants: restaurantRows(restaurants),
+		Pagination:  pagination(c, total, limit, offset),
+	}
+	setPageError(&data, pageErr, err, "Failed to load restaurants")
+
+	h.render(c, "restaurants", data)
+}
+
 func (h *Handler) CategoriesPage(c *gin.Context) {
 	items, err := h.categoriesService.GetAll()
 	data := viewData{
