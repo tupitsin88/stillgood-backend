@@ -51,7 +51,6 @@ func setupOffersTestDB(t *testing.T) *gorm.DB {
 	db, err := postgres.NewDB(dsn)
 	require.NoError(t, err)
 
-	// КРИТИЧЕСКИЙ ФИКС: Блокировка, чтобы тесты разных пакетов не дрались за базу
 	db.Exec("SELECT pg_advisory_lock(123456)")
 
 	cleanupSQL := `
@@ -66,8 +65,6 @@ func setupOffersTestDB(t *testing.T) *gorm.DB {
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
 	require.NoError(t, goose.Up(sqlDB, "../../migrations"))
-
-	// Разблокируем только ПОСЛЕ того, как накатили миграции
 	db.Exec("SELECT pg_advisory_unlock(123456)")
 
 	return db
@@ -128,7 +125,6 @@ func TestOfferRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("GetPublicOffers with GeoLocation", func(t *testing.T) {
-		// Смещаем координаты запроса на ~1км, чтобы дистанция НЕ была нулевой
 		lat := 55.76
 		lng := 37.62
 		params := FilterParams{
@@ -140,6 +136,6 @@ func TestOfferRepository_Integration(t *testing.T) {
 		assert.GreaterOrEqual(t, total, int64(1))
 		require.NotEmpty(t, offers)
 		assert.NotNil(t, offers[0].Distance)
-		assert.Greater(t, *offers[0].Distance, 0) // Теперь тут будет > 0
+		assert.Greater(t, *offers[0].Distance, 0)
 	})
 }
