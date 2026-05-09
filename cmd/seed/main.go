@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	demoPassword = "Password123!"
-	demoDomain   = "@stillgood.test"
+	demoPassword      = "Password123!"
+	demoDomain        = "@stillgood.test"
+	analyticsSeedDays = 14
 )
 
 type demoData struct {
@@ -517,9 +518,9 @@ func analyticsRows(today time.Time, bakeryID, sushiID, groceryID uuid.UUID) []do
 		{groceryID, "Напитки", 7, 6, 0, 0, 1750},
 	}
 
-	for day := 0; day < 5; day++ {
+	for day := 0; day < analyticsSeedDays; day++ {
 		date := today.AddDate(0, 0, -day)
-		decay := float64(5-day) / 5
+		decay := 1 - float64(day)*0.04
 		for _, item := range baseRows {
 			revenue := item.revenue * decay
 			serviceFee := revenue * 0.15
@@ -535,7 +536,7 @@ func analyticsRows(today time.Time, bakeryID, sushiID, groceryID uuid.UUID) []do
 				GrossRevenue:    revenue,
 				ServiceFee:      serviceFee,
 				NetPayout:       revenue - serviceFee,
-				CreatedAt:       time.Now().UTC(),
+				CreatedAt:       analyticsGeneratedAt(date),
 			})
 		}
 	}
@@ -596,6 +597,10 @@ func timePtr(value time.Time) *time.Time {
 
 func dayStart(value time.Time) time.Time {
 	return time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+func analyticsGeneratedAt(date time.Time) time.Time {
+	return time.Date(date.Year(), date.Month(), date.Day()+1, 2, 0, 0, 0, time.UTC)
 }
 
 func maxInt(a, b int) int {

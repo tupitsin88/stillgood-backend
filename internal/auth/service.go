@@ -92,6 +92,7 @@ type Service interface {
 type resetCodeEntry struct {
 	Code      string
 	ExpiresAt time.Time
+	SentAt    time.Time
 }
 
 type resetTokenEntry struct {
@@ -717,10 +718,18 @@ func (s *service) ForgotPassword(email string) (int, error) {
 		return 0, err
 	}
 
+	now := time.Now()
 	s.mu.Lock()
+	if entry, ok := s.resetCodes[email]; ok {
+		if now.Sub(entry.SentAt) < time.Minute {
+			s.mu.Unlock()
+			return 0, ErrVerificationCodeTooFrequent
+		}
+	}
 	s.resetCodes[email] = resetCodeEntry{
 		Code:      code,
-		ExpiresAt: time.Now().Add(passwordResetCodeTTL),
+		ExpiresAt: now.Add(passwordResetCodeTTL),
+		SentAt:    now,
 	}
 	s.mu.Unlock()
 
