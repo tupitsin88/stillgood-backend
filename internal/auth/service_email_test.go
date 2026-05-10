@@ -175,6 +175,23 @@ func TestRequestEmailVerificationDoesNotSendForUnknownEmail(t *testing.T) {
 	assert.Empty(t, sender.verification)
 }
 
+func TestRequestEmailVerificationRejectsRepeatedRequestWithinMinute(t *testing.T) {
+	repo := newAuthEmailRepoStub(&domain.User{
+		Email: "user@example.com",
+		Name:  "Alice",
+	})
+	sender := &emailSenderSpy{}
+	service := NewService(repo, nil, time.Minute, time.Hour, "", sender)
+
+	_, err := service.RequestEmailVerification("user@example.com")
+	require.NoError(t, err)
+
+	_, err = service.RequestEmailVerification("user@example.com")
+
+	assert.ErrorIs(t, err, ErrVerificationCodeTooFrequent)
+	assert.Len(t, sender.verification, 1)
+}
+
 func TestRequestEmailVerificationRemovesCodeWhenSendFails(t *testing.T) {
 	repo := newAuthEmailRepoStub(&domain.User{Email: "user@example.com"})
 	sender := &emailSenderSpy{err: errors.New("resend unavailable")}
@@ -207,6 +224,23 @@ func TestForgotPasswordSendsResetCode(t *testing.T) {
 	resetToken, err := service.VerifyResetCode("user@example.com", sender.reset[0].code)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resetToken)
+}
+
+func TestForgotPasswordRejectsRepeatedRequestWithinMinute(t *testing.T) {
+	repo := newAuthEmailRepoStub(&domain.User{
+		Email: "user@example.com",
+		Name:  "Alice",
+	})
+	sender := &emailSenderSpy{}
+	service := NewService(repo, nil, time.Minute, time.Hour, "", sender)
+
+	_, err := service.ForgotPassword("user@example.com")
+	require.NoError(t, err)
+
+	_, err = service.ForgotPassword("user@example.com")
+
+	assert.ErrorIs(t, err, ErrVerificationCodeTooFrequent)
+	assert.Len(t, sender.reset, 1)
 }
 
 func TestForgotPasswordRemovesResetCodeWhenSendFails(t *testing.T) {

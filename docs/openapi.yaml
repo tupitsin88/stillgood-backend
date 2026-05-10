@@ -476,6 +476,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Слишком много запросов (код уже был отправлен недавно)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Не удалось доставить письмо с кодом сброса пароля
           content:
