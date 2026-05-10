@@ -45,6 +45,30 @@ func TestForgotPasswordReturnsServiceUnavailableWhenEmailDeliveryFails(t *testin
 	}`, rec.Body.String())
 }
 
+func TestForgotPasswordReturnsTooManyRequestsWhenCodeWasSentRecently(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler := NewHandler(forgotPasswordServiceStub{err: ErrVerificationCodeTooFrequent})
+	router := gin.New()
+	router.POST("/auth/forgot-password", handler.ForgotPassword)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/auth/forgot-password",
+		strings.NewReader(`{"email":"user@example.com"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
+	assert.JSONEq(t, `{
+		"error": "TOO_MANY_REQUESTS",
+		"message": "Please wait at least 1 minute before requesting a new code"
+	}`, rec.Body.String())
+}
+
 func TestForgotPasswordKeepsUnexpectedErrorsInternal(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
