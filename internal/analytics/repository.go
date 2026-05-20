@@ -52,7 +52,7 @@ func (r *AnalyticsRepository) AggregateDailyStats(ctx context.Context, date time
 			COALESCE(s.cancelled, 0) as cancelled_orders,
 			COALESCE(s.expired, 0) as expired_orders,
 			COALESCE(s.revenue, 0) as gross_revenue,
-			res.commission as restaurant_commission -- ТЯНЕМ КОМИССИЮ ИЗ БД
+			res.commission as restaurant_commission
 		FROM daily_orders d
 		FULL OUTER JOIN status_changes s ON d.restaurant_id = s.restaurant_id AND d.category_id = s.category_id
 		JOIN categories c ON c.id = COALESCE(d.category_id, s.category_id)
@@ -76,10 +76,6 @@ func (r *AnalyticsRepository) AggregateDailyStats(ctx context.Context, date time
 
 	for _, s := range rawStats {
 		commRate := s.RestaurantCommission / 100.0
-		if commRate == 0 {
-			commRate = 0.15
-		}
-
 		fee := s.GrossRevenue * commRate
 		results = append(results, domain.DailyAnalytics{
 			ID:              uuid.New(),

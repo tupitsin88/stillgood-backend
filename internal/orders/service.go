@@ -200,6 +200,8 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID, actorID uuid.UU
 		if order.Offer.RestaurantID != actorID {
 			return nil, 0, fmt.Errorf("unauthorized: not your restaurant's order")
 		}
+	default:
+		return nil, 0, fmt.Errorf("unauthorized")
 	}
 	if !s.canTransition(order.Status, domain.OrderCancelled) {
 		return nil, 0, fmt.Errorf("CANNOT_CANCEL")
@@ -262,10 +264,6 @@ func (s *OrderService) CompleteOrder(ctx context.Context, orderID uuid.UUID, res
 	order.CompletedAt = &now
 
 	commissionRate := order.Offer.Restaurant.Commission / 100.0
-	if commissionRate == 0 {
-		commissionRate = 0.15
-	}
-
 	order.ServiceFee = order.Amount * commissionRate
 	order.NetPayout = order.Amount - order.ServiceFee
 
@@ -298,6 +296,20 @@ func (s *OrderService) GetOrderById(ctx context.Context, orderID, userID uuid.UU
 		return nil, err
 	}
 	if order.UserID != userID {
+		return nil, fmt.Errorf("unauthorized")
+	}
+	return order, nil
+}
+
+func (s *OrderService) GetPartnerOrderByID(ctx context.Context, orderID, restaurantID uuid.UUID) (*domain.Order, error) {
+	order, err := s.repo.GetByIDWithDetails(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("not found")
+		}
+		return nil, err
+	}
+	if order.Offer.RestaurantID != restaurantID {
 		return nil, fmt.Errorf("unauthorized")
 	}
 	return order, nil

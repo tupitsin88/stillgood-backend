@@ -39,6 +39,7 @@ var ErrPasswordRequired = errors.New("password required")
 var ErrWeakPassword = errors.New("password must be at least 8 characters and include a digit and a special character")
 var ErrInvalidRefreshToken = errors.New("invalid refresh token")
 var ErrDeviceTokenRequired = errors.New("device token is required")
+var ErrInvalidDevicePlatform = errors.New("invalid device platform")
 var ErrUserNotFound = errors.New("user not found")
 var ErrInvalidUserRoleFilter = errors.New("invalid user role filter")
 var ErrCannotBlockAdmin = errors.New("cannot block admin user")
@@ -69,6 +70,7 @@ type Service interface {
 	Login(email, password, deviceToken string) (Tokens, *domain.User, error)
 	OAuthLogin(provider, idToken, deviceToken string) (Tokens, *domain.User, bool, error)
 	RefreshTokens(refreshToken string) (Tokens, error)
+	UpdateDeviceToken(userID, deviceToken, platform string) error
 	ChangePassword(userID, currentPassword, newPassword string) error
 	UpdateProfile(userID string, name, phone, email *string) (*domain.User, error)
 	ChangeEmail(userID, newEmail string) (*domain.User, error)
@@ -399,6 +401,23 @@ func (s *service) RefreshTokens(refreshToken string) (Tokens, error) {
 	}
 
 	return s.generateTokens(user.ID.String(), user.Role, restID, user.PartnerStatus)
+}
+
+func (s *service) UpdateDeviceToken(userID, deviceToken, platform string) error {
+	uid, err := uuid.Parse(strings.TrimSpace(userID))
+	if err != nil {
+		return ErrUserNotFound
+	}
+	deviceToken = strings.TrimSpace(deviceToken)
+	if deviceToken == "" {
+		return ErrDeviceTokenRequired
+	}
+	switch strings.ToLower(strings.TrimSpace(platform)) {
+	case "android", "ios":
+	default:
+		return ErrInvalidDevicePlatform
+	}
+	return s.repo.UpdateDeviceToken(uid, deviceToken)
 }
 
 func (s *service) ChangePassword(userID, currentPassword, newPassword string) error {
@@ -1096,6 +1115,11 @@ func (s *service) setPartnerStatus(partnerID, nextStatus string) (*domain.User, 
 
 	if err := s.repo.UpdatePartnerStatus(uid, nextStatus); err != nil {
 		return nil, err
+	}
+	if nextStatus == PartnerStatusApproved {
+		if err := s.repo.SyncPartnerRestaurantID(uid); err != nil {
+			return nil, err
+		}
 	}
 
 	return s.repo.GetByID(uid)

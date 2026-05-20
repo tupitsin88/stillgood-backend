@@ -86,6 +86,10 @@ func (r *authEmailRepoStub) UpdatePartnerStatus(userID uuid.UUID, status string)
 	return errors.New("not implemented")
 }
 
+func (r *authEmailRepoStub) SyncPartnerRestaurantID(userID uuid.UUID) error {
+	return errors.New("not implemented")
+}
+
 func (r *authEmailRepoStub) UpdateBlockedStatus(userID uuid.UUID, isBlocked bool) error {
 	return errors.New("not implemented")
 }

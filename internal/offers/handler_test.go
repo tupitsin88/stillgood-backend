@@ -28,6 +28,27 @@ func TestUpdateOffer_InvalidID(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "INVALID_ID")
 }
 
+func TestCreateOfferValidationReturnsStableError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler := NewOfferHandler(nil)
+	router := gin.New()
+	router.POST("/partner/offers", handler.CreateOffer)
+	req := httptest.NewRequest(http.MethodPost, "/partner/offers", bytes.NewBufferString(`{"title":"Box"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.JSONEq(t, `{
+		"error": "PRICE_REQUIRED",
+		"message": "price is required"
+	}`, rec.Body.String())
+	assert.NotContains(t, rec.Body.String(), "CreateOfferRequest")
+	assert.NotContains(t, rec.Body.String(), "Field validation")
+}
+
 func TestGetOfferByID_NotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	repo := &offerRepoStub{err: fmt.Errorf("not found")}

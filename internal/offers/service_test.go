@@ -127,7 +127,8 @@ func TestUpdateOffer_QuantityLogic(t *testing.T) {
 	}
 
 	t.Run("Increases available quantity when total is increased", func(t *testing.T) {
-		repo := &offerRepoStub{offer: existingOffer}
+		offer := *existingOffer
+		repo := &offerRepoStub{offer: &offer}
 		service := NewOfferService(repo, nil)
 
 		newTotal := 15
@@ -140,18 +141,53 @@ func TestUpdateOffer_QuantityLogic(t *testing.T) {
 		assert.Equal(t, 10, updated.QuantityAvailable)
 	})
 
-	t.Run("Prevents negative available quantity", func(t *testing.T) {
-		repo := &offerRepoStub{offer: existingOffer}
+	t.Run("Reduces available quantity while preserving reserved quantity", func(t *testing.T) {
+		offer := *existingOffer
+		repo := &offerRepoStub{offer: &offer}
 		service := NewOfferService(repo, nil)
 
-		newTotal := 2
+		newTotal := 8
 		req := UpdateOfferRequest{Quantity: &newTotal}
 
 		updated, err := service.UpdateOffer(context.Background(), offerID, partnerID, req)
 
 		require.NoError(t, err)
-		assert.Equal(t, 0, updated.QuantityAvailable)
+		assert.Equal(t, 8, updated.QuantityTotal)
+		assert.Equal(t, 3, updated.QuantityAvailable)
 	})
+
+	t.Run("Rejects total lower than reserved quantity", func(t *testing.T) {
+		offer := *existingOffer
+		repo := &offerRepoStub{offer: &offer}
+		service := NewOfferService(repo, nil)
+
+		newTotal := 2
+		req := UpdateOfferRequest{Quantity: &newTotal}
+
+		_, err := service.UpdateOffer(context.Background(), offerID, partnerID, req)
+
+		require.Error(t, err)
+		assert.Equal(t, "INVALID_QUANTITY", err.Error())
+	})
+}
+
+func TestUpdateOffer_RejectsInvalidCategoryID(t *testing.T) {
+	offerID := uuid.New()
+	partnerID := uuid.New()
+	existingOffer := &domain.Offer{
+		ID:         offerID,
+		Restaurant: domain.Restaurant{PartnerID: partnerID},
+	}
+	repo := &offerRepoStub{offer: existingOffer}
+	service := NewOfferService(repo, nil)
+	badCategoryID := "not-a-uuid"
+
+	_, err := service.UpdateOffer(context.Background(), offerID, partnerID, UpdateOfferRequest{
+		CategoryID: &badCategoryID,
+	})
+
+	require.Error(t, err)
+	assert.Equal(t, "INVALID_CATEGORY_ID", err.Error())
 }
 
 func TestGetOfferByID_Availability(t *testing.T) {

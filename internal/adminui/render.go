@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"kursach_backend/internal/auth"
+	"kursach_backend/internal/categories"
 	"kursach_backend/internal/domain"
 	"kursach_backend/internal/restaurants"
 
@@ -165,7 +166,7 @@ func actionError(err error) string {
 		return "Invalid restaurant id"
 	case errors.Is(err, restaurants.ErrInvalidReviewID):
 		return "Invalid review id"
-	case strings.Contains(err.Error(), "CANNOT_DELETE_CATEGORY_WITH_ACTIVE_OFFERS"):
+	case errors.Is(err, categories.ErrCategoryHasOffers):
 		return "Cannot delete category with active offers"
 	default:
 		return "Action failed"
