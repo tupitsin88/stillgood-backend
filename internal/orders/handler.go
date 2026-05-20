@@ -3,6 +3,8 @@ package orders
 import (
 	"io"
 	"kursach_backend/internal/domain"
+	"kursach_backend/internal/pkg/httputil"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -29,8 +31,7 @@ func errorResponse(c *gin.Context, code int, errorCode string, message string) {
 // CreateOrder @Summary Создание заказа
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	var req CreateOrderRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		errorResponse(c, 400, "INVALID_REQUEST", err.Error())
+	if !httputil.BindJSON(c, &req) {
 		return
 	}
 	uidStr := c.GetString("user_id")
@@ -47,8 +48,10 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 			errorResponse(c, 404, "OFFER_NOT_FOUND", "The requested offer does not exist")
 		case "OFFER_OUT_OF_STOCK", "OFFER_NOT_ACTIVE", "PICKUP_PERIOD_EXPIRED":
 			errorResponse(c, 422, err.Error(), "Offer is unavailable for booking")
+		case "INVALID_OFFER_ID":
+			errorResponse(c, http.StatusBadRequest, "INVALID_OFFER_ID", "offerId must be a valid UUID")
 		default:
-			errorResponse(c, 400, "CREATION_FAILED", err.Error())
+			errorResponse(c, http.StatusInternalServerError, "CREATION_FAILED", "Failed to create order")
 		}
 		return
 	}
@@ -97,7 +100,7 @@ func (h *OrderHandler) PayOrder(c *gin.Context) {
 		case "not found":
 			errorResponse(c, 404, "ORDER_NOT_FOUND", "Order not found")
 		default:
-			errorResponse(c, 400, "PAYMENT_FAILED", err.Error())
+			errorResponse(c, http.StatusInternalServerError, "PAYMENT_FAILED", "Failed to pay order")
 		}
 		return
 	}
@@ -120,18 +123,27 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	}
 	role := c.GetString("role")
 	userIDStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(userIDStr)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		errorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid or missing User ID")
+		return
+	}
 	var actorID uuid.UUID
 	if role == "PARTNER" {
 		restIDStr := c.GetString("restaurant_id")
-		actorID, _ = uuid.Parse(restIDStr)
+		actorID, err = uuid.Parse(restIDStr)
+		if err != nil {
+			errorResponse(c, http.StatusBadRequest, "INVALID_RESTAURANT_ID", "Your account is not linked to a restaurant")
+			return
+		}
 	} else {
 		actorID = userID
 	}
 	var req CancelOrderRequest
 	err = c.ShouldBindJSON(&req)
 	if err != nil && err != io.EOF {
-		errorResponse(c, 400, "INVALID_REQUEST", err.Error())
+		code, message := httputil.BindingError(err, &req)
+		errorResponse(c, http.StatusBadRequest, code, message)
 		return
 	}
 	order, refund, err := h.service.CancelOrder(c.Request.Context(), orderID, actorID, role, req.Reason)
@@ -147,7 +159,7 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 		case strings.HasPrefix(errText, "unauthorized"):
 			errorResponse(c, 403, "FORBIDDEN", "You do not own this order")
 		default:
-			errorResponse(c, 400, "CANCELLATION_FAILED", errText)
+			errorResponse(c, http.StatusInternalServerError, "CANCELLATION_FAILED", "Failed to cancel order")
 		}
 		return
 	}
@@ -186,7 +198,7 @@ func (h *OrderHandler) CompleteOrder(c *gin.Context) {
 		case "not found":
 			errorResponse(c, 404, "ORDER_NOT_FOUND", "Order not found")
 		default:
-			errorResponse(c, 500, "COMPLETION_FAILED", err.Error())
+			errorResponse(c, http.StatusInternalServerError, "COMPLETION_FAILED", "Failed to complete order")
 		}
 		return
 	}
@@ -206,8 +218,10 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 		errorResponse(c, 401, "UNAUTHORIZED", "Invalid or missing User ID")
 		return
 	}
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit, offset, ok := paginationQuery(c, 20)
+	if !ok {
+		return
+	}
 	statusStr := c.Query("status")
 	var statuses []string
 	if statusStr != "" {
@@ -224,7 +238,7 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 
 	orders, total, err := h.service.repo.GetUserOrders(c.Request.Context(), userID, limit, offset, statuses)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch orders")
 		return
 	}
 
@@ -259,10 +273,14 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 // GetUserStats @Summary Статистика пользователя
 func (h *OrderHandler) GetUserStats(c *gin.Context) {
 	uidStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(uidStr)
+	userID, err := uuid.Parse(uidStr)
+	if err != nil {
+		errorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid or missing User ID")
+		return
+	}
 	boxes, money, err := h.service.repo.GetUserStats(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch user stats")
 		return
 	}
 	c.JSON(200, UserStatsResponse{
@@ -274,9 +292,15 @@ func (h *OrderHandler) GetUserStats(c *gin.Context) {
 // GetPartnerOrders @Summary Заказы партнёра
 func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 	restIDStr := c.GetString("restaurant_id")
-	restaurantID, _ := uuid.Parse(restIDStr)
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	restaurantID, err := uuid.Parse(restIDStr)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "INVALID_RESTAURANT_ID", "Your account is not linked to a restaurant")
+		return
+	}
+	limit, offset, ok := paginationQuery(c, 20)
+	if !ok {
+		return
+	}
 	statusStr := c.Query("status")
 	var statuses []string
 	if statusStr != "" {
@@ -292,7 +316,7 @@ func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 	}
 	orders, total, err := h.service.repo.GetPartnerOrdersWithTotal(c.Request.Context(), restaurantID, limit, offset, statuses)
 	if err != nil {
-		errorResponse(c, 500, "INTERNAL_ERROR", err.Error())
+		errorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch partner orders")
 		return
 	}
 
@@ -323,6 +347,36 @@ func (h *OrderHandler) GetPartnerOrders(c *gin.Context) {
 	})
 }
 
+// GetPartnerOrderByID @Summary Детали заказа партнёра
+func (h *OrderHandler) GetPartnerOrderByID(c *gin.Context) {
+	orderID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "INVALID_ID", "Invalid ID format")
+		return
+	}
+	restIDStr := c.GetString("restaurant_id")
+	restaurantID, err := uuid.Parse(restIDStr)
+	if err != nil {
+		errorResponse(c, http.StatusBadRequest, "INVALID_RESTAURANT_ID", "Your account is not linked to a restaurant")
+		return
+	}
+
+	order, err := h.service.GetPartnerOrderByID(c.Request.Context(), orderID, restaurantID)
+	if err != nil {
+		switch err.Error() {
+		case "unauthorized":
+			errorResponse(c, http.StatusForbidden, "FORBIDDEN", "This order belongs to another restaurant")
+		case "not found":
+			errorResponse(c, http.StatusNotFound, "ORDER_NOT_FOUND", "Order not found")
+		default:
+			errorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch order")
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, orderDetailDTO(order))
+}
+
 // GetOrderById @Summary Детали заказа
 func (h *OrderHandler) GetOrderById(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
@@ -331,7 +385,11 @@ func (h *OrderHandler) GetOrderById(c *gin.Context) {
 		return
 	}
 	uidStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(uidStr)
+	userID, err := uuid.Parse(uidStr)
+	if err != nil {
+		errorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid or missing User ID")
+		return
+	}
 
 	order, err := h.service.GetOrderById(c.Request.Context(), id, userID)
 	if err != nil {
@@ -341,12 +399,16 @@ func (h *OrderHandler) GetOrderById(c *gin.Context) {
 		case "not found":
 			errorResponse(c, 404, "ORDER_NOT_FOUND", "Order not found")
 		default:
-			errorResponse(c, 500, "INTERNAL_ERROR", err.Error())
+			errorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch order")
 		}
 		return
 	}
 
-	resp := OrderDetailDTO{
+	c.JSON(200, orderDetailDTO(order))
+}
+
+func orderDetailDTO(order *domain.Order) OrderDetailDTO {
+	return OrderDetailDTO{
 		ID:                 order.ID.String(),
 		Status:             string(order.Status),
 		Amount:             order.Amount,
@@ -381,8 +443,6 @@ func (h *OrderHandler) GetOrderById(c *gin.Context) {
 			Phone:     order.Offer.Restaurant.Phone,
 		},
 	}
-
-	c.JSON(200, resp)
 }
 
 // CreateReview @Summary Оставить отзыв
@@ -393,13 +453,16 @@ func (h *OrderHandler) CreateReview(c *gin.Context) {
 		return
 	}
 	var req CreateReviewRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		errorResponse(c, 400, "INVALID_REQUEST", err.Error())
+	if !httputil.BindJSON(c, &req) {
 		return
 	}
 
 	uidStr := c.GetString("user_id")
-	userID, _ := uuid.Parse(uidStr)
+	userID, err := uuid.Parse(uidStr)
+	if err != nil {
+		errorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid or missing User ID")
+		return
+	}
 
 	review, err := h.service.CreateReview(c.Request.Context(), orderID, userID, req)
 	if err != nil {
@@ -411,7 +474,7 @@ func (h *OrderHandler) CreateReview(c *gin.Context) {
 		case "unauthorized":
 			errorResponse(c, 403, "FORBIDDEN", "You do not own this order")
 		default:
-			errorResponse(c, 500, "REVIEW_FAILED", err.Error())
+			errorResponse(c, http.StatusInternalServerError, "REVIEW_FAILED", "Failed to create review")
 		}
 		return
 	}
@@ -430,4 +493,22 @@ func isValidStatus(s string) bool {
 		return true
 	}
 	return false
+}
+
+func paginationQuery(c *gin.Context, defaultLimit int) (int, int, bool) {
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", strconv.Itoa(defaultLimit)))
+	if err != nil || limit <= 0 {
+		errorResponse(c, http.StatusBadRequest, "INVALID_LIMIT", "limit must be a positive integer")
+		return 0, 0, false
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil || offset < 0 {
+		errorResponse(c, http.StatusBadRequest, "INVALID_OFFSET", "offset must be a non-negative integer")
+		return 0, 0, false
+	}
+	return limit, offset, true
 }

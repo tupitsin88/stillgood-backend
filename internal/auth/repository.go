@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ type Repository interface {
 	ListPartnersByStatus(status string, limit, offset int) ([]domain.User, int64, error)
 	ListUsersByRoles(roles []string, limit, offset int, search string) ([]domain.User, int64, error)
 	UpdatePartnerStatus(userID uuid.UUID, status string) error
+	SyncPartnerRestaurantID(userID uuid.UUID) error
 	UpdateBlockedStatus(userID uuid.UUID, isBlocked bool) error
 	UpdateDeviceToken(userID uuid.UUID, token string) error
 	UpdatePasswordHash(userID uuid.UUID, passwordHash string) error
@@ -124,6 +126,29 @@ func (r *repository) UpdatePartnerStatus(userID uuid.UUID, status string) error 
 	result := r.db.Model(&domain.User{}).
 		Where("id = ? AND role = ? AND deleted_at IS NULL", userID, "PARTNER").
 		Update("partner_status", status)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (r *repository) SyncPartnerRestaurantID(userID uuid.UUID) error {
+	var restaurant domain.Restaurant
+	err := r.db.Select("id").Where("partner_id = ?", userID).First(&restaurant).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	result := r.db.Model(&domain.User{}).
+		Where("id = ? AND role = ? AND deleted_at IS NULL", userID, "PARTNER").
+		Update("restaurant_id", restaurant.ID)
 	if result.Error != nil {
 		return result.Error
 	}

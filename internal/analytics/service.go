@@ -56,7 +56,7 @@ func (s *AnalyticsService) StartAnalyticsWorker(ctx context.Context) {
 		return
 	}
 	c.Start()
-	log.Printf("[Analytics Worker] Professional Cron Scheduler started. Next run at 02:00 daily.")
+	log.Printf("[Analytics Worker] Cron scheduler started. Next run at 02:00 daily.")
 	<-ctx.Done()
 	log.Printf("[Analytics Worker] Stopping scheduler...")
 	c.Stop()

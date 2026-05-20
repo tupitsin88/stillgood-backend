@@ -2,12 +2,12 @@ package offers
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"kursach_backend/internal/pkg/geo"
+	"kursach_backend/internal/pkg/httputil"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -26,19 +26,11 @@ func NewOfferHandler(service *OfferService) *OfferHandler {
 // CreateOffer @Summary Создание предложения
 func (h *OfferHandler) CreateOffer(c *gin.Context) {
 	var req CreateOfferRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+	if !httputil.BindJSON(c, &req) {
 		return
 	}
-	uidValue, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "UNAUTHORIZED", "message": "User ID not found in context"})
-		return
-	}
-	uidStr := fmt.Sprintf("%v", uidValue)
-	partnerID, err := uuid.Parse(uidStr)
-	if err != nil || partnerID == uuid.Nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "UNAUTHORIZED", "message": "Invalid User ID format"})
+	partnerID, ok := partnerIDFromContext(c)
+	if !ok {
 		return
 	}
 	offer, err := h.service.CreateOffer(c.Request.Context(), partnerID, req)
@@ -48,10 +40,18 @@ func (h *OfferHandler) CreateOffer(c *gin.Context) {
 			c.JSON(403, gin.H{"error": "PARTNER_NOT_APPROVED", "message": "Partner has no active restaurant"})
 		case "INVALID_CATEGORY_ID":
 			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_CATEGORY_ID", "message": "The provided category ID is not a valid UUID"})
+		case "INVALID_QUANTITY":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_QUANTITY", "message": "quantity must be a positive total amount"})
+		case "INVALID_PRICE":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_PRICE", "message": "price must not exceed originalPrice"})
+		case "INVALID_TIME_RANGE":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_TIME_RANGE", "message": "pickupEnd must be after pickupStart"})
+		case "START_TIME_IN_PAST":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "START_TIME_IN_PAST", "message": "pickupStart must not be in the past"})
 		case "PARTNER_NOT_APPROVED":
 			c.JSON(http.StatusForbidden, gin.H{"error": "PARTNER_NOT_APPROVED", "message": "Your account must be approved to create offers"})
 		default:
-			c.JSON(400, gin.H{"error": "CREATION_FAILED", "message": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "CREATION_FAILED", "message": "Failed to create offer"})
 		}
 		return
 	}
@@ -67,11 +67,14 @@ func (h *OfferHandler) UpdateOffer(c *gin.Context) {
 		return
 	}
 	uidStr := c.GetString("user_id")
-	partnerID, _ := uuid.Parse(uidStr)
+	partnerID, err := uuid.Parse(uidStr)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UNAUTHORIZED", "message": "Invalid User ID format"})
+		return
+	}
 
 	var req UpdateOfferRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "INVALID_REQUEST"})
+	if !httputil.BindJSON(c, &req) {
 		return
 	}
 
@@ -82,8 +85,16 @@ func (h *OfferHandler) UpdateOffer(c *gin.Context) {
 			c.JSON(403, gin.H{"error": "FORBIDDEN", "message": "You do not own this offer"})
 		case "OFFER_NOT_FOUND":
 			c.JSON(404, gin.H{"error": "NOT_FOUND", "message": "Offer not found"})
+		case "INVALID_CATEGORY_ID":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_CATEGORY_ID", "message": "categoryId must be a valid UUID"})
+		case "INVALID_QUANTITY":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_QUANTITY", "message": "quantity cannot be lower than already reserved amount"})
+		case "PRICE_MUST_BE_POSITIVE":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "PRICE_MUST_BE_POSITIVE", "message": "price must be positive"})
+		case "PRICE_TOO_HIGH":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "PRICE_TOO_HIGH", "message": "price must not exceed originalPrice"})
 		default:
-			c.JSON(400, gin.H{"error": "UPDATE_FAILED", "message": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "UPDATE_FAILED", "message": "Failed to update offer"})
 		}
 		return
 	}
@@ -94,14 +105,18 @@ func (h *OfferHandler) UpdateOffer(c *gin.Context) {
 
 // GetPartnerOffers @Summary Предложения партнёра
 func (h *OfferHandler) GetPartnerOffers(c *gin.Context) {
-	uidStr := c.GetString("user_id")
-	partnerID, _ := uuid.Parse(uidStr)
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	partnerID, ok := partnerIDFromContext(c)
+	if !ok {
+		return
+	}
+	limit, offset, ok := offerPaginationQuery(c, 20)
+	if !ok {
+		return
+	}
 
 	offers, total, err := h.service.GetPartnerOffers(c.Request.Context(), partnerID, limit, offset)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "INTERNAL_ERROR", "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to fetch partner offers"})
 		return
 	}
 
@@ -113,8 +128,10 @@ func (h *OfferHandler) GetPartnerOffers(c *gin.Context) {
 
 // GetPublicOffers @Summary Список предложений
 func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit, offset, ok := offerPaginationQuery(c, 20)
+	if !ok {
+		return
+	}
 
 	params := FilterParams{
 		Limit:  limit,
@@ -207,7 +224,7 @@ func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 
 	offers, total, err := h.service.GetPublicOffers(c.Request.Context(), params)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "INTERNAL_ERROR", "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to fetch offers"})
 		return
 	}
 
@@ -220,6 +237,10 @@ func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 // GetOfferByID @Summary Детали предложения
 func (h *OfferHandler) GetOfferByID(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid offer ID format"})
+		return
+	}
 
 	dto, err := h.service.GetOfferByID(c.Request.Context(), id)
 	if err != nil {
@@ -237,8 +258,10 @@ func (h *OfferHandler) DeleteOffer(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid offer ID format"})
 		return
 	}
-	uidStr := c.GetString("user_id")
-	partnerID, _ := uuid.Parse(uidStr)
+	partnerID, ok := partnerIDFromContext(c)
+	if !ok {
+		return
+	}
 	if err := h.service.DeleteOffer(c.Request.Context(), id, partnerID); err != nil {
 		if err.Error() == "FORBIDDEN" {
 			c.JSON(403, gin.H{"error": "FORBIDDEN", "message": "You do not own this offer"})
@@ -265,10 +288,46 @@ func (h *OfferHandler) UploadImage(c *gin.Context) {
 	}
 	url, err := h.service.UploadImage(file)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "UPLOAD_FAILED", "message": err.Error()})
+		switch {
+		case errors.Is(err, ErrOfferImageTooLarge):
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "IMAGE_TOO_LARGE", "message": "Max size is 10MB"})
+		case errors.Is(err, ErrOfferInvalidImageFormat), errors.Is(err, ErrOfferUnsupportedImageFormat), errors.Is(err, ErrOfferImageProcessingFailed):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_IMAGE_FORMAT", "message": "Unsupported or invalid image format"})
+		case errors.Is(err, ErrOfferFileStorageUnavailable):
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "STORAGE_UNAVAILABLE", "message": "File storage is unavailable"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "UPLOAD_FAILED", "message": "Failed to upload image"})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, UploadOfferImageResponse{
 		URL: url,
 	})
+}
+
+func partnerIDFromContext(c *gin.Context) (uuid.UUID, bool) {
+	partnerID, err := uuid.Parse(c.GetString("user_id"))
+	if err != nil || partnerID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UNAUTHORIZED", "message": "Invalid User ID format"})
+		return uuid.Nil, false
+	}
+	return partnerID, true
+}
+
+func offerPaginationQuery(c *gin.Context, defaultLimit int) (int, int, bool) {
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", strconv.Itoa(defaultLimit)))
+	if err != nil || limit <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_LIMIT", "message": "limit must be a positive integer"})
+		return 0, 0, false
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil || offset < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_OFFSET", "message": "offset must be a non-negative integer"})
+		return 0, 0, false
+	}
+	return limit, offset, true
 }

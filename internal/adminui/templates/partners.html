@@ -4,6 +4,7 @@
 	<table>
 		<thead>
 			<tr>
+				<th>Partner ID</th>
 				<th>Name</th>
 				<th>Email</th>
 				<th>Phone</th>
@@ -15,6 +16,7 @@
 		<tbody>
 			{{ range .Partners }}
 			<tr>
+				<td class="mono">{{ .ID }}</td>
 				<td>{{ .Name }}</td>
 				<td>{{ .Email }}</td>
 				<td>{{ .Phone }}</td>
@@ -28,7 +30,7 @@
 				</td>
 			</tr>
 			{{ else }}
-			<tr><td class="empty" colspan="6">No pending partners.</td></tr>
+			<tr><td class="empty" colspan="7">No pending partners.</td></tr>
 			{{ end }}
 		</tbody>
 	</table>

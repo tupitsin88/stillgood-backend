@@ -32,6 +32,7 @@ func RegisterRoutes(r *gin.Engine, h *Handler, authMiddleware gin.HandlerFunc) {
 	users := r.Group("/api/v1/users", authMiddleware)
 	{
 		users.PATCH("/me", h.UpdateProfile)
+		users.PUT("/me/device-token", h.UpdateDeviceToken)
 		users.DELETE("/me", h.DeleteAccount)
 	}
 

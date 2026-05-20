@@ -34,6 +34,11 @@ type OAuthRequest struct {
 	DeviceToken string `json:"deviceToken" binding:"required"`
 }
 
+type UpdateDeviceTokenRequest struct {
+	DeviceToken string `json:"deviceToken" binding:"required"`
+	Platform    string `json:"platform" binding:"required,oneof=android ios"`
+}
+
 type AuthResponse struct {
 	AccessToken  string       `json:"accessToken"`
 	RefreshToken string       `json:"refreshToken"`

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"kursach_backend/internal/domain"
+	"kursach_backend/internal/pkg/httputil"
 
 	"github.com/gin-gonic/gin"
 )
@@ -57,8 +58,7 @@ func (h *Handler) requireAdmin(c *gin.Context) bool {
 func (h *Handler) Register(c *gin.Context) {
 	var input RegisterRequest
 
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindAuthJSON(c, &input) {
 		return
 	}
 
@@ -77,7 +77,7 @@ func (h *Handler) Register(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, ErrDeviceTokenRequired) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "deviceToken is required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "DEVICE_TOKEN_REQUIRED", "message": "deviceToken is required"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register"})
@@ -97,8 +97,7 @@ func (h *Handler) Register(c *gin.Context) {
 func (h *Handler) RegisterPartner(c *gin.Context) {
 	var input PartnerRegisterRequest
 
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindAuthJSON(c, &input) {
 		return
 	}
 
@@ -117,7 +116,7 @@ func (h *Handler) RegisterPartner(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, ErrDeviceTokenRequired) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "deviceToken is required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "DEVICE_TOKEN_REQUIRED", "message": "deviceToken is required"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register partner"})
@@ -137,8 +136,7 @@ func (h *Handler) RegisterPartner(c *gin.Context) {
 func (h *Handler) Login(c *gin.Context) {
 	var input LoginRequest
 
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindAuthJSON(c, &input) {
 		return
 	}
 
@@ -149,7 +147,7 @@ func (h *Handler) Login(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, ErrDeviceTokenRequired) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "deviceToken is required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "DEVICE_TOKEN_REQUIRED", "message": "deviceToken is required"})
 			return
 		}
 		if errors.Is(err, ErrUserBlocked) {
@@ -172,8 +170,7 @@ func (h *Handler) Login(c *gin.Context) {
 
 func (h *Handler) OAuth(c *gin.Context) {
 	var input OAuthRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindAuthJSON(c, &input) {
 		return
 	}
 
@@ -187,7 +184,7 @@ func (h *Handler) OAuth(c *gin.Context) {
 		case errors.Is(err, ErrInvalidOAuthToken):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid OAuth token"})
 		case errors.Is(err, ErrDeviceTokenRequired):
-			c.JSON(http.StatusBadRequest, gin.H{"error": "deviceToken is required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "DEVICE_TOKEN_REQUIRED", "message": "deviceToken is required"})
 		case errors.Is(err, ErrUserBlocked):
 			c.JSON(http.StatusForbidden, gin.H{"error": "Account is blocked"})
 		default:
@@ -248,8 +245,7 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 	}
 
 	var input UpdateProfileRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindAuthJSON(c, &input) {
 		return
 	}
 
@@ -292,7 +288,8 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 
 	var input DeleteAccountRequest
 	if err := c.ShouldBindJSON(&input); err != nil && !errors.Is(err, io.EOF) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		code, message := httputil.BindingError(err, &input)
+		c.JSON(http.StatusBadRequest, gin.H{"error": code, "message": message})
 		return
 	}
 
@@ -314,6 +311,35 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func (h *Handler) UpdateDeviceToken(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if strings.TrimSpace(userID) == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UNAUTHORIZED", "message": "Invalid or missing User ID"})
+		return
+	}
+
+	var input UpdateDeviceTokenRequest
+	if !bindAuthJSON(c, &input) {
+		return
+	}
+
+	if err := h.service.UpdateDeviceToken(userID, input.DeviceToken, input.Platform); err != nil {
+		switch {
+		case errors.Is(err, ErrUserNotFound):
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "UNAUTHORIZED", "message": "Invalid or missing User ID"})
+		case errors.Is(err, ErrDeviceTokenRequired):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "DEVICE_TOKEN_REQUIRED", "message": "deviceToken is required"})
+		case errors.Is(err, ErrInvalidDevicePlatform):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_PLATFORM", "message": "platform must be one of: android ios"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "DEVICE_TOKEN_UPDATE_FAILED", "message": "Failed to update device token"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Device token updated"})
+}
+
 func (h *Handler) ChangePassword(c *gin.Context) {
 	userID, exists := c.Get("userId")
 	if !exists {
@@ -328,8 +354,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	}
 
 	var input ChangePasswordRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindAuthJSON(c, &input) {
 		return
 	}
 
@@ -352,8 +377,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 
 func (h *Handler) RequestEmailVerification(c *gin.Context) {
 	var input RequestEmailVerificationRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindAuthJSON(c, &input) {
 		return
 	}
 
@@ -389,8 +413,7 @@ func (h *Handler) RequestEmailVerification(c *gin.Context) {
 
 func (h *Handler) VerifyEmail(c *gin.Context) {
 	var input VerifyEmailRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindAuthJSON(c, &input) {
 		return
 	}
 
@@ -412,8 +435,7 @@ func (h *Handler) VerifyEmail(c *gin.Context) {
 
 func (h *Handler) ForgotPassword(c *gin.Context) {
 	var input ForgotPasswordRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindAuthJSON(c, &input) {
 		return
 	}
 
@@ -449,8 +471,7 @@ func (h *Handler) ForgotPassword(c *gin.Context) {
 
 func (h *Handler) VerifyResetCode(c *gin.Context) {
 	var input VerifyResetCodeRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindAuthJSON(c, &input) {
 		return
 	}
 
@@ -473,8 +494,7 @@ func (h *Handler) VerifyResetCode(c *gin.Context) {
 
 func (h *Handler) ResetPassword(c *gin.Context) {
 	var input ResetPasswordRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindAuthJSON(c, &input) {
 		return
 	}
 
@@ -498,12 +518,11 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 func (h *Handler) Refresh(c *gin.Context) {
 	var input RefreshRequest
 
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindAuthJSON(c, &input) {
 		return
 	}
 	if strings.TrimSpace(input.RefreshToken) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "refreshToken is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "REFRESH_TOKEN_REQUIRED", "message": "refreshToken is required"})
 		return
 	}
 
@@ -574,12 +593,11 @@ func (h *Handler) GetUsers(c *gin.Context) {
 
 func (h *Handler) Logout(c *gin.Context) {
 	var input RefreshRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindAuthJSON(c, &input) {
 		return
 	}
 	if strings.TrimSpace(input.RefreshToken) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "refreshToken is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "REFRESH_TOKEN_REQUIRED", "message": "refreshToken is required"})
 		return
 	}
 

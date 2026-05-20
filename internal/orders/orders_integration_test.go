@@ -278,7 +278,15 @@ func TestOrder_PartnerSecurity(t *testing.T) {
 		ID: orderID, UserID: userID, OfferID: offerID, Status: domain.OrderPaid,
 	}).Error)
 
-	_, err := service.CompleteOrder(ctx, orderID, r2ID)
+	order, err := service.GetPartnerOrderByID(ctx, orderID, r1ID)
+	require.NoError(t, err)
+	assert.Equal(t, orderID, order.ID)
+
+	_, err = service.GetPartnerOrderByID(ctx, orderID, r2ID)
+	assert.Error(t, err)
+	assert.Equal(t, "unauthorized", err.Error(), "Партнер не должен видеть детали чужого заказа")
+
+	_, err = service.CompleteOrder(ctx, orderID, r2ID)
 	assert.Error(t, err)
 	assert.Equal(t, "unauthorized", err.Error(), "Партнер не должен иметь доступа к чужим заказам")
 }

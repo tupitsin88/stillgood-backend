@@ -1,7 +1,6 @@
 package analytics
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -19,12 +18,16 @@ func NewAnalyticsHandler(service *AnalyticsService) *AnalyticsHandler {
 
 // GetPartnerAnalytics @Summary Аналитика партнёра
 func (h *AnalyticsHandler) GetPartnerAnalytics(c *gin.Context) {
-	uidValue, exists := c.Get("user_id")
+	_, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "UNAUTHORIZED"})
 		return
 	}
-	partnerID, _ := uuid.Parse(fmt.Sprintf("%v", uidValue))
+	partnerID, err := uuid.Parse(c.GetString("user_id"))
+	if err != nil || partnerID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UNAUTHORIZED", "message": "Invalid User ID format"})
+		return
+	}
 	restaurant, err := h.service.repo.GetRestaurantByPartnerID(c.Request.Context(), partnerID)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{
