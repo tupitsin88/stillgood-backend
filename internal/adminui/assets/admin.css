@@ -245,6 +245,12 @@ td.actions {
 	color: var(--muted);
 }
 
+.mono {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+	font-size: 12px;
+	white-space: nowrap;
+}
+
 .pagination {
 	align-items: center;
 	display: flex;

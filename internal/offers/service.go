@@ -3,6 +3,7 @@ package offers
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -27,6 +28,14 @@ const (
 	maxOfferImageSizeBytes = 10 << 20 // 10MB
 	jpegQuality            = 80
 	offerImagePrefix       = "offers/images"
+)
+
+var (
+	ErrOfferFileStorageUnavailable = errors.New("file storage is unavailable")
+	ErrOfferInvalidImageFormat     = errors.New("invalid image format")
+	ErrOfferImageTooLarge          = errors.New("image is too large")
+	ErrOfferUnsupportedImageFormat = errors.New("unsupported image format")
+	ErrOfferImageProcessingFailed  = errors.New("image processing failed")
 )
 
 type Repository interface {
@@ -133,12 +142,12 @@ func (s *OfferService) UpdateOffer(ctx context.Context, id, partnerID uuid.UUID,
 		if *req.Quantity <= 0 {
 			return nil, fmt.Errorf("INVALID_QUANTITY")
 		}
-		diff := *req.Quantity - offer.QuantityTotal
-		offer.QuantityAvailable += diff
-		offer.QuantityTotal = *req.Quantity
-		if offer.QuantityAvailable < 0 {
-			offer.QuantityAvailable = 0
+		reservedQuantity := offer.QuantityTotal - offer.QuantityAvailable
+		if *req.Quantity < reservedQuantity {
+			return nil, fmt.Errorf("INVALID_QUANTITY")
 		}
+		offer.QuantityTotal = *req.Quantity
+		offer.QuantityAvailable = *req.Quantity - reservedQuantity
 	}
 	if req.IsActive != nil {
 		offer.IsActive = *req.IsActive
@@ -153,7 +162,10 @@ func (s *OfferService) UpdateOffer(ctx context.Context, id, partnerID uuid.UUID,
 		offer.ImageURL = req.ImageURL
 	}
 	if req.CategoryID != nil {
-		catID, _ := uuid.Parse(*req.CategoryID)
+		catID, err := uuid.Parse(strings.TrimSpace(*req.CategoryID))
+		if err != nil {
+			return nil, fmt.Errorf("INVALID_CATEGORY_ID")
+		}
 		offer.CategoryID = catID
 	}
 
@@ -278,15 +290,15 @@ func (s *OfferService) mapToPreviewDTO(o *domain.Offer) OfferPreviewDTO {
 
 func (s *OfferService) UploadImage(file *multipart.FileHeader) (string, error) {
 	if s.fileStorage == nil {
-		return "", fmt.Errorf("file storage is unavailable")
+		return "", ErrOfferFileStorageUnavailable
 	}
 
 	if file == nil {
-		return "", fmt.Errorf("invalid image format")
+		return "", ErrOfferInvalidImageFormat
 	}
 
 	if file.Size == 0 || file.Size > maxOfferImageSizeBytes {
-		return "", fmt.Errorf("image is too large")
+		return "", ErrOfferImageTooLarge
 	}
 
 	src, err := file.Open()
@@ -300,32 +312,31 @@ func (s *OfferService) UploadImage(file *multipart.FileHeader) (string, error) {
 		return "", err
 	}
 	if int64(len(content)) > maxOfferImageSizeBytes {
-		return "", fmt.Errorf("image is too large")
+		return "", ErrOfferImageTooLarge
 	}
 
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	normalizedExt, _, isHEIC := s.normalizeFormat(ext, content)
 	if normalizedExt == "" {
-		return "", fmt.Errorf("unsupported image format")
+		return "", ErrOfferUnsupportedImageFormat
 	}
 
 	var processed []byte
+	outExt := ".jpg"
 	var contentType string
 	if isHEIC {
 		processed, err = s.compressHEICToJPEG(content)
 		contentType = "image/jpeg"
 	} else if normalizedExt == ".png" {
-		var outExt string
 		processed, outExt, contentType, err = s.processPNG(content)
-		_ = outExt
 	} else {
 		processed, err = s.compressToJPEG(content)
 		contentType = "image/jpeg"
 	}
 	if err != nil {
-		return "", fmt.Errorf("image processing failed: %w", err)
+		return "", fmt.Errorf("%w: %v", ErrOfferImageProcessingFailed, err)
 	}
-	return s.fileStorage.UploadBytesWithPrefix(processed, ".jpg", contentType, offerImagePrefix)
+	return s.fileStorage.UploadBytesWithPrefix(processed, outExt, contentType, offerImagePrefix)
 }
 
 func (s *OfferService) normalizeFormat(ext string, content []byte) (string, string, bool) {

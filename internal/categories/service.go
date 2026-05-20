@@ -1,11 +1,13 @@
 package categories
 
 import (
-	"fmt"
+	"errors"
 	"kursach_backend/internal/domain"
 
 	"github.com/google/uuid"
 )
+
+var ErrCategoryHasOffers = errors.New("category has linked offers")
 
 type Service interface {
 	GetAll() ([]domain.Category, error)
@@ -51,7 +53,7 @@ func (s *service) Delete(id uuid.UUID) error {
 		return err
 	}
 	if hasActiveOffers {
-		return fmt.Errorf("CANNOT_DELETE_CATEGORY_WITH_ACTIVE_OFFERS")
+		return ErrCategoryHasOffers
 	}
 	return s.repo.Delete(id)
 }

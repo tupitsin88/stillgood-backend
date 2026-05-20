@@ -1,6 +1,7 @@
 package categories
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -82,7 +83,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 	if err := h.service.Delete(id); err != nil {
-		if err.Error() == "CANNOT_DELETE_CATEGORY_WITH_ACTIVE_OFFERS" {
+		if errors.Is(err, ErrCategoryHasOffers) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "CATEGORY_NOT_EMPTY", "message": "Нельзя удалить категорию с активными боксами"})
 			return
 		}

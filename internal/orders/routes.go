@@ -29,6 +29,7 @@ func RegisterRoutes(r *gin.Engine, h *OrderHandler, authMiddleware gin.HandlerFu
 	})
 	{
 		partner.GET("", h.GetPartnerOrders)
+		partner.GET("/:id", h.GetPartnerOrderByID)
 		partner.POST("/:id/complete", h.CompleteOrder)
 	}
 }

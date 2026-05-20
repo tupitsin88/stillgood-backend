@@ -35,7 +35,7 @@ func AuthMiddleware(signingKey string, userBlockedChecker UserBlockedChecker) gi
 		})
 
 		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token is invalid", "details": err.Error()})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token is invalid"})
 			return
 		}
 
@@ -45,12 +45,15 @@ func AuthMiddleware(signingKey string, userBlockedChecker UserBlockedChecker) gi
 			return
 		}
 
-		// Достаем ID из 'sub' (как мы видели в логах)
-		sub, _ := claims["sub"]
-		userIDStr := fmt.Sprintf("%v", sub)
-
-		if userIDStr == "" || userIDStr == "<nil>" {
+		userIDStr, ok := claims["sub"].(string)
+		if !ok || strings.TrimSpace(userIDStr) == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "USER_ID_NOT_FOUND_IN_TOKEN"})
+			return
+		}
+
+		userUUID, err := uuid.Parse(userIDStr)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "INVALID_USER_ID_IN_TOKEN"})
 			return
 		}
 
@@ -66,12 +69,9 @@ func AuthMiddleware(signingKey string, userBlockedChecker UserBlockedChecker) gi
 			}
 		}
 
-		userUUID, _ := uuid.Parse(userIDStr)
 		c.Set("user_id", userIDStr)
 		c.Set("userId", userIDStr)
-		if userUUID != uuid.Nil {
-			c.Set("user_uuid", userUUID)
-		}
+		c.Set("user_uuid", userUUID)
 		role := ""
 		if r, ok := claims["role"]; ok {
 			role = fmt.Sprintf("%v", r)

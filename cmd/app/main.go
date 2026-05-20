@@ -147,7 +147,6 @@ func main() {
 	} else {
 		log.Printf("File storage initialized for endpoint: %s", minioEndpoint)
 	}
-	_ = fileStorage // Will be used in future handlers
 
 	// Restaurants
 	restaurantsRepo := restaurants.NewRepository(db)
