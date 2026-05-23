@@ -7,30 +7,29 @@ import (
 )
 
 type CreateOfferRequest struct {
-	Title         string  `json:"title" binding:"required"`
-	Description   string  `json:"description"`
-	Price         float64 `json:"price" binding:"required,gt=0"`
-	OriginalPrice float64 `json:"originalPrice" binding:"required,gt=0"`
-	// Quantity is the initial total amount. Available quantity is managed by the backend.
-	Quantity    int       `json:"quantity" binding:"required,min=1"`
-	PickupStart time.Time `json:"pickupStart" binding:"required"`
-	PickupEnd   time.Time `json:"pickupEnd" binding:"required"`
-	CategoryID  string    `json:"categoryId" binding:"required"`
-	ImageURL    string    `json:"imageUrl"`
+	Title         string    `json:"title" binding:"required"`
+	Description   string    `json:"description"`
+	Price         float64   `json:"price" binding:"required,gt=0"`
+	OriginalPrice float64   `json:"originalPrice" binding:"required,gt=0"`
+	QuantityTotal int       `json:"quantityTotal" binding:"required,min=1"`
+	PickupStart   time.Time `json:"pickupStart" binding:"required"`
+	PickupEnd     time.Time `json:"pickupEnd" binding:"required"`
+	CategoryID    string    `json:"categoryId" binding:"required"`
+	ImageURL      string    `json:"imageUrl"`
 }
 
 type UpdateOfferRequest struct {
-	Title         *string  `json:"title"`
-	Description   *string  `json:"description"`
-	Price         *float64 `json:"price"`
-	OriginalPrice *float64 `json:"originalPrice"`
-	// Quantity is a new total amount. Available quantity remains read-only.
-	Quantity    *int       `json:"quantity"`
-	IsActive    *bool      `json:"isActive"`
-	PickupStart *time.Time `json:"pickupStart"`
-	PickupEnd   *time.Time `json:"pickupEnd"`
-	CategoryID  *string    `json:"categoryId"`
-	ImageURL    *string    `json:"imageUrl"`
+	Title             *string    `json:"title"`
+	Description       *string    `json:"description"`
+	Price             *float64   `json:"price"`
+	OriginalPrice     *float64   `json:"originalPrice"`
+	QuantityTotal     *int       `json:"quantityTotal"`
+	QuantityAvailable *int       `json:"quantityAvailable"`
+	IsActive          *bool      `json:"isActive"`
+	PickupStart       *time.Time `json:"pickupStart"`
+	PickupEnd         *time.Time `json:"pickupEnd"`
+	CategoryID        *string    `json:"categoryId"`
+	ImageURL          *string    `json:"imageUrl"`
 }
 
 type OfferDetailDTO struct {

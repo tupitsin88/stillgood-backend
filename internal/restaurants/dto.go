@@ -42,6 +42,7 @@ type PartnerRestaurantUpdateRequest struct {
 	WorkingHours *string `json:"workingHours"`
 	LogoURL      *string `json:"logoUrl"`
 	CoverURL     *string `json:"coverUrl"`
+	Phone        *string `json:"phone"`
 }
 
 type AdminRestaurantUpdateRequest struct {

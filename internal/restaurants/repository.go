@@ -160,6 +160,9 @@ func (r *repository) UpdatePartnerProfile(partnerID uuid.UUID, req PartnerRestau
 	if req.CoverURL != nil {
 		updates["cover_url"] = *req.CoverURL
 	}
+	if req.Phone != nil {
+		updates["phone"] = *req.Phone
+	}
 
 	if len(updates) > 0 {
 		if err := r.db.Model(&domain.Restaurant{}).Where("partner_id = ?", partnerID).Updates(updates).Error; err != nil {
