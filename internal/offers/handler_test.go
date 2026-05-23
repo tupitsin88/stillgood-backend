@@ -84,7 +84,7 @@ func TestCreateOffer_Success(t *testing.T) {
 		c.Set("user_id", partnerID.String())
 		handler.CreateOffer(c)
 	})
-	body := `{"title":"Test Box","price":100,"originalPrice":200,"quantity":5,"categoryId":"` + uuid.NewString() + `","pickupStart":"2026-10-10T10:00:00Z","pickupEnd":"2026-10-10T12:00:00Z"}`
+	body := `{"title":"Test Box","price":100,"originalPrice":200,"quantityTotal":5,"categoryId":"` + uuid.NewString() + `","pickupStart":"2026-10-10T10:00:00Z","pickupEnd":"2026-10-10T12:00:00Z"}`
 	req := httptest.NewRequest(http.MethodPost, "/partner/offers", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
