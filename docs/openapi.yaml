@@ -2732,6 +2732,9 @@ components:
         coverUrl:
           type: string
           nullable: true
+        phone:
+          type: string
+          nullable: true
 
     ReviewDto:
       type: object
