@@ -67,7 +67,7 @@ func TestCreateOffer_Validation(t *testing.T) {
 			OriginalPrice: 400,
 			PickupStart:   time.Now().Add(time.Hour),
 			PickupEnd:     time.Now().Add(2 * time.Hour),
-			Quantity:      10,
+			QuantityTotal: 10,
 			CategoryID:    uuid.NewString(),
 		}
 		_, err := service.CreateOffer(context.Background(), partnerID, req)
@@ -83,7 +83,7 @@ func TestCreateOffer_Validation(t *testing.T) {
 			OriginalPrice: 200,
 			PickupStart:   time.Now().Add(2 * time.Hour),
 			PickupEnd:     time.Now().Add(1 * time.Hour),
-			Quantity:      5,
+			QuantityTotal: 5,
 			CategoryID:    uuid.NewString(),
 		}
 		_, err := service.CreateOffer(context.Background(), partnerID, req)
@@ -122,47 +122,46 @@ func TestUpdateOffer_QuantityLogic(t *testing.T) {
 	existingOffer := &domain.Offer{
 		ID:                offerID,
 		QuantityTotal:     10,
-		QuantityAvailable: 5,
+		QuantityAvailable: 10,
 		Restaurant:        domain.Restaurant{PartnerID: partnerID},
 	}
 
-	t.Run("Increases available quantity when total is increased", func(t *testing.T) {
+	t.Run("Successfully updates total and available quantity", func(t *testing.T) {
 		offer := *existingOffer
 		repo := &offerRepoStub{offer: &offer}
 		service := NewOfferService(repo, nil)
 
 		newTotal := 15
-		req := UpdateOfferRequest{Quantity: &newTotal}
-
+		newAvailable := 12
+		req := UpdateOfferRequest{
+			QuantityTotal:     &newTotal,
+			QuantityAvailable: &newAvailable,
+		}
 		updated, err := service.UpdateOffer(context.Background(), offerID, partnerID, req)
 
 		require.NoError(t, err)
 		assert.Equal(t, 15, updated.QuantityTotal)
-		assert.Equal(t, 10, updated.QuantityAvailable)
+		assert.Equal(t, 12, updated.QuantityAvailable)
 	})
 
-	t.Run("Reduces available quantity while preserving reserved quantity", func(t *testing.T) {
+	t.Run("Rejects when available is greater than total", func(t *testing.T) {
+		offer := *existingOffer
+		repo := &offerRepoStub{offer: &offer}
+		service := NewOfferService(repo, nil)
+		newAvailable := 15
+		req := UpdateOfferRequest{QuantityAvailable: &newAvailable}
+		_, err := service.UpdateOffer(context.Background(), offerID, partnerID, req)
+		require.Error(t, err)
+		assert.Equal(t, "INVALID_QUANTITY", err.Error())
+	})
+
+	t.Run("Rejects negative available quantity", func(t *testing.T) {
 		offer := *existingOffer
 		repo := &offerRepoStub{offer: &offer}
 		service := NewOfferService(repo, nil)
 
-		newTotal := 8
-		req := UpdateOfferRequest{Quantity: &newTotal}
-
-		updated, err := service.UpdateOffer(context.Background(), offerID, partnerID, req)
-
-		require.NoError(t, err)
-		assert.Equal(t, 8, updated.QuantityTotal)
-		assert.Equal(t, 3, updated.QuantityAvailable)
-	})
-
-	t.Run("Rejects total lower than reserved quantity", func(t *testing.T) {
-		offer := *existingOffer
-		repo := &offerRepoStub{offer: &offer}
-		service := NewOfferService(repo, nil)
-
-		newTotal := 2
-		req := UpdateOfferRequest{Quantity: &newTotal}
+		newAvailable := -1
+		req := UpdateOfferRequest{QuantityAvailable: &newAvailable}
 
 		_, err := service.UpdateOffer(context.Background(), offerID, partnerID, req)
 
