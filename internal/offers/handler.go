@@ -41,7 +41,7 @@ func (h *OfferHandler) CreateOffer(c *gin.Context) {
 		case "INVALID_CATEGORY_ID":
 			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_CATEGORY_ID", "message": "The provided category ID is not a valid UUID"})
 		case "INVALID_QUANTITY":
-			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_QUANTITY", "message": "quantity must be a positive total amount"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_QUANTITY", "message": "quantityTotal must be a positive amount"})
 		case "INVALID_PRICE":
 			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_PRICE", "message": "price must not exceed originalPrice"})
 		case "INVALID_TIME_RANGE":
@@ -88,7 +88,7 @@ func (h *OfferHandler) UpdateOffer(c *gin.Context) {
 		case "INVALID_CATEGORY_ID":
 			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_CATEGORY_ID", "message": "categoryId must be a valid UUID"})
 		case "INVALID_QUANTITY":
-			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_QUANTITY", "message": "quantity cannot be lower than already reserved amount"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_QUANTITY", "message": "quantityAvailable must be between 0 and quantityTotal"})
 		case "PRICE_MUST_BE_POSITIVE":
 			c.JSON(http.StatusBadRequest, gin.H{"error": "PRICE_MUST_BE_POSITIVE", "message": "price must be positive"})
 		case "PRICE_TOO_HIGH":

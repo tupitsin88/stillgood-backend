@@ -2894,7 +2894,7 @@ components:
 
     CreateOfferRequest:
       type: object
-      required: [title, price, originalPrice, quantity, pickupStart, pickupEnd, categoryId]
+      required: [title, price, originalPrice, quantityTotal, pickupStart, pickupEnd, categoryId]
       properties:
         title:
           type: string
@@ -2904,7 +2904,7 @@ components:
           type: number
         originalPrice:
           type: number
-        quantity:
+        quantityTotal:
           type: integer
           minimum: 1
           description: Начальное общее количество предложения. quantityAvailable вычисляется backend и не передается в request.
@@ -2931,10 +2931,14 @@ components:
           type: number
         originalPrice:
           type: number
-        quantity:
+        quantityTotal:
           type: integer
           minimum: 1
-          description: Новое общее количество предложения (quantityTotal). quantityAvailable является read-only и пересчитывается backend с учетом уже зарезервированного количества.
+          description: Всего приготовлено (quantityTotal)
+        quantityAvailable:
+          type: integer
+          minimum: 0
+          description: Доступно сейчас (quantityAvailable)
         isActive:
           type: boolean
         pickupStart:

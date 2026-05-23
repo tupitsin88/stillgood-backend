@@ -79,7 +79,7 @@ func (s *OfferService) CreateOffer(ctx context.Context, partnerID uuid.UUID, req
 	if req.PickupStart.Before(time.Now().Add(-5 * time.Minute)) {
 		return nil, fmt.Errorf("START_TIME_IN_PAST")
 	}
-	if req.Quantity <= 0 {
+	if req.QuantityTotal <= 0 {
 		return nil, fmt.Errorf("INVALID_QUANTITY")
 	}
 
@@ -95,8 +95,8 @@ func (s *OfferService) CreateOffer(ctx context.Context, partnerID uuid.UUID, req
 		CategoryID:        catID,
 		Price:             req.Price,
 		OriginalPrice:     req.OriginalPrice,
-		QuantityAvailable: req.Quantity,
-		QuantityTotal:     req.Quantity,
+		QuantityAvailable: req.QuantityTotal,
+		QuantityTotal:     req.QuantityTotal,
 		PickupStart:       req.PickupStart,
 		PickupEnd:         req.PickupEnd,
 		ImageURL:          &imgUrl,
@@ -138,16 +138,14 @@ func (s *OfferService) UpdateOffer(ctx context.Context, id, partnerID uuid.UUID,
 	if req.OriginalPrice != nil {
 		offer.OriginalPrice = *req.OriginalPrice
 	}
-	if req.Quantity != nil {
-		if *req.Quantity <= 0 {
-			return nil, fmt.Errorf("INVALID_QUANTITY")
-		}
-		reservedQuantity := offer.QuantityTotal - offer.QuantityAvailable
-		if *req.Quantity < reservedQuantity {
-			return nil, fmt.Errorf("INVALID_QUANTITY")
-		}
-		offer.QuantityTotal = *req.Quantity
-		offer.QuantityAvailable = *req.Quantity - reservedQuantity
+	if req.QuantityTotal != nil {
+		offer.QuantityTotal = *req.QuantityTotal
+	}
+	if req.QuantityAvailable != nil {
+		offer.QuantityAvailable = *req.QuantityAvailable
+	}
+	if offer.QuantityAvailable < 0 || offer.QuantityAvailable > offer.QuantityTotal {
+		return nil, fmt.Errorf("INVALID_QUANTITY")
 	}
 	if req.IsActive != nil {
 		offer.IsActive = *req.IsActive
