@@ -10,14 +10,15 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"kursach_backend/internal/domain"
+	"kursach_backend/internal/pkg/filestorage"
 	"math"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
-
-	"kursach_backend/internal/domain"
-	"kursach_backend/internal/pkg/filestorage"
+	"unicode"
 
 	"kursach_backend/internal/pkg/geo"
 
@@ -62,6 +63,7 @@ var ErrInvalidRestaurantID = errors.New("invalid restaurant id")
 var ErrInvalidReviewID = errors.New("invalid review id")
 var ErrInvalidCommission = errors.New("invalid commission")
 var ErrInvalidCoordinates = errors.New("invalid coordinates")
+var ErrInvalidPhone = errors.New("invalid phone")
 
 const (
 	maxUploadImageSizeBytes   = 10 << 20 // 10MB
@@ -134,6 +136,15 @@ func (s *service) CreateRestaurant(partnerID string, req CreateRestaurantRequest
 		return nil, ErrInvalidCoordinates
 	}
 
+	var validPhone *string
+	if req.Phone != nil && strings.TrimSpace(*req.Phone) != "" {
+		cleaned, err := normalizePhone(*req.Phone)
+		if err != nil {
+			return nil, err
+		}
+		validPhone = &cleaned
+	}
+
 	restaurant := &domain.Restaurant{
 		PartnerID:    uid,
 		Name:         name,
@@ -143,7 +154,7 @@ func (s *service) CreateRestaurant(partnerID string, req CreateRestaurantRequest
 		Description:  trimOptionalString(req.Description),
 		LogoURL:      trimOptionalString(req.LogoURL),
 		CoverURL:     trimOptionalString(req.CoverURL),
-		Phone:        trimOptionalString(req.Phone),
+		Phone:        validPhone,
 		Latitude:     req.Latitude,
 		Longitude:    req.Longitude,
 		IsActive:     true,
@@ -169,6 +180,13 @@ func (s *service) UpdatePartnerRestaurant(partnerID string, req PartnerRestauran
 	uid, err := uuid.Parse(partnerID)
 	if err != nil {
 		return nil, err
+	}
+	if req.Phone != nil {
+		validPhone, err := normalizePhone(*req.Phone)
+		if err != nil {
+			return nil, err
+		}
+		req.Phone = &validPhone
 	}
 	return s.repo.UpdatePartnerProfile(uid, req)
 }
@@ -430,4 +448,19 @@ func (s *service) DeleteReview(reviewID string) error {
 		return ErrInvalidReviewID
 	}
 	return s.repo.DeleteReview(context.Background(), uid)
+}
+
+var phoneRegex = regexp.MustCompile(`^\+[1-9]\d{1,14}$`)
+
+func normalizePhone(phone string) (string, error) {
+	cleaned := strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) || r == '-' || r == '(' || r == ')' {
+			return -1
+		}
+		return r
+	}, phone)
+	if !phoneRegex.MatchString(cleaned) {
+		return "", ErrInvalidPhone
+	}
+	return cleaned, nil
 }
