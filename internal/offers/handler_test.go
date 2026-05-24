@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUpdateOffer_InvalidID(t *testing.T) {
@@ -61,6 +62,42 @@ func TestGetOfferByID_NotFound(t *testing.T) {
 	router.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 	assert.Contains(t, rec.Body.String(), "NOT_FOUND")
+}
+
+func TestGetPublicOffersTrimsSearchQuery(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("passes trimmed q", func(t *testing.T) {
+		repo := &offerRepoStub{}
+		service := NewOfferService(repo, nil)
+		handler := NewOfferHandler(service)
+		router := gin.New()
+		router.GET("/offers", handler.GetPublicOffers)
+		req := httptest.NewRequest(http.MethodGet, "/offers?q=++%D1%80%D0%BE%D0%BB%D0%BB%D1%8B++", nil)
+		rec := httptest.NewRecorder()
+
+		router.ServeHTTP(rec, req)
+
+		require.Equal(t, http.StatusOK, rec.Code)
+		require.Len(t, repo.publicParams, 1)
+		assert.Equal(t, "роллы", repo.publicParams[0].Query)
+	})
+
+	t.Run("blank q is empty", func(t *testing.T) {
+		repo := &offerRepoStub{}
+		service := NewOfferService(repo, nil)
+		handler := NewOfferHandler(service)
+		router := gin.New()
+		router.GET("/offers", handler.GetPublicOffers)
+		req := httptest.NewRequest(http.MethodGet, "/offers?q=+++%09+", nil)
+		rec := httptest.NewRecorder()
+
+		router.ServeHTTP(rec, req)
+
+		require.Equal(t, http.StatusOK, rec.Code)
+		require.Len(t, repo.publicParams, 1)
+		assert.Empty(t, repo.publicParams[0].Query)
+	})
 }
 
 func TestCreateOffer_Success(t *testing.T) {

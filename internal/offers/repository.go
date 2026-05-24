@@ -3,6 +3,7 @@ package offers
 import (
 	"context"
 	"kursach_backend/internal/domain"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -103,6 +104,16 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 	if hasGeoPoint && params.Radius != nil {
 		query = query.Where("ST_DWithin(restaurants.location, "+postgisPointSQL+", ?)", *params.Lng, *params.Lat, *params.Radius)
 	}
+	queryText := strings.TrimSpace(params.Query)
+	if queryText != "" {
+		search := "%" + escapeLike(queryText) + "%"
+		query = query.Where(
+			"(offers.title ILIKE ? ESCAPE '\\' OR restaurants.name ILIKE ? ESCAPE '\\')",
+			search,
+			search,
+		)
+	}
+
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -135,6 +146,11 @@ func (r *OfferRepository) GetPublicOffers(ctx context.Context, params FilterPara
 		Find(&offers).Error
 
 	return offers, total, err
+}
+
+func escapeLike(value string) string {
+	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return replacer.Replace(value)
 }
 
 func distanceOrder(lng, lat float64) clause.OrderBy {

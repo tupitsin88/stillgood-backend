@@ -90,3 +90,159 @@ func TestOfferRepository_Integration(t *testing.T) {
 		assert.Equal(t, "Croissant", saved.Title)
 	})
 }
+
+func TestOfferRepositoryGetPublicOffersSearch(t *testing.T) {
+	db := setupOffersIntegrationDB(t)
+	repo := NewOfferRepository(db)
+	ctx := context.Background()
+	now := time.Now()
+
+	partner := &domain.User{ID: uuid.New(), Email: uuid.NewString() + "@t.com", Role: "PARTNER", Name: "Partner"}
+	require.NoError(t, db.Create(partner).Error)
+
+	rollsCategory := &domain.Category{ID: uuid.New(), Name: "Rolls"}
+	dessertCategory := &domain.Category{ID: uuid.New(), Name: "Desserts"}
+	require.NoError(t, db.Create(&[]domain.Category{*rollsCategory, *dessertCategory}).Error)
+
+	sakura := domain.Restaurant{
+		ID:        uuid.New(),
+		PartnerID: partner.ID,
+		Name:      "Sakura Box",
+		Address:   "Sakura street",
+		Latitude:  55.75,
+		Longitude: 37.61,
+		IsActive:  true,
+	}
+	green := domain.Restaurant{
+		ID:        uuid.New(),
+		PartnerID: partner.ID,
+		Name:      "Green Cafe",
+		Address:   "Green street",
+		Latitude:  55.76,
+		Longitude: 37.62,
+		IsActive:  true,
+	}
+	require.NoError(t, db.Omit("Location").Create(&[]domain.Restaurant{sakura, green}).Error)
+
+	offers := []domain.Offer{
+		{
+			ID:                uuid.New(),
+			RestaurantID:      sakura.ID,
+			CategoryID:        rollsCategory.ID,
+			Title:             "Сет Филадельфия",
+			Price:             300,
+			OriginalPrice:     600,
+			QuantityAvailable: 3,
+			QuantityTotal:     3,
+			PickupStart:       now.Add(time.Hour),
+			PickupEnd:         now.Add(2 * time.Hour),
+			IsActive:          true,
+		},
+		{
+			ID:                uuid.New(),
+			RestaurantID:      sakura.ID,
+			CategoryID:        dessertCategory.ID,
+			Title:             "Чизкейк",
+			Price:             150,
+			OriginalPrice:     300,
+			QuantityAvailable: 2,
+			QuantityTotal:     2,
+			PickupStart:       now.Add(2 * time.Hour),
+			PickupEnd:         now.Add(3 * time.Hour),
+			IsActive:          true,
+		},
+		{
+			ID:                uuid.New(),
+			RestaurantID:      sakura.ID,
+			CategoryID:        rollsCategory.ID,
+			Title:             "Ланч бокс",
+			Price:             250,
+			OriginalPrice:     500,
+			QuantityAvailable: 4,
+			QuantityTotal:     4,
+			PickupStart:       now.Add(3 * time.Hour),
+			PickupEnd:         now.Add(4 * time.Hour),
+			IsActive:          true,
+		},
+		{
+			ID:                uuid.New(),
+			RestaurantID:      green.ID,
+			CategoryID:        rollsCategory.ID,
+			Title:             "Роллы с тунцом",
+			Price:             200,
+			OriginalPrice:     400,
+			QuantityAvailable: 1,
+			QuantityTotal:     1,
+			PickupStart:       now.Add(4 * time.Hour),
+			PickupEnd:         now.Add(5 * time.Hour),
+			IsActive:          true,
+		},
+	}
+	require.NoError(t, db.Create(&offers).Error)
+
+	t.Run("q finds offer by title", func(t *testing.T) {
+		got, total, err := repo.GetPublicOffers(ctx, FilterParams{
+			Query:  "  роллы  ",
+			Limit:  20,
+			Offset: 0,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, int64(1), total)
+		assert.Equal(t, "Роллы с тунцом", got[0].Title)
+	})
+
+	t.Run("blank q does not filter", func(t *testing.T) {
+		got, total, err := repo.GetPublicOffers(ctx, FilterParams{
+			Query:  "   ",
+			Limit:  20,
+			Offset: 0,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, got, 4)
+		assert.Equal(t, int64(4), total)
+	})
+
+	t.Run("q finds offers by restaurant name", func(t *testing.T) {
+		got, total, err := repo.GetPublicOffers(ctx, FilterParams{
+			Query:  "sAkUrA",
+			Limit:  20,
+			Offset: 0,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, got, 3)
+		assert.Equal(t, int64(3), total)
+		for _, offer := range got {
+			assert.Equal(t, "Sakura Box", offer.Restaurant.Name)
+		}
+	})
+
+	t.Run("q works with categoryId", func(t *testing.T) {
+		got, total, err := repo.GetPublicOffers(ctx, FilterParams{
+			Query:      "Sakura",
+			CategoryID: &dessertCategory.ID,
+			Limit:      20,
+			Offset:     0,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, int64(1), total)
+		assert.Equal(t, "Чизкейк", got[0].Title)
+	})
+
+	t.Run("pagination total is counted after search", func(t *testing.T) {
+		got, total, err := repo.GetPublicOffers(ctx, FilterParams{
+			Query:  "Sakura",
+			Limit:  1,
+			Offset: 0,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, int64(3), total)
+	})
+}

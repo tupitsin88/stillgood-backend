@@ -1806,6 +1806,11 @@ paths:
       summary: Список предложений
       operationId: getOffers
       parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Поиск по названию оффера или названию ресторана. Пустая строка игнорируется.
         - name: lat
           in: query
           schema:

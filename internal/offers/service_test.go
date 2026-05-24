@@ -14,10 +14,13 @@ import (
 
 type offerRepoStub struct {
 	OfferRepository
-	partner    *domain.User
-	restaurant *domain.Restaurant
-	offer      *domain.Offer
-	err        error
+	partner      *domain.User
+	restaurant   *domain.Restaurant
+	offer        *domain.Offer
+	publicParams []FilterParams
+	publicOffers []domain.Offer
+	publicTotal  int64
+	err          error
 }
 
 func (s *offerRepoStub) GetPartnerByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
@@ -45,7 +48,8 @@ func (s *offerRepoStub) GetPartnerOffers(ctx context.Context, restaurantID uuid.
 }
 
 func (s *offerRepoStub) GetPublicOffers(ctx context.Context, params FilterParams) ([]domain.Offer, int64, error) {
-	return nil, 0, s.err
+	s.publicParams = append(s.publicParams, params)
+	return s.publicOffers, s.publicTotal, s.err
 }
 
 func (s *offerRepoStub) Delete(ctx context.Context, id uuid.UUID) error {
