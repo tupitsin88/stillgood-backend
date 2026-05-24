@@ -257,6 +257,7 @@ func refreshRestaurantReviewStats(tx *gorm.DB, ids []uuid.UUID) error {
 }
 
 func buildDemoData(now time.Time) (demoData, error) {
+	now = now.UTC()
 	hash, err := bcrypt.GenerateFromPassword([]byte(demoPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return demoData{}, err
@@ -264,18 +265,24 @@ func buildDemoData(now time.Time) (demoData, error) {
 
 	passwordHash := string(hash)
 	today := dayStart(now)
-	past := now.Add(-48 * time.Hour)
 	futureStart := now.Add(2 * time.Hour)
 	futureEnd := now.Add(6 * time.Hour)
 
-	adminID := mustUUID("11111111-1111-1111-1111-111111111001")
-	userAnnaID := mustUUID("11111111-1111-1111-1111-111111111011")
-	userMaxID := mustUUID("11111111-1111-1111-1111-111111111012")
-	userBlockedID := mustUUID("11111111-1111-1111-1111-111111111013")
-	partnerBakeryID := mustUUID("11111111-1111-1111-1111-111111111021")
-	partnerSushiID := mustUUID("11111111-1111-1111-1111-111111111022")
-	partnerGroceryID := mustUUID("11111111-1111-1111-1111-111111111023")
-	partnerPendingID := mustUUID("11111111-1111-1111-1111-111111111024")
+	adminID := demoUUID(1, 1)
+	userAnnaID := demoUUID(1, 11)
+	userMaxID := demoUUID(1, 12)
+	userDaryaID := demoUUID(1, 13)
+	userIlyaID := demoUUID(1, 14)
+	userKateID := demoUUID(1, 15)
+	userBlockedID := demoUUID(1, 16)
+	partnerBakeryID := demoUUID(1, 21)
+	partnerSushiID := demoUUID(1, 22)
+	partnerGroceryID := demoUUID(1, 23)
+	partnerBowlID := demoUUID(1, 24)
+	partnerPendingBistroID := demoUUID(1, 31)
+	partnerPendingDessertID := demoUUID(1, 32)
+	partnerRejectedFastID := demoUUID(1, 41)
+	partnerRejectedCateringID := demoUUID(1, 42)
 
 	catBakeryID := mustUUID("22222222-2222-2222-2222-222222222001")
 	catMealsID := mustUUID("22222222-2222-2222-2222-222222222002")
@@ -283,42 +290,42 @@ func buildDemoData(now time.Time) (demoData, error) {
 	catDessertsID := mustUUID("22222222-2222-2222-2222-222222222004")
 	catGroceriesID := mustUUID("22222222-2222-2222-2222-222222222005")
 	catDrinksID := mustUUID("22222222-2222-2222-2222-222222222006")
+	catBowlsID := mustUUID("22222222-2222-2222-2222-222222222007")
 
-	restBakeryID := mustUUID("33333333-3333-3333-3333-333333333001")
-	restSushiID := mustUUID("33333333-3333-3333-3333-333333333002")
-	restGroceryID := mustUUID("33333333-3333-3333-3333-333333333003")
-	restInactiveID := mustUUID("33333333-3333-3333-3333-333333333004")
-
-	offerCroissantID := mustUUID("44444444-4444-4444-4444-444444444001")
-	offerDinnerID := mustUUID("44444444-4444-4444-4444-444444444002")
-	offerSushiID := mustUUID("44444444-4444-4444-4444-444444444003")
-	offerDessertID := mustUUID("44444444-4444-4444-4444-444444444004")
-	offerGroceriesID := mustUUID("44444444-4444-4444-4444-444444444005")
-	offerDrinksID := mustUUID("44444444-4444-4444-4444-444444444006")
-	offerSoldOutID := mustUUID("44444444-4444-4444-4444-444444444007")
-	offerExpiredID := mustUUID("44444444-4444-4444-4444-444444444008")
-
-	orderCreatedID := mustUUID("55555555-5555-5555-5555-555555555001")
-	orderPaidID := mustUUID("55555555-5555-5555-5555-555555555002")
-	orderCompletedID := mustUUID("55555555-5555-5555-5555-555555555003")
-	orderCancelledID := mustUUID("55555555-5555-5555-5555-555555555004")
-	orderExpiredID := mustUUID("55555555-5555-5555-5555-555555555005")
-	orderCompletedSushiID := mustUUID("55555555-5555-5555-5555-555555555006")
-	orderCompletedGroceryID := mustUUID("55555555-5555-5555-5555-555555555007")
+	restBakeryID := demoUUID(3, 1)
+	restSushiID := demoUUID(3, 2)
+	restGroceryID := demoUUID(3, 3)
+	restBowlID := demoUUID(3, 4)
 
 	users := []domain.User{
-		user(adminID, "admin@stillgood.test", "Админ StillGood", "ADMIN", "", passwordHash, nil, true, false, now),
-		user(userAnnaID, "anna.user@stillgood.test", "Анна Покупатель", "USER", "", passwordHash, stringPtr("+79990000001"), true, false, now),
-		user(userMaxID, "max.user@stillgood.test", "Максим Покупатель", "USER", "", passwordHash, stringPtr("+79990000002"), true, false, now),
-		user(userBlockedID, "blocked.user@stillgood.test", "Заблокированный пользователь", "USER", "", passwordHash, stringPtr("+79990000003"), true, true, now),
-		user(partnerBakeryID, "partner.bakery@stillgood.test", "Партнер Пекарня", "PARTNER", "APPROVED", passwordHash, stringPtr("+79990000101"), true, false, now),
-		user(partnerSushiID, "partner.sushi@stillgood.test", "Партнер Суши", "PARTNER", "APPROVED", passwordHash, stringPtr("+79990000102"), true, false, now),
-		user(partnerGroceryID, "partner.grocery@stillgood.test", "Партнер Маркет", "PARTNER", "APPROVED", passwordHash, stringPtr("+79990000103"), true, false, now),
-		user(partnerPendingID, "partner.pending@stillgood.test", "Партнер на модерации", "PARTNER", "PENDING", passwordHash, stringPtr("+79990000104"), false, false, now),
+		user(adminID, "admin@stillgood.test", "Администратор StillGood", "ADMIN", "", passwordHash, nil, true, false, now),
+		user(userAnnaID, "anna.belova@stillgood.test", "Анна Белова", "USER", "", passwordHash, stringPtr("+79990000001"), true, false, now),
+		user(userMaxID, "maxim.sokolov@stillgood.test", "Максим Соколов", "USER", "", passwordHash, stringPtr("+79990000002"), true, false, now),
+		user(userDaryaID, "darya.kim@stillgood.test", "Дарья Ким", "USER", "", passwordHash, stringPtr("+79990000003"), true, false, now),
+		user(userIlyaID, "ilya.orlov@stillgood.test", "Илья Орлов", "USER", "", passwordHash, stringPtr("+79990000004"), true, false, now),
+		user(userKateID, "ekaterina.volkova@stillgood.test", "Екатерина Волкова", "USER", "", passwordHash, stringPtr("+79990000005"), true, false, now),
+		user(userBlockedID, "blocked.user@stillgood.test", "Заблокированный пользователь", "USER", "", passwordHash, stringPtr("+79990000006"), true, true, now),
+		user(partnerBakeryID, "partner.bakery@stillgood.test", "Партнер Хлеб и Кофе", "PARTNER", "APPROVED", passwordHash, stringPtr("+79990000101"), true, false, now),
+		user(partnerSushiID, "partner.sushi@stillgood.test", "Партнер Sakura Box", "PARTNER", "APPROVED", passwordHash, stringPtr("+79990000102"), true, false, now),
+		user(partnerGroceryID, "partner.market@stillgood.test", "Партнер Green Market", "PARTNER", "APPROVED", passwordHash, stringPtr("+79990000103"), true, false, now),
+		user(partnerBowlID, "partner.bowl@stillgood.test", "Партнер Daily Bowl", "PARTNER", "APPROVED", passwordHash, stringPtr("+79990000104"), true, false, now),
+		user(partnerPendingBistroID, "partner.pending.bistro@stillgood.test", "Партнер Bistro Point", "PARTNER", "PENDING", passwordHash, stringPtr("+79990000111"), false, false, now),
+		user(partnerPendingDessertID, "partner.pending.dessert@stillgood.test", "Партнер Sweet Draft", "PARTNER", "PENDING", passwordHash, stringPtr("+79990000112"), false, false, now),
+		user(partnerRejectedFastID, "partner.rejected.fast@stillgood.test", "Партнер Fast Corner", "PARTNER", "REJECTED", passwordHash, stringPtr("+79990000121"), true, false, now),
+		user(partnerRejectedCateringID, "partner.rejected.catering@stillgood.test", "Партнер Catering Lab", "PARTNER", "REJECTED", passwordHash, stringPtr("+79990000122"), true, false, now),
 	}
-	users[4].RestaurantID = &restBakeryID
-	users[5].RestaurantID = &restSushiID
-	users[6].RestaurantID = &restGroceryID
+	for i := range users {
+		switch users[i].ID {
+		case partnerBakeryID:
+			users[i].RestaurantID = &restBakeryID
+		case partnerSushiID:
+			users[i].RestaurantID = &restSushiID
+		case partnerGroceryID:
+			users[i].RestaurantID = &restGroceryID
+		case partnerBowlID:
+			users[i].RestaurantID = &restBowlID
+		}
+	}
 
 	categories := []domain.Category{
 		{ID: catBakeryID, Name: "Выпечка", IconURL: stringPtr("https://picsum.photos/seed/stillgood-bakery/128")},
@@ -327,61 +334,185 @@ func buildDemoData(now time.Time) (demoData, error) {
 		{ID: catDessertsID, Name: "Десерты", IconURL: stringPtr("https://picsum.photos/seed/stillgood-desserts/128")},
 		{ID: catGroceriesID, Name: "Продукты", IconURL: stringPtr("https://picsum.photos/seed/stillgood-groceries/128")},
 		{ID: catDrinksID, Name: "Напитки", IconURL: stringPtr("https://picsum.photos/seed/stillgood-drinks/128")},
+		{ID: catBowlsID, Name: "Боулы и салаты", IconURL: stringPtr("https://picsum.photos/seed/stillgood-bowls/128")},
 	}
 
 	restaurants := []domain.Restaurant{
 		restaurant(restBakeryID, partnerBakeryID, "Хлеб и Кофе", "ООО Хлеб и Кофе", "7701000001", "Москва, ул. Тверская, 7", "Пекарня с вечерними наборами свежей выпечки.", "+74950000001", 55.7621, 37.6092, 12, true, now),
 		restaurant(restSushiID, partnerSushiID, "Sakura Box", "ООО Сакура Бокс", "7701000002", "Москва, ул. Покровка, 18", "Роллы, боулы и готовые наборы после обеда.", "+74950000002", 55.7602, 37.6478, 15, true, now),
 		restaurant(restGroceryID, partnerGroceryID, "Green Market", "ООО Грин Маркет", "7701000003", "Москва, Ленинградский проспект, 35", "Продукты с коротким сроком годности по сниженной цене.", "+74950000003", 55.7867, 37.5626, 10, true, now),
-		restaurant(restInactiveID, partnerPendingID, "Draft Kitchen", "ООО Драфт Китчен", "7701000004", "Москва, ул. Лесная, 20", "Неактивный ресторан для проверки админки.", "+74950000004", 55.7808, 37.5908, 0, false, now),
+		restaurant(restBowlID, partnerBowlID, "Daily Bowl", "ООО Дейли Боул", "7701000004", "Москва, ул. Лесная, 20", "Боулы, супы и салаты с дневной витрины.", "+74950000004", 55.7808, 37.5908, 14, true, now),
 	}
 
-	offers := []domain.Offer{
-		offer(offerCroissantID, restBakeryID, catBakeryID, "Вечерний набор круассанов", "4 круассана и 2 булочки дня.", 290, 620, 6, 8, futureStart, futureEnd, true, "https://picsum.photos/seed/stillgood-croissant/800/600", now),
-		offer(offerDinnerID, restBakeryID, catMealsID, "Ланч-бокс с кишем", "Киш, салат и маленький десерт.", 360, 760, 3, 5, now.Add(90*time.Minute), now.Add(5*time.Hour), true, "https://picsum.photos/seed/stillgood-lunch/800/600", now),
-		offer(offerSushiID, restSushiID, catSushiID, "Сет роллов Surprise", "Ассорти роллов дня, 24 штуки.", 690, 1390, 4, 6, now.Add(3*time.Hour), now.Add(7*time.Hour), true, "https://picsum.photos/seed/stillgood-sushi-set/800/600", now),
-		offer(offerDessertID, restSushiID, catDessertsID, "Матча десерты", "Два десерта матча и чизкейк.", 330, 740, 2, 4, now.Add(2*time.Hour), now.Add(8*time.Hour), true, "https://picsum.photos/seed/stillgood-dessert/800/600", now),
-		offer(offerGroceriesID, restGroceryID, catGroceriesID, "Овощной набор", "Овощи, зелень и фрукты для ужина.", 410, 980, 5, 7, now.Add(1*time.Hour), now.Add(4*time.Hour), true, "https://picsum.photos/seed/stillgood-grocery-box/800/600", now),
-		offer(offerDrinksID, restGroceryID, catDrinksID, "Набор смузи", "3 бутылки смузи со сроком до завтра.", 250, 540, 5, 5, now.Add(1*time.Hour), now.Add(5*time.Hour), true, "https://picsum.photos/seed/stillgood-smoothie/800/600", now),
-		offer(offerSoldOutID, restBakeryID, catDessertsID, "Распроданный чизкейк", "Кейс для отображения sold out.", 199, 450, 0, 3, futureStart, futureEnd, true, "https://picsum.photos/seed/stillgood-soldout/800/600", now.Add(-24*time.Hour)),
-		offer(offerExpiredID, restSushiID, catMealsID, "Вчерашний ужин", "Кейс для истекшего pickup window.", 300, 700, 2, 2, past, past.Add(4*time.Hour), true, "https://picsum.photos/seed/stillgood-expired/800/600", now.Add(-72*time.Hour)),
+	offers := []domain.Offer{}
+	addOffer := func(index int, restaurantID, categoryID uuid.UUID, title, description string, price, originalPrice float64, total int, pickupStart, pickupEnd time.Time, active bool, seed string) uuid.UUID {
+		id := demoUUID(4, index)
+		imageURL := "https://picsum.photos/seed/" + seed + "/800/600"
+		offers = append(offers, offer(id, restaurantID, categoryID, title, description, price, originalPrice, total, total, pickupStart, pickupEnd, active, imageURL, pickupStart.Add(-8*time.Hour)))
+		return id
+	}
+	historicOffer := func(index int, daysAgo int, restaurantID, categoryID uuid.UUID, title, description string, price, originalPrice float64, total int, seed string) uuid.UUID {
+		start := dayAt(today, daysAgo, 18, 0)
+		return addOffer(index, restaurantID, categoryID, title, description, price, originalPrice, total, start, start.Add(3*time.Hour), false, seed)
 	}
 
-	orders := []domain.Order{
-		order(orderCreatedID, userAnnaID, offerGroceriesID, "SG-1001", domain.OrderCreated, 410, now.Add(-20*time.Minute), nil, nil, nil, timePtr(now.Add(40*time.Minute)), nil),
-		order(orderPaidID, userMaxID, offerSushiID, "SG-1002", domain.OrderPaid, 690, now.Add(-2*time.Hour), timePtr(now.Add(-90*time.Minute)), nil, nil, timePtr(now.Add(30*time.Minute)), nil),
-		order(orderCompletedID, userAnnaID, offerCroissantID, "SG-1003", domain.OrderCompleted, 290, now.Add(-48*time.Hour), timePtr(now.Add(-47*time.Hour)), timePtr(now.Add(-44*time.Hour)), nil, nil, nil),
-		order(orderCancelledID, userMaxID, offerDessertID, "SG-1004", domain.OrderCancelled, 330, now.Add(-24*time.Hour), timePtr(now.Add(-23*time.Hour)), nil, timePtr(now.Add(-22*time.Hour)), nil, stringPtr("Пользователь отменил заказ")),
-		order(orderExpiredID, userAnnaID, offerExpiredID, "SG-1005", domain.OrderCancelled, 300, now.Add(-72*time.Hour), nil, nil, timePtr(now.Add(-68*time.Hour)), nil, stringPtr("expired")),
-		order(orderCompletedSushiID, userAnnaID, offerSushiID, "SG-1006", domain.OrderCompleted, 690, now.Add(-96*time.Hour), timePtr(now.Add(-95*time.Hour)), timePtr(now.Add(-92*time.Hour)), nil, nil, nil),
-		order(orderCompletedGroceryID, userMaxID, offerGroceriesID, "SG-1007", domain.OrderCompleted, 410, now.Add(-120*time.Hour), timePtr(now.Add(-119*time.Hour)), timePtr(now.Add(-116*time.Hour)), nil, nil, nil),
-	}
+	offerBakeryD13 := historicOffer(1, 13, restBakeryID, catBakeryID, "Вечерний набор круассанов", "4 круассана и 2 булочки дня.", 290, 620, 6, "stillgood-croissant-d13")
+	offerBakeryD12 := historicOffer(2, 12, restBakeryID, catBakeryID, "Корзина выпечки", "Слойки, круассаны и хлеб дня.", 290, 620, 6, "stillgood-croissant-d12")
+	offerBakeryD8 := historicOffer(3, 8, restBakeryID, catMealsID, "Ланч-бокс с кишем", "Киш, салат и маленький десерт.", 360, 760, 7, "stillgood-lunch-d8")
+	offerBakeryD4 := historicOffer(4, 4, restBakeryID, catDessertsID, "Чизкейк дня", "Кусочки чизкейка и тарталетки.", 199, 450, 4, "stillgood-cheesecake-d4")
+	offerSushiD11 := historicOffer(5, 11, restSushiID, catSushiID, "Сет роллов Surprise", "Ассорти роллов дня, 24 штуки.", 690, 1390, 5, "stillgood-sushi-d11")
+	offerSushiD10 := historicOffer(6, 10, restSushiID, catDessertsID, "Матча десерты", "Два десерта матча и чизкейк.", 330, 740, 5, "stillgood-matcha-d10")
+	offerSushiD6 := historicOffer(7, 6, restSushiID, catSushiID, "Сет роллов Classic", "Роллы с лососем, овощами и сливочным сыром.", 690, 1390, 5, "stillgood-sushi-d6")
+	offerSushiD2 := historicOffer(8, 2, restSushiID, catDessertsID, "Матча десерты", "Десерты матча после дневной витрины.", 330, 740, 5, "stillgood-matcha-d2")
+	offerMarketD9 := historicOffer(9, 9, restGroceryID, catGroceriesID, "Овощной набор", "Овощи, зелень и фрукты для ужина.", 410, 980, 6, "stillgood-veg-d9")
+	offerMarketD7 := historicOffer(10, 7, restGroceryID, catDrinksID, "Набор смузи", "3 бутылки смузи со сроком до завтра.", 250, 540, 6, "stillgood-smoothie-d7")
+	offerMarketD3 := historicOffer(11, 3, restGroceryID, catGroceriesID, "Овощной набор", "Овощи, зелень и фрукты для ужина.", 410, 980, 6, "stillgood-veg-d3")
+	offerMarketD1 := historicOffer(12, 1, restGroceryID, catDrinksID, "Набор смузи", "3 бутылки смузи со сроком до завтра.", 250, 540, 6, "stillgood-smoothie-d1")
+	offerBowlD5 := historicOffer(13, 5, restBowlID, catBowlsID, "Боул с курицей", "Боул, суп дня и салат.", 390, 850, 5, "stillgood-bowl-d5")
+	offerBowlD1 := historicOffer(14, 1, restBowlID, catBowlsID, "Боул с киноа", "Боул с киноа и овощами.", 390, 850, 5, "stillgood-bowl-d1")
+	offerBowlToday := addOffer(15, restBowlID, catBowlsID, "Дневной боул", "Боул с курицей после обеденной витрины.", 390, 850, 5, now.Add(-3*time.Hour), now.Add(-1*time.Hour), false, "stillgood-bowl-today")
+	currentBakery := addOffer(101, restBakeryID, catBakeryID, "Свежая выпечка сегодня", "Круассаны, булочки и хлеб к вечернему самовывозу.", 310, 640, 8, futureStart, futureEnd, true, "stillgood-current-bakery")
+	addOffer(102, restBakeryID, catMealsID, "Киш и салат", "Киш, салат и десерт из дневного меню.", 370, 780, 6, now.Add(90*time.Minute), now.Add(5*time.Hour), true, "stillgood-current-lunch")
+	currentSushi := addOffer(103, restSushiID, catSushiID, "Сет роллов Evening", "Ассорти роллов дня, 24 штуки.", 690, 1390, 7, now.Add(3*time.Hour), now.Add(7*time.Hour), true, "stillgood-current-sushi")
+	addOffer(104, restSushiID, catDessertsID, "Матча сет", "Десерты матча и чизкейк.", 340, 760, 4, now.Add(2*time.Hour), now.Add(8*time.Hour), true, "stillgood-current-dessert")
+	currentGroceries := addOffer(105, restGroceryID, catGroceriesID, "Овощи и фрукты", "Набор овощей, зелени и фруктов.", 420, 990, 8, now.Add(1*time.Hour), now.Add(4*time.Hour), true, "stillgood-current-grocery")
+	addOffer(106, restGroceryID, catDrinksID, "Смузи микс", "3 бутылки смузи со сроком до завтра.", 260, 560, 6, now.Add(1*time.Hour), now.Add(5*time.Hour), true, "stillgood-current-smoothie")
+	addOffer(107, restBowlID, catBowlsID, "Боул и суп", "Боул, суп дня и салат.", 390, 850, 6, now.Add(90*time.Minute), now.Add(5*time.Hour), true, "stillgood-current-bowl")
+	addOffer(108, restBowlID, catMealsID, "Суп и салат", "Суп дня, салат и хлеб.", 240, 520, 5, now.Add(2*time.Hour), now.Add(6*time.Hour), true, "stillgood-current-soup")
 
+	restaurantByID := restaurantsByID(restaurants)
+	offerByID := offersByID(offers)
+	orders := []domain.Order{}
 	histories := []domain.OrderStatusHistory{}
-	histories = append(histories, history(orderCreatedID, domain.OrderCreated, now.Add(-20*time.Minute)))
-	histories = append(histories, history(orderPaidID, domain.OrderCreated, now.Add(-2*time.Hour)), history(orderPaidID, domain.OrderPaid, now.Add(-90*time.Minute)))
-	histories = append(histories, history(orderCompletedID, domain.OrderCreated, now.Add(-48*time.Hour)), history(orderCompletedID, domain.OrderPaid, now.Add(-47*time.Hour)), history(orderCompletedID, domain.OrderCompleted, now.Add(-44*time.Hour)))
-	histories = append(histories, history(orderCancelledID, domain.OrderCreated, now.Add(-24*time.Hour)), history(orderCancelledID, domain.OrderPaid, now.Add(-23*time.Hour)), history(orderCancelledID, domain.OrderCancelled, now.Add(-22*time.Hour)))
-	histories = append(histories, history(orderExpiredID, domain.OrderCreated, now.Add(-72*time.Hour)), history(orderExpiredID, domain.OrderCancelled, now.Add(-68*time.Hour)))
-	histories = append(histories, history(orderCompletedSushiID, domain.OrderCreated, now.Add(-96*time.Hour)), history(orderCompletedSushiID, domain.OrderPaid, now.Add(-95*time.Hour)), history(orderCompletedSushiID, domain.OrderCompleted, now.Add(-92*time.Hour)))
-	histories = append(histories, history(orderCompletedGroceryID, domain.OrderCreated, now.Add(-120*time.Hour)), history(orderCompletedGroceryID, domain.OrderPaid, now.Add(-119*time.Hour)), history(orderCompletedGroceryID, domain.OrderCompleted, now.Add(-116*time.Hour)))
+	addOrder := func(index int, userID, offerID uuid.UUID, status domain.OrderStatus, createdAt time.Time, paidAt, completedAt, cancelledAt, expiresAt *time.Time, cancelReason *string) uuid.UUID {
+		id := demoUUID(5, index)
+		var number *string
+		if paidAt != nil {
+			numberValue := fmt.Sprintf("SG-%04d", 2000+index)
+			number = &numberValue
+		}
+		offerItem := offerByID[offerID]
+		restaurantItem := restaurantByID[offerItem.RestaurantID]
+		orders = append(orders, order(id, userID, offerID, number, status, offerItem.Price, restaurantItem.Commission, createdAt, paidAt, completedAt, cancelledAt, expiresAt, cancelReason))
+		histories = append(histories, history(id, domain.OrderCreated, createdAt))
+		if paidAt != nil {
+			histories = append(histories, history(id, domain.OrderPaid, *paidAt))
+		}
+		if completedAt != nil {
+			histories = append(histories, history(id, domain.OrderCompleted, *completedAt))
+		}
+		if cancelledAt != nil {
+			histories = append(histories, history(id, domain.OrderCancelled, *cancelledAt))
+		}
+		return id
+	}
+	completedOrder := func(index int, userID, offerID uuid.UUID) uuid.UUID {
+		offerItem := offerByID[offerID]
+		createdAt := offerItem.PickupStart.Add(-6 * time.Hour)
+		paidAt := createdAt.Add(25 * time.Minute)
+		completedAt := offerItem.PickupStart.Add(90 * time.Minute)
+		return addOrder(index, userID, offerID, domain.OrderCompleted, createdAt, &paidAt, &completedAt, nil, nil, nil)
+	}
+	cancelledPaidOrder := func(index int, userID, offerID uuid.UUID, reason string) uuid.UUID {
+		offerItem := offerByID[offerID]
+		createdAt := offerItem.PickupStart.Add(-7 * time.Hour)
+		paidAt := createdAt.Add(20 * time.Minute)
+		cancelledAt := createdAt.Add(2 * time.Hour)
+		return addOrder(index, userID, offerID, domain.OrderCancelled, createdAt, &paidAt, nil, &cancelledAt, nil, stringPtr(reason))
+	}
+	expiredOrder := func(index int, userID, offerID uuid.UUID) uuid.UUID {
+		offerItem := offerByID[offerID]
+		createdAt := offerItem.PickupStart.Add(-8 * time.Hour)
+		expiresAt := createdAt.Add(15 * time.Minute)
+		cancelledAt := createdAt.Add(30 * time.Minute)
+		return addOrder(index, userID, offerID, domain.OrderCancelled, createdAt, nil, nil, &cancelledAt, &expiresAt, stringPtr("expired"))
+	}
+	createdOrder := func(index int, userID, offerID uuid.UUID) uuid.UUID {
+		createdAt := now.Add(-5 * time.Minute)
+		expiresAt := createdAt.Add(15 * time.Minute)
+		return addOrder(index, userID, offerID, domain.OrderCreated, createdAt, nil, nil, nil, &expiresAt, nil)
+	}
+	paidOrder := func(index int, userID, offerID uuid.UUID) uuid.UUID {
+		createdAt := now.Add(-90 * time.Minute)
+		paidAt := createdAt.Add(10 * time.Minute)
+		expiresAt := createdAt.Add(15 * time.Minute)
+		return addOrder(index, userID, offerID, domain.OrderPaid, createdAt, &paidAt, nil, nil, &expiresAt, nil)
+	}
 
+	orderBakery1 := completedOrder(1, userAnnaID, offerBakeryD13)
+	orderBakery2 := completedOrder(2, userMaxID, offerBakeryD12)
+	orderSushi1 := completedOrder(3, userDaryaID, offerSushiD11)
+	orderSushi2 := completedOrder(4, userIlyaID, offerSushiD10)
+	orderMarket1 := completedOrder(5, userAnnaID, offerMarketD9)
+	orderBakery3 := completedOrder(6, userDaryaID, offerBakeryD8)
+	orderBakery4 := completedOrder(7, userIlyaID, offerBakeryD8)
+	cancelledPaidOrder(8, userMaxID, offerBakeryD8, "Пользователь отменил заказ заранее")
+	orderMarket2 := completedOrder(9, userMaxID, offerMarketD7)
+	orderSushi3 := completedOrder(10, userAnnaID, offerSushiD6)
+	orderBowl1 := completedOrder(11, userIlyaID, offerBowlD5)
+	orderBowlExpired := expiredOrder(12, userDaryaID, offerBowlD5)
+	orderBakery5 := completedOrder(13, userKateID, offerBakeryD4)
+	orderMarket3 := completedOrder(14, userAnnaID, offerMarketD3)
+	orderMarketCancelled := cancelledPaidOrder(15, userIlyaID, offerMarketD3, "Планы изменились")
+	orderSushi4 := completedOrder(16, userMaxID, offerSushiD2)
+	orderSushi5 := completedOrder(17, userDaryaID, offerSushiD2)
+	orderMarket4 := completedOrder(18, userKateID, offerMarketD1)
+	orderBowl2 := completedOrder(19, userAnnaID, offerBowlD1)
+	orderBowl3 := completedOrder(20, userMaxID, offerBowlToday)
+	orderPaidID := paidOrder(21, userMaxID, currentSushi)
+	orderCreatedID := createdOrder(22, userAnnaID, currentGroceries)
+	createdOrder(23, userDaryaID, currentBakery)
+
+	applyOfferAvailability(offers, orders)
+
+	orderByID := ordersByID(orders)
+	reviewForOrder := func(index int, orderID uuid.UUID, rating int, comment string) domain.Review {
+		orderItem := orderByID[orderID]
+		offerItem := offerByID[orderItem.OfferID]
+		createdAt := orderItem.CreatedAt.Add(2 * time.Hour)
+		if orderItem.CompletedAt != nil {
+			createdAt = orderItem.CompletedAt.Add(45 * time.Minute)
+		}
+		return domain.Review{
+			ID:           demoUUID(6, index),
+			OrderID:      orderID,
+			RestaurantID: offerItem.RestaurantID,
+			UserID:       orderItem.UserID,
+			Rating:       rating,
+			Comment:      comment,
+			CreatedAt:    createdAt,
+		}
+	}
 	reviews := []domain.Review{
-		{ID: mustUUID("66666666-6666-6666-6666-666666666001"), OrderID: orderCompletedID, RestaurantID: restBakeryID, UserID: userAnnaID, Rating: 5, Comment: "Свежая выпечка, удобно забрать после работы.", CreatedAt: now.Add(-43 * time.Hour)},
-		{ID: mustUUID("66666666-6666-6666-6666-666666666002"), OrderID: orderCompletedSushiID, RestaurantID: restSushiID, UserID: userAnnaID, Rating: 4, Comment: "Хороший сет, часть роллов была с острой начинкой.", CreatedAt: now.Add(-91 * time.Hour)},
-		{ID: mustUUID("66666666-6666-6666-6666-666666666003"), OrderID: orderCompletedGroceryID, RestaurantID: restGroceryID, UserID: userMaxID, Rating: 5, Comment: "Овощи свежие, набор оказался больше ожидаемого.", CreatedAt: now.Add(-115 * time.Hour)},
+		reviewForOrder(1, orderBakery1, 5, "Свежая выпечка, удобно забрать после работы."),
+		reviewForOrder(2, orderBakery2, 5, "Корзина была полной, хлеб еще теплый."),
+		reviewForOrder(3, orderBakery3, 4, "Киш вкусный, десерт был чуть меньше ожиданий."),
+		reviewForOrder(4, orderBakery4, 4, "Хороший набор для ужина, забрали без очереди."),
+		reviewForOrder(5, orderBakery5, 5, "Чизкейк отличный, цена очень приятная."),
+		reviewForOrder(6, orderSushi1, 5, "Сет свежий, роллов хватило на двоих."),
+		reviewForOrder(7, orderSushi2, 4, "Хорошие десерты, матча яркая."),
+		reviewForOrder(8, orderSushi3, 4, "Вкусно, но часть роллов была острой."),
+		reviewForOrder(9, orderSushi4, 5, "Забрал быстро, упаковка аккуратная."),
+		reviewForOrder(10, orderSushi5, 4, "Набор хороший, хотелось бы больше соуса."),
+		reviewForOrder(11, orderMarket1, 5, "Овощи свежие, набор оказался больше ожидаемого."),
+		reviewForOrder(12, orderMarket2, 5, "Смузи были холодные и с нормальным сроком."),
+		reviewForOrder(13, orderMarket3, 4, "Все свежее, только зелень немного помялась."),
+		reviewForOrder(14, orderMarket4, 5, "Отличный набор напитков по цене одного."),
+		reviewForOrder(15, orderBowl1, 4, "Боул сытный, суп был еще теплый."),
+		reviewForOrder(16, orderBowl2, 5, "Очень удачный набор после работы."),
+		reviewForOrder(17, orderBowl3, 4, "Вкусно и быстро, салат мог быть больше."),
 	}
 
 	notices := []domain.Notification{
-		notice(userAnnaID, "Заказ создан", "Овощной набор ожидает оплаты.", "/orders/"+orderCreatedID.String(), "order_created", now.Add(-20*time.Minute)),
-		notice(userMaxID, "Заказ оплачен", "Сет роллов Surprise оплачен и ожидает выдачи.", "/orders/"+orderPaidID.String(), "order_paid", now.Add(-90*time.Minute)),
-		notice(userAnnaID, "Спасибо за отзыв", "Ваш отзыв помогает другим пользователям.", "/restaurants/"+restBakeryID.String()+"/reviews", "review_created", now.Add(-42*time.Hour)),
-		notice(userMaxID, "Заказ отменен", "Матча десерты были отменены.", "/orders/"+orderCancelledID.String(), "order_cancelled", now.Add(-22*time.Hour)),
-		notice(userAnnaID, "Заказ завершен", "Sakura Box отметил заказ как выданный.", "/orders/"+orderCompletedSushiID.String(), "order_completed", now.Add(-92*time.Hour)),
-		notice(userMaxID, "Заказ завершен", "Green Market отметил заказ как выданный.", "/orders/"+orderCompletedGroceryID.String(), "order_completed", now.Add(-116*time.Hour)),
+		notice(userAnnaID, "Заказ создан", "Овощи и фрукты ожидают оплаты.", "/orders/"+orderCreatedID.String(), "order_created", now.Add(-5*time.Minute)),
+		notice(userMaxID, "Заказ оплачен", "Сет роллов Evening оплачен и ожидает выдачи.", "/orders/"+orderPaidID.String(), "order_paid", now.Add(-80*time.Minute)),
+		notice(userKateID, "Спасибо за отзыв", "Ваш отзыв помогает другим пользователям.", "/restaurants/"+restBakeryID.String()+"/reviews", "review_created", orderByID[orderBakery5].CompletedAt.Add(45*time.Minute)),
+		notice(userIlyaID, "Заказ отменен", "Овощной набор был отменен заранее.", "/orders/"+orderMarketCancelled.String(), "order_cancelled", orderByID[orderMarketCancelled].CancelledAt.Add(5*time.Minute)),
+		notice(userDaryaID, "Заказ истек", "Резерв боула был отменен из-за истечения времени оплаты.", "/orders/"+orderBowlExpired.String(), "order_cancelled", orderByID[orderBowlExpired].CancelledAt.Add(5*time.Minute)),
+		notice(userMaxID, "Заказ завершен", "Daily Bowl отметил заказ как выданный.", "/orders/"+orderBowl3.String(), "order_completed", orderByID[orderBowl3].CompletedAt.Add(5*time.Minute)),
 	}
 
-	analytics := analyticsRows(today, restBakeryID, restSushiID, restGroceryID)
+	analytics := analyticsRows(today, restaurants, offers, categories, orders, histories)
 
 	return demoData{
 		users:       users,
@@ -456,17 +587,22 @@ func offer(id, restaurantID, categoryID uuid.UUID, title, description string, pr
 	}
 }
 
-func order(id, userID, offerID uuid.UUID, number string, status domain.OrderStatus, amount float64, createdAt time.Time, paidAt, completedAt, cancelledAt, expiresAt *time.Time, cancelReason *string) domain.Order {
-	serviceFee := amount * 0.15
+func order(id, userID, offerID uuid.UUID, number *string, status domain.OrderStatus, amount, commission float64, createdAt time.Time, paidAt, completedAt, cancelledAt, expiresAt *time.Time, cancelReason *string) domain.Order {
+	serviceFee := 0.0
+	netPayout := 0.0
+	if status == domain.OrderCompleted {
+		serviceFee = amount * commission / 100.0
+		netPayout = amount - serviceFee
+	}
 	return domain.Order{
 		ID:                 id,
 		UserID:             userID,
 		OfferID:            offerID,
-		OrderNumber:        &number,
+		OrderNumber:        number,
 		Status:             status,
 		Amount:             amount,
 		ServiceFee:         serviceFee,
-		NetPayout:          amount - serviceFee,
+		NetPayout:          netPayout,
 		CreatedAt:          createdAt,
 		PaidAt:             paidAt,
 		CompletedAt:        completedAt,
@@ -497,50 +633,143 @@ func notice(userID uuid.UUID, title, body, deepLink, notificationType string, cr
 	}
 }
 
-func analyticsRows(today time.Time, bakeryID, sushiID, groceryID uuid.UUID) []domain.DailyAnalytics {
-	type row struct {
+func analyticsRows(today time.Time, restaurants []domain.Restaurant, offers []domain.Offer, categories []domain.Category, orders []domain.Order, histories []domain.OrderStatusHistory) []domain.DailyAnalytics {
+	type analyticsKey struct {
+		date         time.Time
 		restaurantID uuid.UUID
-		category     string
-		bookings     int
-		completed    int
-		cancelled    int
-		expired      int
-		revenue      float64
+		categoryID   uuid.UUID
+	}
+	type stat struct {
+		bookings  int
+		completed int
+		cancelled int
+		expired   int
+		revenue   float64
+	}
+
+	offerByID := offersByID(offers)
+	orderByID := ordersByID(orders)
+	categoryByID := categoriesByID(categories)
+	restaurantByID := restaurantsByID(restaurants)
+	stats := map[analyticsKey]*stat{}
+
+	statFor := func(date time.Time, offerID uuid.UUID) *stat {
+		offerItem := offerByID[offerID]
+		key := analyticsKey{date: dayStart(date.UTC()), restaurantID: offerItem.RestaurantID, categoryID: offerItem.CategoryID}
+		if stats[key] == nil {
+			stats[key] = &stat{}
+		}
+		return stats[key]
+	}
+
+	for _, orderItem := range orders {
+		if orderItem.Status == domain.OrderCreated {
+			continue
+		}
+		statFor(orderItem.CreatedAt, orderItem.OfferID).bookings++
+	}
+	for _, item := range histories {
+		orderItem, ok := orderByID[item.OrderID]
+		if !ok {
+			continue
+		}
+		dayStat := statFor(item.ChangedAt, orderItem.OfferID)
+		switch item.Status {
+		case domain.OrderCompleted:
+			dayStat.completed++
+			dayStat.revenue += orderItem.Amount
+		case domain.OrderCancelled:
+			dayStat.cancelled++
+			if orderItem.CancellationReason != nil && *orderItem.CancellationReason == "expired" {
+				dayStat.expired++
+			}
+		}
 	}
 
 	rows := []domain.DailyAnalytics{}
-	baseRows := []row{
-		{bakeryID, "Выпечка", 14, 11, 2, 1, 6380},
-		{bakeryID, "Готовые блюда", 8, 6, 1, 1, 3280},
-		{sushiID, "Суши и роллы", 11, 9, 1, 0, 8210},
-		{sushiID, "Десерты", 6, 5, 1, 0, 2260},
-		{groceryID, "Продукты", 10, 8, 1, 1, 4920},
-		{groceryID, "Напитки", 7, 6, 0, 0, 1750},
-	}
-
-	for day := 0; day < analyticsSeedDays; day++ {
+	for day := analyticsSeedDays - 1; day >= 0; day-- {
 		date := today.AddDate(0, 0, -day)
-		decay := 1 - float64(day)*0.04
-		for _, item := range baseRows {
-			revenue := item.revenue * decay
-			serviceFee := revenue * 0.15
+		seen := map[analyticsKey]struct{}{}
+		for _, offerItem := range offers {
+			key := analyticsKey{date: date, restaurantID: offerItem.RestaurantID, categoryID: offerItem.CategoryID}
+			if _, exists := seen[key]; exists {
+				continue
+			}
+			seen[key] = struct{}{}
+			item, ok := stats[key]
+			if !ok || (item.bookings == 0 && item.completed == 0 && item.cancelled == 0 && item.expired == 0 && item.revenue == 0) {
+				continue
+			}
+			restaurantItem := restaurantByID[key.restaurantID]
+			serviceFee := item.revenue * restaurantItem.Commission / 100.0
 			rows = append(rows, domain.DailyAnalytics{
 				ID:              uuid.New(),
-				RestaurantID:    item.restaurantID,
+				RestaurantID:    key.restaurantID,
 				Date:            date,
-				CategoryName:    item.category,
-				TotalBookings:   maxInt(1, int(float64(item.bookings)*decay)),
-				CompletedOrders: maxInt(1, int(float64(item.completed)*decay)),
-				CancelledOrders: int(float64(item.cancelled) * decay),
-				ExpiredOrders:   int(float64(item.expired) * decay),
-				GrossRevenue:    revenue,
+				CategoryName:    categoryByID[key.categoryID].Name,
+				TotalBookings:   item.bookings,
+				CompletedOrders: item.completed,
+				CancelledOrders: item.cancelled,
+				ExpiredOrders:   item.expired,
+				GrossRevenue:    item.revenue,
 				ServiceFee:      serviceFee,
-				NetPayout:       revenue - serviceFee,
+				NetPayout:       item.revenue - serviceFee,
 				CreatedAt:       analyticsGeneratedAt(date),
 			})
 		}
 	}
 	return rows
+}
+
+func applyOfferAvailability(offers []domain.Offer, orders []domain.Order) {
+	reservedOrSold := map[uuid.UUID]int{}
+	for _, item := range orders {
+		if item.Status == domain.OrderCreated || item.Status == domain.OrderPaid || item.Status == domain.OrderCompleted {
+			reservedOrSold[item.OfferID]++
+		}
+	}
+	for i := range offers {
+		remaining := offers[i].QuantityTotal - reservedOrSold[offers[i].ID]
+		if remaining < 0 {
+			remaining = 0
+		}
+		offers[i].QuantityAvailable = remaining
+		if remaining == 0 {
+			offers[i].IsActive = false
+		}
+	}
+}
+
+func restaurantsByID(restaurants []domain.Restaurant) map[uuid.UUID]domain.Restaurant {
+	items := make(map[uuid.UUID]domain.Restaurant, len(restaurants))
+	for _, item := range restaurants {
+		items[item.ID] = item
+	}
+	return items
+}
+
+func offersByID(offers []domain.Offer) map[uuid.UUID]domain.Offer {
+	items := make(map[uuid.UUID]domain.Offer, len(offers))
+	for _, item := range offers {
+		items[item.ID] = item
+	}
+	return items
+}
+
+func ordersByID(orders []domain.Order) map[uuid.UUID]domain.Order {
+	items := make(map[uuid.UUID]domain.Order, len(orders))
+	for _, item := range orders {
+		items[item.ID] = item
+	}
+	return items
+}
+
+func categoriesByID(categories []domain.Category) map[uuid.UUID]domain.Category {
+	items := make(map[uuid.UUID]domain.Category, len(categories))
+	for _, item := range categories {
+		items[item.ID] = item
+	}
+	return items
 }
 
 func userIDs(users []domain.User) []uuid.UUID {
@@ -587,11 +816,11 @@ func mustUUID(value string) uuid.UUID {
 	return uuid.MustParse(value)
 }
 
-func stringPtr(value string) *string {
-	return &value
+func demoUUID(group, index int) uuid.UUID {
+	return uuid.MustParse(fmt.Sprintf("%08d-%04d-%04d-%04d-%012d", group, group, group, group, index))
 }
 
-func timePtr(value time.Time) *time.Time {
+func stringPtr(value string) *string {
 	return &value
 }
 
@@ -599,13 +828,11 @@ func dayStart(value time.Time) time.Time {
 	return time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, time.UTC)
 }
 
-func analyticsGeneratedAt(date time.Time) time.Time {
-	return time.Date(date.Year(), date.Month(), date.Day()+1, 2, 0, 0, 0, time.UTC)
+func dayAt(today time.Time, daysAgo int, hour, minute int) time.Time {
+	date := today.AddDate(0, 0, -daysAgo)
+	return time.Date(date.Year(), date.Month(), date.Day(), hour, minute, 0, 0, time.UTC)
 }
 
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
+func analyticsGeneratedAt(date time.Time) time.Time {
+	return time.Date(date.Year(), date.Month(), date.Day()+1, 2, 0, 0, 0, time.UTC)
 }
