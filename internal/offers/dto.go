@@ -87,6 +87,7 @@ type FilterParams struct {
 	MinPrice     *float64
 	MaxPrice     *float64
 	IsActive     *bool
+	Query        string
 	SortBy       string
 	Limit        int
 	Offset       int

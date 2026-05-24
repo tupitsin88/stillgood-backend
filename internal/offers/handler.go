@@ -136,6 +136,7 @@ func (h *OfferHandler) GetPublicOffers(c *gin.Context) {
 	params := FilterParams{
 		Limit:  limit,
 		Offset: offset,
+		Query:  strings.TrimSpace(c.Query("q")),
 		SortBy: c.Query("sortBy"),
 	}
 
