@@ -81,6 +81,8 @@ func (h *Handler) CreateRestaurant(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "RESTAURANT_ALREADY_EXISTS"})
 		case errors.Is(err, ErrInvalidCoordinates):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_COORDINATES"})
+		case errors.Is(err, ErrInvalidPhone):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid phone", "message": "phone must be a valid E.164 phone number"})
 		case errors.Is(err, gorm.ErrRecordNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "Partner not found"})
 		default:
@@ -380,6 +382,10 @@ func (h *Handler) UpdatePartnerRestaurant(c *gin.Context) {
 
 	restaurant, err := h.service.UpdatePartnerRestaurant(partnerID, req)
 	if err != nil {
+		if errors.Is(err, ErrInvalidPhone) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid phone", "message": "phone must be a valid E.164 phone number"})
+			return
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Restaurant not found"})
 			return
